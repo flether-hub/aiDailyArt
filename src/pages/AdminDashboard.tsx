@@ -370,18 +370,17 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
-      <header className="flex justify-between items-end pb-4 border-b border-slate-200">
+      <header className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-200">
         <div>
-           <h1 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
-             <ShieldCheck className="w-7 h-7 text-amber-500" />
-             艺术殿堂管理控制台
-           </h1>
-           <p className="text-slate-500 mt-1 text-sm">管理每日抓取的名画及解读内容。</p>
+           <p className="text-slate-800 mt-1 text-base sm:text-lg font-bold flex items-center gap-2">
+             <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 shrink-0" />
+             <span>管理每日抓取的名画及解读内容。</span>
+           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
           {fetchingProgress && (
-             <div className={`text-xs px-3 py-1.5 rounded-md font-mono border max-w-sm flex items-center gap-2 ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}>
-               <span className="truncate">{fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}</span>
+             <div className={`text-xs px-3 py-1.5 rounded-md font-mono border w-full sm:max-w-sm flex items-center gap-2 ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}>
+               <span className="truncate flex-1">{fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}</span>
                {fetchingProgress.error && (
                  <button onClick={() => setFetchingProgress(null)} className="opacity-60 hover:opacity-100 flex-shrink-0" title="关闭">&times;</button>
                )}
@@ -390,7 +389,7 @@ export default function AdminDashboard() {
           <button 
             onClick={triggerFetch}
             disabled={fetchingWorks}
-            className="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm flex items-center gap-2"
+            className="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
           >
             <RefreshCw className={`w-4 h-4 ${fetchingWorks ? 'animate-spin' : ''}`} />
             {fetchingWorks ? '正在鉴赏中...' : '手动甄选单幅名画'}
@@ -401,7 +400,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* Sidebar Controls */}
-        <div className="flex flex-col gap-6 col-span-1 lg:col-span-1 h-fit">
+        <div className="flex flex-col gap-6 col-span-1 lg:col-span-1 h-fit order-2 lg:order-1">
           <div className="bg-slate-100 p-6 rounded-xl border border-slate-200">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
@@ -533,17 +532,17 @@ export default function AdminDashboard() {
         </div>
 
         {/* Content Management */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit">
-          <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-             <div className="flex items-center gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit order-1 lg:order-2">
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center bg-slate-50/50 gap-4 sm:gap-0">
+             <div className="flex flex-wrap items-center gap-3">
                <h2 className="font-bold text-slate-700 flex items-center gap-2"><Palette className="w-4 h-4 text-slate-400" /> 藏品库管理</h2>
                {totalArtworks > 0 && (
-                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm ml-2">
+                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm ml-1 sm:ml-2">
                     INVENTORY: {totalArtworks}
                  </span>
                )}
                {artworks.length > 0 && (
-                 <button onClick={toggleSelectAll} className="text-xs text-blue-600 hover:text-blue-800 transition-colors ml-2">
+                 <button onClick={toggleSelectAll} className="text-xs text-blue-600 hover:text-blue-800 transition-colors ml-1 sm:ml-2">
                    {selectedIds.length === artworks.length ? '取消全选' : '全选当前页'}
                  </button>
                )}
@@ -551,9 +550,9 @@ export default function AdminDashboard() {
              {selectedIds.length > 0 && (
                <button 
                  onClick={bulkDelete}
-                 className="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-xs font-bold transition-colors"
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold transition-colors w-full sm:w-auto justify-center"
                >
-                 批量删除 ({selectedIds.length})
+                 <Trash2 className="w-3 h-3" /> 批量删除 ({selectedIds.length})
                </button>
              )}
           </div>
@@ -568,9 +567,9 @@ export default function AdminDashboard() {
                  <p className="text-xs mt-2 opacity-70">系统目前尚未抓取到名画内容，您可以等待后台任务或手动触发获取。</p>
                </div>
              ) : artworks.map((item, index) => (
-               <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 gap-4 transition-colors ${index % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50`}>
-                 <div className="flex items-center gap-4">
-                   <div className="flex items-center justify-center shrink-0 w-6">
+               <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 sm:p-4 gap-3 sm:gap-4 transition-colors ${index % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50`}>
+                 <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                   <div className="flex items-center justify-center shrink-0 w-5 sm:w-6">
                      <input 
                        type="checkbox" 
                        checked={selectedIds.includes(item.id)}
@@ -578,26 +577,26 @@ export default function AdminDashboard() {
                        className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
                      />
                    </div>
-                   <div className="text-slate-400 font-mono text-xs w-6 shrink-0">{String(index + 1).padStart(2, '0')}</div>
-                   <Link to={`/artwork/${item.id}`} className="shrink-0 w-12 h-12 bg-slate-100 rounded overflow-hidden hover:opacity-80">
+                   <div className="text-slate-400 font-mono text-[10px] sm:text-xs w-5 sm:w-6 shrink-0">{String(index + 1).padStart(2, '0')}</div>
+                   <Link to={`/artwork/${item.id}`} className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-slate-100 rounded overflow-hidden hover:opacity-80">
                    {item.image_url ? (
                          <img src={item.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                    ) : (
                          <div className="w-full h-full bg-slate-200"></div>
                    )}
                    </Link>
-                 </div>
-                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                   <p className="font-medium text-sm text-slate-800 truncate">
-                      <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
-                      <span className="text-slate-400 font-normal"> - {item.artist}</span>
-                   </p>
-                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-slate-400 mt-1">
-                     <span className="text-slate-600 flex items-center gap-1 shrink-0"><Eye className="w-3 h-3"/> {item.views}</span>
-                     <span className="shrink-0" title="收录时间">收录: {new Date(item.created_at).toLocaleDateString()}</span>
+                   <div className="flex-1 min-w-0 flex flex-col justify-center ml-1 sm:ml-0">
+                     <p className="font-medium text-[13px] sm:text-sm text-slate-800 truncate">
+                        <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
+                        <span className="text-slate-400 font-normal"> - {item.artist}</span>
+                     </p>
+                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-xs font-mono text-slate-400 mt-0.5 sm:mt-1">
+                       <span className="text-slate-600 flex items-center gap-1 shrink-0"><Eye className="w-3 h-3"/> {item.views}</span>
+                       <span className="shrink-0" title="收录时间">收录: {new Date(item.created_at).toLocaleDateString()}</span>
+                     </div>
                    </div>
                  </div>
-                 <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end">
+                 <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end sm:w-auto">
                    {reinterpretMessages[item.id] && (
                      <div className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith('❌') ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                        <motion.span
@@ -617,13 +616,13 @@ export default function AdminDashboard() {
                    <button 
                      onClick={() => reinterpretArtwork(item.id)}
                      disabled={reinterpretingId === item.id}
-                     className="text-[13px] font-medium text-amber-600 hover:text-amber-800 transition-colors px-3 py-1 rounded hover:bg-amber-50 disabled:opacity-50 break-keep"
+                     className="text-[12px] sm:text-[13px] font-medium text-amber-600 hover:text-amber-800 transition-colors px-3 py-1.5 sm:py-1 rounded hover:bg-amber-50 disabled:opacity-50 break-keep border border-amber-100 sm:border-none"
                    >
                      {reinterpretingId === item.id ? '正在解读...' : '重新解读'}
                    </button>
                    <button 
                      onClick={() => deleteArtwork(item.id)}
-                     className="text-[13px] font-medium text-red-500 hover:text-red-700 transition-colors px-3 py-1 rounded hover:bg-red-50 break-keep"
+                     className="text-[12px] sm:text-[13px] font-medium text-red-500 hover:text-red-700 transition-colors px-3 py-1.5 sm:py-1 rounded hover:bg-red-50 break-keep border border-red-100 sm:border-none ml-1"
                    >
                      删除
                    </button>

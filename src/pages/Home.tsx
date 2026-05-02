@@ -25,8 +25,7 @@ export default function Home() {
   const [keywords, setKeywords] = useState<string[]>([]);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [totalArtworks, setTotalArtworks] = useState(0);
   const limit = 13;
 
   const fetchKeywords = async () => {
@@ -40,10 +39,9 @@ export default function Home() {
     }
   };
 
-  const fetchArtworks = async (currentPage: number, currentKeyword: string | null, isLoadMore = false) => {
+  const fetchArtworks = async (currentPage: number, currentKeyword: string | null) => {
     try {
-      if (!isLoadMore) setLoading(true);
-      else setIsFetchingMore(true);
+      setLoading(true);
       
       const offset = currentPage * limit;
       let url = `/api/artworks?limit=${limit}&offset=${offset}`;
@@ -55,22 +53,15 @@ export default function Home() {
       const data = await res.json();
       const fetchedArtworks = Array.isArray(data) ? data : (data.data || []);
       
-      if (fetchedArtworks.length < limit) {
-        setHasMore(false);
-      } else {
-        setHasMore(true);
+      if (data.total !== undefined) {
+        setTotalArtworks(data.total);
       }
 
-      if (isLoadMore) {
-        setArtworks(prev => [...prev, ...fetchedArtworks]);
-      } else {
-        setArtworks(fetchedArtworks);
-      }
+      setArtworks(fetchedArtworks);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
-      setIsFetchingMore(false);
     }
   };
 
@@ -79,7 +70,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchArtworks(page, selectedKeyword, page > 0);
+    fetchArtworks(page, selectedKeyword);
   }, [page, selectedKeyword]);
 
   const handleKeywordClick = (k: string) => {
@@ -89,7 +80,6 @@ export default function Home() {
       setSelectedKeyword(k);
     }
     setPage(0);
-    setHasMore(true);
   };
 
   const showHighlight = !selectedKeyword && page === 0 && artworks.length > 0;
@@ -101,18 +91,17 @@ export default function Home() {
       {/* Cinematic Hero Section */}
       <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
          {/* Artistic background blending */}
-         <div className="absolute inset-0 z-0 pointer-events-none">
-            {/* Elegant glowing orbs mimicking starry night colors */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] md:w-[800px] h-[400px] bg-sky-800/10 blur-[100px] rounded-full"></div>
-            <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-amber-500/10 blur-[80px] rounded-full"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[300px] bg-indigo-900/10 blur-[100px] rounded-full"></div>
+         <div className="absolute inset-0 z-0 pointer-events-none bg-slate-900">
+            <div 
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-80"
+              style={{ backgroundImage: `url("https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg")` }}
+            ></div>
             
-            {/* Noise texture for canvas feel */}
-            <div className="absolute inset-0 opacity-[0.03] mix-blend-multiply" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}></div>
+            {/* Dark overlay to ensure white text is readable while keeping colors rich */}
+            <div className="absolute inset-0 bg-[#0a192f]/50"></div>
             
             {/* Edge fade to seamlessly blend into the `#faf9f6` background */}
-            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#faf9f6] to-transparent"></div>
-            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#faf9f6] to-transparent"></div>
+            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#faf9f6] via-[#faf9f6]/90 to-transparent"></div>
          </div>
          
          <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
@@ -122,18 +111,18 @@ export default function Home() {
               transition={{ delay: 0.2, duration: 1.2 }}
               className="relative px-4 py-8"
             >
-              <div className="absolute -top-6 -left-4 md:-left-12 text-[8rem] md:text-[12rem] leading-none text-slate-900/5 font-serif select-none pointer-events-none">
+              <div className="absolute -top-6 -left-4 md:-left-12 text-[8rem] md:text-[12rem] leading-none text-white/5 font-serif select-none pointer-events-none">
                 "
               </div>
               
-              <p className="relative z-10 text-2xl md:text-3xl lg:text-4xl text-slate-800 font-serif mb-8 leading-[1.6] md:leading-[1.8] italic tracking-widest drop-shadow-md">
+              <p className="relative z-10 text-2xl md:text-3xl lg:text-4xl text-white font-serif mb-8 leading-[1.6] md:leading-[1.8] italic tracking-widest drop-shadow-lg shadow-black/50">
                 “每一位艺术家都将画笔浸入自己的灵魂，<br className="hidden md:block"/>将自己的本性画入画中。”
               </p>
               
-              <div className="flex items-center justify-center gap-4 md:gap-6 opacity-70 relative z-10">
-                <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent to-slate-400"></div>
-                <span className="text-[10px] md:text-xs font-black text-slate-600 uppercase tracking-[0.4em] md:tracking-[0.5em]">Vincent van Gogh</span>
-                <div className="h-px w-16 md:w-32 bg-gradient-to-l from-transparent to-slate-400"></div>
+              <div className="flex items-center justify-center gap-4 md:gap-6 opacity-80 relative z-10">
+                <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent to-amber-200"></div>
+                <span className="text-[10px] md:text-xs font-black text-amber-100 uppercase tracking-[0.4em] md:tracking-[0.5em] shadow-black drop-shadow-md">Vincent van Gogh</span>
+                <div className="h-px w-16 md:w-32 bg-gradient-to-l from-transparent to-amber-200"></div>
               </div>
             </motion.div>
          </div>
@@ -253,16 +242,46 @@ export default function Home() {
                     ))}
                   </div>
 
-                  {hasMore && (
-                    <div className="mt-32 text-center">
-                      <button
-                        onClick={() => setPage(p => p + 1)}
-                        disabled={isFetchingMore}
-                        className="group relative inline-flex items-center gap-4 px-10 py-5 bg-slate-950 text-white text-xs font-bold uppercase tracking-[0.4em] overflow-hidden"
-                      >
-                        <span className="relative z-10">{isFetchingMore ? '正在展开...' : '探索深度档案'}</span>
-                        <div className="absolute inset-0 bg-amber-800 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
-                      </button>
+                  {totalArtworks > 0 && (
+                    <div className="mt-20 flex justify-center items-center">
+                      <div className="flex items-center gap-2 bg-white px-2 py-2 rounded-full border border-slate-200 shadow-sm">
+                        <button 
+                          onClick={() => setPage(Math.max(0, page - 1))} 
+                          disabled={page === 0}
+                          className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        >
+                          ‹
+                        </button>
+                        
+                        <div className="flex items-center gap-1 px-4">
+                          {Array.from({ length: Math.min(5, Math.ceil(totalArtworks / limit)) }, (_, i) => {
+                            const pageCount = Math.ceil(totalArtworks / limit);
+                            let pageNum = page + i - 2;
+                            if (pageNum < 0) pageNum = i;
+                            if (pageNum >= pageCount) pageNum = pageCount - 5 + i;
+                            if (pageNum < 0) pageNum = i;
+                            if (pageNum >= pageCount) return null;
+
+                            return (
+                               <button
+                                 key={pageNum}
+                                 onClick={() => setPage(pageNum)}
+                                 className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all ${page === pageNum ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+                               >
+                                 {pageNum + 1}
+                               </button>
+                            );
+                          })}
+                        </div>
+
+                        <button 
+                          onClick={() => setPage(page + 1)} 
+                          disabled={(page + 1) * limit >= totalArtworks}
+                          className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        >
+                          ›
+                        </button>
+                      </div>
                     </div>
                   )}
                 </section>
@@ -272,11 +291,16 @@ export default function Home() {
 
           {/* New Interactive Sidebar/Filter */}
           <aside className="w-full lg:w-72 shrink-0 order-2 lg:order-2 lg:sticky lg:top-32">
+             <div className="flex items-center gap-4 mb-12 opacity-80">
+               <div className="flex gap-1.5 hidden lg:flex">
+                 <div className="w-1.5 h-1.5 rounded-full bg-amber-700/80"></div>
+               </div>
+               <h2 className="text-xs font-bold text-slate-800 tracking-[0.4em] uppercase">艺术焦点</h2>
+               <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
+             </div>
+             
              <div className="bg-white border border-slate-100 p-8 shadow-sm rounded-none">
                 <div className="mb-8">
-                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                     <div className="w-2 h-2 bg-amber-600 rounded-full"></div> 艺术焦点
-                   </h3>
                    <div className="flex flex-wrap gap-2">
                      {keywords.slice(0, 50).map(k => (
                        <button
