@@ -563,7 +563,13 @@ export default function AdminDashboard() {
 
           <div className="flex flex-col divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[600px]">
              {artworks.length === 0 ? (
-               <div className="p-6 text-sm text-slate-500">暂无馆藏名画。</div>
+               <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
+                 <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
+                   <Palette className="w-8 h-8 text-slate-300" />
+                 </div>
+                 <p className="text-sm font-bold text-slate-500">暂无馆藏名画</p>
+                 <p className="text-xs mt-2 opacity-70">系统目前尚未抓取到名画内容，您可以等待后台任务或手动触发获取。</p>
+               </div>
              ) : artworks.map((item, index) => (
                <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 gap-4 transition-colors ${index % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50`}>
                  <div className="flex items-center gap-4">

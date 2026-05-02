@@ -99,20 +99,20 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col pb-24 w-full">
       {/* Cinematic Hero Section */}
-      <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center">
-         {/* Artistic background with Van Gogh Starry Night */}
-         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-            <img 
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg" 
-              alt="Starry Night" 
-              className="w-full h-full object-cover scale-105 opacity-25"
-              style={{ objectPosition: 'center 30%' }}
-              referrerPolicy="no-referrer"
-              crossOrigin="anonymous"
-            />
-            {/* Fade out the edges so it blends seamlessly into the page (#faf9f6) */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#faf9f6] via-transparent to-[#faf9f6]"></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-[#faf9f6] via-transparent to-[#faf9f6] opacity-60"></div>
+      <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
+         {/* Artistic background blending */}
+         <div className="absolute inset-0 z-0 pointer-events-none">
+            {/* Elegant glowing orbs mimicking starry night colors */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] md:w-[800px] h-[400px] bg-sky-800/10 blur-[100px] rounded-full"></div>
+            <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] bg-amber-500/10 blur-[80px] rounded-full"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[300px] bg-indigo-900/10 blur-[100px] rounded-full"></div>
+            
+            {/* Noise texture for canvas feel */}
+            <div className="absolute inset-0 opacity-[0.03] mix-blend-multiply" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}></div>
+            
+            {/* Edge fade to seamlessly blend into the `#faf9f6` background */}
+            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#faf9f6] to-transparent"></div>
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#faf9f6] to-transparent"></div>
          </div>
          
          <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
@@ -157,14 +157,14 @@ export default function Home() {
               <>
                 {highlight && (
                   <section className="mb-24">
-                    <div className="flex items-center gap-6 mb-12">
-                      <div className="flex -space-x-2">
-                        {[1,2,3].map(i => (
-                          <div key={i} className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white"></div>
-                        ))}
+                    <div className="flex items-center gap-4 mb-12 opacity-80">
+                      <div className="flex gap-1.5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/80"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/50"></div>
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/20"></div>
                       </div>
-                      <h2 className="text-xs font-bold text-slate-900 tracking-[0.3em] uppercase">今日推荐</h2>
-                      <div className="h-px bg-slate-200 flex-1"></div>
+                      <h2 className="text-xs font-bold text-slate-800 tracking-[0.4em] uppercase">今日推荐</h2>
+                      <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
                     </div>
                     
                     <Link to={`/artwork/${highlight.id}`} className="group block relative">

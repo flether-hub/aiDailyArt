@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { getRequestListener } from "@hono/node-server";
-import apiApp from "./functions/api/[[path]]";
+import apiApp from "./functions/api/[[path]].ts";
 import path from "path";
 
 async function startServer() {
