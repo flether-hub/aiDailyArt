@@ -12,7 +12,7 @@ api.onError((err, c) => {
   console.error('API 错误:', err);
   return c.json({
     error: err.message || '内部服务器错误',
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    stack: (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development') ? err.stack : undefined
   }, 500);
 });
 

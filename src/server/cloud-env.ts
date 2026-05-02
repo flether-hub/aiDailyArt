@@ -16,10 +16,11 @@ export function getCloudEnv(): CloudEnv {
   if (cloudEnv) return cloudEnv;
   
   // Fallback for Node environment (development)
+  const isNode = typeof process !== 'undefined' && process.env;
   return {
     ART_GALLERY_DB: null as any,
     ART_GALLERY_IMAGES: null as any,
-    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
-    APP_URL: process.env.APP_URL
+    ADMIN_PASSWORD: isNode ? process.env.ADMIN_PASSWORD : undefined,
+    APP_URL: isNode ? process.env.APP_URL : undefined
   };
 }

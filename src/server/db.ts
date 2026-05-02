@@ -23,7 +23,7 @@ class LocalDB implements DBClient {
       const pathModule = 'node:path';
       const { default: Database } = await import(sqliteModule);
       const { default: path } = await import(pathModule);
-      const dbPath = path.join(process.cwd(), 'data.db');
+      const dbPath = isNode ? path.join(process.cwd(), 'data.db') : 'data.db';
       this.db = new Database(dbPath);
       this.initialized = true;
     } catch (e) {
