@@ -398,7 +398,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         
         {/* Sidebar Controls */}
         <div className="flex flex-col gap-6 col-span-1 lg:col-span-1 h-fit">
@@ -484,15 +484,7 @@ export default function AdminDashboard() {
                            <span className="text-xs text-slate-500 font-bold">分钟</span>
                          </div>
                        </div>
-                       <button 
-                         onClick={saveSettings}
-                         disabled={savingSettings}
-                         className="bg-amber-100/50 text-amber-700 hover:bg-amber-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                       >
-                         {savingSettings ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                         快速保存
-                       </button>
-                     </div>
+                       </div>
                      {settings.cron_last_trigger && (
                         <div className="text-[10px] text-slate-400 p-2 bg-slate-50/50 border border-slate-200/50 rounded-md">
                           <span className="uppercase font-bold tracking-wider opacity-60">上次收到触发任务:</span>
@@ -541,7 +533,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Content Management */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit">
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
              <div className="flex items-center gap-3">
                <h2 className="font-bold text-slate-700 flex items-center gap-2"><Palette className="w-4 h-4 text-slate-400" /> 藏品库管理</h2>
@@ -566,7 +558,7 @@ export default function AdminDashboard() {
              )}
           </div>
 
-          <div className="flex flex-col divide-y divide-slate-100 flex-1 overflow-y-auto max-h-[600px]">
+          <div className="flex flex-col divide-y divide-slate-100 overflow-y-auto max-h-[700px]">
              {artworks.length === 0 ? (
                <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
                  <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">

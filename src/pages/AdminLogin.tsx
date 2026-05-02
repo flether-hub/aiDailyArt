@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { Shield, KeyRound, Loader2 } from 'lucide-react';
@@ -7,8 +7,15 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { checkAuth } = useAuth();
+  const { checkAuth, isAdmin, isLoadingAuth } = useAuth();
   const navigate = useNavigate();
+
+  // If already logged in (or bypassed in preview), automatically navigate to dashboard
+  useEffect(() => {
+    if (isAdmin && !isLoadingAuth) {
+      navigate('/admin/dashboard', { replace: true });
+    }
+  }, [isAdmin, isLoadingAuth, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -34,6 +34,27 @@ app.onError((err, c) => {
   }, 500);
 });
 
+// Protect all admin endpoints
+app.use('/admin/*', async (c, next) => {
+  const env = getCloudEnv();
+  const expectedPassword = env.ADMIN_PASSWORD || '1234';
+  
+  // Bypass completely in preview mode
+  if (env.CF_PAGES !== '1') {
+    return next();
+  }
+  
+  const authHeader = c.req.header('Authorization');
+  if (authHeader) {
+    const token = authHeader.split(' ')[1];
+    if (token && token === expectedPassword) {
+      return next();
+    }
+  }
+  
+  return c.json({ error: 'Unauthorized: invalid or missing admin token' }, 401);
+});
+
 app.get('/cron', async (c) => {
   const cronSecret = c.req.query('secret');
   const env = getCloudEnv();
@@ -253,16 +274,25 @@ app.get('/keywords', async (c) => {
 app.post('/auth/login', async (c) => {
   const { password } = await c.req.json();
   const env = getCloudEnv();
+  const expectedPassword = env.ADMIN_PASSWORD || '1234';
   
-  if (password === env.ADMIN_PASSWORD) {
-    return c.json({ success: true, token: 'secret-token' }); 
+  if (password === expectedPassword) {
+    return c.json({ success: true, token: expectedPassword }); 
   }
   return c.json({ success: false, error: '密码错误' }, 401);
 });
 
 app.get('/auth/check', async (c) => {
+  const env = getCloudEnv();
+  const expectedPassword = env.ADMIN_PASSWORD || '1234';
+  
+  // Skip login if in preview mode (not running in Cloudflare Pages)
+  if (env.CF_PAGES !== '1') {
+    return c.json({ isAdmin: true, isPreview: true });
+  }
+
   const token = c.req.header('Authorization')?.split(' ')[1];
-  if (token === 'secret-token') {
+  if (token && token === expectedPassword) {
     return c.json({ isAdmin: true });
   }
   return c.json({ isAdmin: false });
@@ -272,7 +302,14 @@ app.get('/admin/settings', async (c) => {
   const db = await getDB();
   const settings = await db.prepare('SELECT * FROM settings').all();
   const result: any = {};
-  (settings || []).forEach((s: any) => result[s.key] = s.value);
+  (settings || []).forEach((s: any) => {
+    if (s.key === 'api_key' && s.value) {
+      // Mask the actual API key to prevent it from leaking in preview mode
+      result[s.key] = '********' + s.value.slice(-4);
+    } else {
+      result[s.key] = s.value;
+    }
+  });
   return c.json(result);
 });
 
@@ -280,6 +317,10 @@ app.post('/admin/settings', async (c) => {
   const db = await getDB();
   const body = await c.req.json();
   for (const [key, value] of Object.entries(body)) {
+    // Prevent overriding with the masked value
+    if (key === 'api_key' && typeof value === 'string' && value.startsWith('********')) {
+      continue;
+    }
     await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
   }
   return c.json({ success: true });
