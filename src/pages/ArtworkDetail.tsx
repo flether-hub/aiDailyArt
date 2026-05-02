@@ -53,19 +53,16 @@ export default function ArtworkDetail() {
     <div className="w-full flex flex-col items-center">
       {/* Immersive Image Header */}
       <section className="w-full bg-slate-100 border-b border-slate-200 flex items-center justify-center py-16 md:py-32 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 filter blur-3xl scale-125">
-           <img src={artwork.image_url} alt="" className="w-full h-full object-cover" />
-        </div>
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
-          className="relative z-10 art-frame max-w-5xl"
+          className="relative z-10 art-frame max-h-[80vh] mx-auto bg-white inline-flex items-center justify-center"
         >
           <img 
             src={artwork.image_url} 
             alt={artwork.title} 
-            className="max-h-[80vh] object-contain" 
+            className="max-h-[80vh] w-auto object-contain" 
             referrerPolicy="no-referrer" 
           />
         </motion.div>

@@ -164,9 +164,6 @@ export default function Home() {
                     <Link to={`/artwork/${highlight.id}`} className="group block relative">
                       <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500">
                         <div className="lg:w-3/5 relative overflow-hidden bg-slate-100 flex items-center justify-center p-8">
-                           <div className="absolute inset-0 opacity-20 filter blur-xl scale-110">
-                             <img src={highlight.image_url} alt="" className="w-full h-full object-cover" />
-                           </div>
                            <img 
                              src={highlight.image_url} 
                              alt={highlight.title} 
