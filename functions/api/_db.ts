@@ -14,9 +14,9 @@ class D1Client implements DBClient {
   prepare(sql: string) {
     const stmt = this.d1.prepare(sql);
     return {
-      run: (...params: any[]) => stmt.bind(...params).run(),
-      get: (...params: any[]) => stmt.bind(...params).first(),
-      all: (...params: any[]) => stmt.bind(...params).all().then((r: any) => r.results),
+      run: (...params: any[]) => params.length > 0 ? stmt.bind(...params).run() : stmt.run(),
+      get: (...params: any[]) => params.length > 0 ? stmt.bind(...params).first() : stmt.first(),
+      all: (...params: any[]) => params.length > 0 ? stmt.bind(...params).all().then((r: any) => r.results) : stmt.all().then((r: any) => r.results),
     };
   }
   async exec(sql: string) {
@@ -41,11 +41,14 @@ export async function getDB(): Promise<DBClient> {
 }
 
 export async function initDB(db: DBClient) {
-  const schema = `
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT
-    );
+    )
+  `).run();
+
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS artworks (
       id TEXT PRIMARY KEY,
       source_id TEXT UNIQUE,
@@ -60,13 +63,12 @@ export async function initDB(db: DBClient) {
       views INTEGER DEFAULT 0,
       is_visible INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
-  await db.exec(schema);
+    )
+  `).run();
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');
-  await insertSetting.run('model_id', 'gemini-2.0-flash');
+  await insertSetting.run('model_id', 'gemini-1.5-flash');
   await insertSetting.run('daily_limit', '1');
 }
 

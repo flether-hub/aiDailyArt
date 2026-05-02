@@ -3,16 +3,29 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
 
-const mockApiPlugin = () => ({
-  name: 'mock-api',
-  configureServer(server: any) {
-    server.middlewares.use((req: any, res: any, next: any) => {
-      if (!req.url?.startsWith('/api/')) return next();
-      
-      res.setHeader('Content-Type', 'application/json');
-      
-      // MOCK DATA LOGIC
-      if (req.url === '/api/stats/visit' || req.method === 'POST') {
+const mockApiPlugin = () => {
+  let mockSettings: any = { ai_provider: 'gemini', model_id: 'gemini-1.5-flash', daily_limit: '1', api_key: '' };
+  
+  return {
+    name: 'mock-api',
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (!req.url?.startsWith('/api/')) return next();
+        
+        res.setHeader('Content-Type', 'application/json');
+        
+        if (req.url === '/api/admin/settings' && req.method === 'POST') {
+           let body = '';
+           req.on('data', (chunk: any) => body += chunk.toString());
+           req.on('end', () => {
+              try { mockSettings = { ...mockSettings, ...JSON.parse(body) }; } catch(e) {}
+              res.end(JSON.stringify({ success: true }));
+           });
+           return;
+        }
+
+        // MOCK DATA LOGIC
+        if (req.url === '/api/stats/visit' || req.method === 'POST') {
         if (req.url === '/api/auth/login') {
           return res.end(JSON.stringify({ success: true, token: 'mock-token' }));
         }
@@ -61,14 +74,15 @@ const mockApiPlugin = () => ({
       }
       
       if (req.url === '/api/admin/settings') {
-        return res.end(JSON.stringify({ ai_provider: 'gemini', daily_limit: '5' }));
+        return res.end(JSON.stringify(mockSettings));
       }
 
       res.statusCode = 404;
       res.end(JSON.stringify({ error: 'Mock route not implemented' }));
     });
   }
-});
+  };
+};
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
