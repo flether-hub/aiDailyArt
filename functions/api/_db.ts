@@ -1,4 +1,5 @@
-import { getCloudEnv } from './_cloud-env';
+import Database from 'better-sqlite3';
+import path from 'path';
 
 export interface DBClient {
   prepare(sql: string): {
@@ -9,34 +10,32 @@ export interface DBClient {
   exec(sql: string): Promise<void>;
 }
 
-class D1Client implements DBClient {
-  constructor(private d1: any) {}
+class SQLiteClient implements DBClient {
+  constructor(private db: Database.Database) {}
   prepare(sql: string) {
-    const stmt = this.d1.prepare(sql);
+    const stmt = this.db.prepare(sql);
     return {
-      run: (...params: any[]) => params.length > 0 ? stmt.bind(...params).run() : stmt.run(),
-      get: (...params: any[]) => params.length > 0 ? stmt.bind(...params).first() : stmt.first(),
-      all: (...params: any[]) => params.length > 0 ? stmt.bind(...params).all().then((r: any) => r.results) : stmt.all().then((r: any) => r.results),
+      run: async (...params: any[]) => stmt.run(...params),
+      get: async (...params: any[]) => stmt.get(...params),
+      all: async (...params: any[]) => {
+          // Fix for Better-sqlite returning objects instead of .results wrapping
+          return stmt.all(...params);
+      },
     };
   }
   async exec(sql: string) {
-    await this.d1.exec(sql);
+    this.db.exec(sql);
   }
 }
 
 let dbInstance: DBClient | null = null;
 
 export async function getDB(): Promise<DBClient> {
-  const env = getCloudEnv();
-  
-  if (!env || !env.ART_GALLERY_DB) {
-    throw new Error('Cloudflare D1 binding "ART_GALLERY_DB" not found.');
-  }
-
   if (!dbInstance) {
-    dbInstance = new D1Client(env.ART_GALLERY_DB);
+    const dbPath = path.resolve(process.cwd(), 'database.sqlite');
+    const db = new Database(dbPath);
+    dbInstance = new SQLiteClient(db);
   }
-  
   return dbInstance;
 }
 

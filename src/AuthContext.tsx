@@ -2,24 +2,56 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type AuthContextType = {
   isAdmin: boolean;
-  checkAuth: () => Promise<boolean>;
+  checkAuth: (providedToken?: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  setToken: (token: string) => void;
+  token: string | null;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [memoryToken, setMemoryToken] = useState<string | null>(null);
 
-  const checkAuth = async () => {
+  const getToken = () => {
+    if (memoryToken) return memoryToken;
     try {
-      const token = localStorage.getItem('admin_token');
+      return localStorage.getItem('admin_token');
+    } catch {
+      return null;
+    }
+  };
+
+  const setToken = (token: string) => {
+    setMemoryToken(token);
+    try {
+      localStorage.setItem('admin_token', token);
+    } catch {
+      // ignore
+    }
+  };
+
+  const removeToken = () => {
+    setMemoryToken(null);
+    try {
+      localStorage.removeItem('admin_token');
+    } catch {
+      // ignore
+    }
+  };
+
+  const checkAuth = async (providedToken?: string) => {
+    try {
+      const activeToken = providedToken || getToken();
       const res = await fetch('/api/auth/check', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {}
       });
       const data = await res.json();
       if (!data.isAdmin) {
-        localStorage.removeItem('admin_token');
+        removeToken();
+      } else if (providedToken) {
+        setToken(providedToken);
       }
       setIsAdmin(data.isAdmin === true);
       return data.isAdmin === true;
@@ -30,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    localStorage.removeItem('admin_token');
+    removeToken();
     await fetch('/api/auth/logout', { method: 'POST' });
     setIsAdmin(false);
   };
@@ -40,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAdmin, checkAuth, logout }}>
+    <AuthContext.Provider value={{ isAdmin, checkAuth, logout, setToken, token: getToken() }}>
       {children}
     </AuthContext.Provider>
   );

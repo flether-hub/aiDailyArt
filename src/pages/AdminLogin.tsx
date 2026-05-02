@@ -24,8 +24,11 @@ export default function AdminLogin() {
       
       if (res.ok) {
         const data = await res.json();
-        if (data.token) localStorage.setItem('admin_token', data.token);
-        await checkAuth();
+        if (data.token) {
+           await checkAuth(data.token);
+        } else {
+           await checkAuth();
+        }
         navigate('/admin/dashboard');
       } else {
         const data = await res.json();

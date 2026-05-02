@@ -4,7 +4,7 @@ import { getCloudEnv } from './_cloud-env';
 
 async function uploadToR2(url: string, id: string): Promise<string> {
   const env = getCloudEnv();
-  if (!env.ART_GALLERY_IMAGES) return url; 
+  if (!env || !env.ART_GALLERY_IMAGES) return url; 
 
   try {
     const response = await fetch(url);
@@ -244,10 +244,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
      } else {
         // Default: Gemini
         const genAI = new GoogleGenerativeAI(aiKey);
-        let actualModelId = modelId || 'gemini-1.5-flash';
-        if (actualModelId === 'gemini-3.1-flash') {
-           actualModelId = 'gemini-2.5-flash';
-        }
+        let actualModelId = 'gemini-2.5-flash'; // We always try the best free model first
         let model = genAI.getGenerativeModel({ model: actualModelId });
         let result;
         try {
@@ -256,16 +253,12 @@ export async function generateDetailedInterpretation(title: string, artist: stri
                generationConfig: { responseMimeType: "application/json" }
             });
         } catch (e: any) {
-            if (e.message && e.message.includes('not found') && actualModelId !== 'gemini-1.5-flash') {
-                console.log(`Fallback from ${actualModelId} to gemini-1.5-flash`);
-                model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-                result = await model.generateContent({
-                   contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                   generationConfig: { responseMimeType: "application/json" }
-                });
-            } else {
-                throw e;
-            }
+            console.log(`Fallback from ${actualModelId} to gemini-1.5-flash`, e.message);
+            model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            result = await model.generateContent({
+               contents: [{ role: 'user', parts: [{ text: prompt }] }],
+               generationConfig: { responseMimeType: "application/json" }
+            });
         }
         const response = await result.response;
         text = response.text() || "{}";

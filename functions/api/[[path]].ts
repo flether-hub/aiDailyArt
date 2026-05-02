@@ -222,3 +222,4 @@ app.get('/cdn/*', async (c) => {
 });
 
 export const onRequest = handle(app);
+export default app;
