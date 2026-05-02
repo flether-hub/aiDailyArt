@@ -184,7 +184,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   return { success: true, count: newlyAdded };
 }
 
-async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string) {
+export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string) {
   const prompt = `你是一位风趣幽默、见多识广、偶尔带点“凡尔赛”气息的顶级艺术策展人。
 请为以下名画撰写一篇让人欲罢不能的深度赏析。同时，请将画作名称和创作者翻译成中文（如果是外语）。
 【创作要求】：
@@ -244,11 +244,29 @@ async function generateDetailedInterpretation(title: string, artist: string, yea
      } else {
         // Default: Gemini
         const genAI = new GoogleGenerativeAI(aiKey);
-        const model = genAI.getGenerativeModel({ model: modelId || 'gemini-1.5-flash' });
-        const result = await model.generateContent({
-           contents: [{ role: 'user', parts: [{ text: prompt }] }],
-           generationConfig: { responseMimeType: "application/json" }
-        });
+        let actualModelId = modelId || 'gemini-1.5-flash';
+        if (actualModelId === 'gemini-3.1-flash') {
+           actualModelId = 'gemini-2.5-flash';
+        }
+        let model = genAI.getGenerativeModel({ model: actualModelId });
+        let result;
+        try {
+            result = await model.generateContent({
+               contents: [{ role: 'user', parts: [{ text: prompt }] }],
+               generationConfig: { responseMimeType: "application/json" }
+            });
+        } catch (e: any) {
+            if (e.message && e.message.includes('not found') && actualModelId !== 'gemini-1.5-flash') {
+                console.log(`Fallback from ${actualModelId} to gemini-1.5-flash`);
+                model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+                result = await model.generateContent({
+                   contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                   generationConfig: { responseMimeType: "application/json" }
+                });
+            } else {
+                throw e;
+            }
+        }
         const response = await result.response;
         text = response.text() || "{}";
      }

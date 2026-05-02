@@ -142,6 +142,29 @@ export default function AdminDashboard() {
   };
 
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; message: string; onConfirm: () => void; } | null>(null);
+  const [reinterpretingId, setReinterpretingId] = useState<string | null>(null);
+
+  const reinterpretArtwork = async (id: string) => {
+    setReinterpretingId(id);
+    const token = localStorage.getItem('admin_token');
+    try {
+      const res = await fetch(`/api/admin/artworks/${id}/reinterpret`, {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setArtworks(prev => prev.map(a => a.id === id ? { ...a, ai_interpretation: data.ai_interpretation, keywords: data.keywords, title: data.title, artist: data.artist } : a));
+        alert('重新解读成功');
+      } else {
+        alert('重新解读失败');
+      }
+    } catch (e) {
+      alert('发生错误');
+    } finally {
+      setReinterpretingId(null);
+    }
+  };
 
   const deleteArtwork = (id: string) => {
     setConfirmDialog({
@@ -349,12 +372,21 @@ export default function AdminDashboard() {
                      </div>
                    </div>
                  </div>
-                 <button 
-                   onClick={() => deleteArtwork(item.id)}
-                   className="text-[13px] font-medium text-red-500 hover:text-red-700 transition-colors px-3 py-1 rounded hover:bg-red-50"
-                 >
-                   删除
-                 </button>
+                 <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => reinterpretArtwork(item.id)}
+                     disabled={reinterpretingId === item.id}
+                     className="text-[13px] font-medium text-amber-600 hover:text-amber-800 transition-colors px-3 py-1 rounded hover:bg-amber-50 disabled:opacity-50 break-keep"
+                   >
+                     {reinterpretingId === item.id ? '正在解读...' : '重新解读'}
+                   </button>
+                   <button 
+                     onClick={() => deleteArtwork(item.id)}
+                     className="text-[13px] font-medium text-red-500 hover:text-red-700 transition-colors px-3 py-1 rounded hover:bg-red-50 break-keep"
+                   >
+                     删除
+                   </button>
+                 </div>
                </div>
              ))}
           </div>

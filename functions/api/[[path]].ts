@@ -85,6 +85,30 @@ app.delete('/admin/artworks/:id', async (c) => {
   return c.json({ success: true });
 });
 
+app.post('/admin/artworks/:id/reinterpret', async (c) => {
+  const db = await getDB();
+  const id = c.req.param('id');
+  const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id) as any;
+  if (!artwork) return c.json({ error: 'not found' }, 404);
+
+  const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
+  const provider = (await getSetting('ai_provider'))?.value || 'gemini';
+  const modelId = (await getSetting('model_id'))?.value;
+  const apiKey = (await getSetting('api_key'))?.value;
+
+  const { generateDetailedInterpretation } = await import('./_ai-fetcher');
+  const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey);
+
+  const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
+  const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
+
+  await db.prepare(`
+    UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
+  `).run(aiData.content, aiData.keywords, titleZh, artistZh, id);
+
+  return c.json({ success: true, ai_interpretation: aiData.content, keywords: aiData.keywords, title: titleZh, artist: artistZh });
+});
+
 app.post('/admin/artworks/bulk-delete', async (c) => {
   const db = await getDB();
   const { ids } = await c.req.json();
