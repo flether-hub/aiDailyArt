@@ -50,13 +50,19 @@ const SOURCES = [
   { key: 'q183334', name: '特列季亚科夫画廊 (Tretyakov Gallery)', type: 'wikidata', qid: 'Q183334' },
   { key: 'q1395996', name: '毕尔巴鄂美术馆 (Museo de Bellas Artes de Bilbao)', type: 'wikidata', qid: 'Q1395996' },
   { key: 'q165631', name: '柏林画廊 (Gemäldegalerie)', type: 'wikidata', qid: 'Q165631' },
-  { key: 'q176251', name: '提森-博内米萨博物馆 (Thyssen-Bornemisza Museum)', type: 'wikidata', qid: 'Q176251' }
+  { key: 'q176251', name: '提森-博内米萨博物馆 (Thyssen-Bornemisza Museum)', type: 'wikidata', qid: 'Q176251' },
+  { key: 'q170566', name: '故宫博物院 (The Palace Museum)', type: 'wikidata', qid: 'Q170566' },
+  { key: 'q540540', name: '国立故宫博物院 (National Palace Museum)', type: 'wikidata', qid: 'Q540540' },
+  { key: 'q1053428', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1053428' },
+  { key: 'q836262', name: '辽宁省博物馆 (Liaoning Provincial Museum)', type: 'wikidata', qid: 'Q836262' },
+  { key: 'q1936306', name: '浙江省博物馆 (Zhejiang Provincial Museum)', type: 'wikidata', qid: 'Q1936306' }
 ];
 
 async function fetchFromWikidata(qid, sourceName, notify) {
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
-      ?item wdt:P31 wd:Q3305213;
+      VALUES ?type { wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 }
+      ?item wdt:P31 ?type;
             wdt:P195 wd:${qid};
             wdt:P18 ?image.
       OPTIONAL { ?item wdt:P170 ?creator. }
@@ -90,7 +96,9 @@ async function fetchFromWikidata(qid, sourceName, notify) {
 }
 
 async function fetchFromMet(notify) {
-  const searchRes = await fetch('https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=painting');
+  const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
+  const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
+  const searchRes = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`);
   const searchData = await searchRes.json();
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);

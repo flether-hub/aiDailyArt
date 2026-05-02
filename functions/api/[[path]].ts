@@ -73,17 +73,19 @@ app.get('/cron', async (c) => {
   }
 
   // Asynchronous execution without blocking the response
-  c.executionCtx.waitUntil(
-    (async () => {
-      try {
-        const { runAIAggregation } = await import('./_ai-fetcher');
-        await runAIAggregation(false);
-        console.log('[Cron] Aggregation finished.');
-      } catch (err) {
-        console.error('[Cron] Error running aggregation:', err);
-      }
-    })()
-  );
+  const promise = (async () => {
+    try {
+      const { runAIAggregation } = await import('./_ai-fetcher');
+      await runAIAggregation(false);
+      console.log('[Cron] Aggregation finished.');
+    } catch (err) {
+      console.error('[Cron] Error running aggregation:', err);
+    }
+  })();
+  
+  try {
+    c.executionCtx.waitUntil(promise);
+  } catch(e) {}
 
   return c.json({ success: true, message: 'Cron job initiated in the background.' });
 });
@@ -223,9 +225,11 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
     };
     
     const promise = task();
-    if (c.executionCtx && c.executionCtx.waitUntil) {
-      c.executionCtx.waitUntil(promise);
-    }
+    try {
+      if (c.executionCtx && c.executionCtx.waitUntil) {
+        c.executionCtx.waitUntil(promise);
+      }
+    } catch(e) {}
     await promise;
   });
 });
@@ -363,9 +367,11 @@ app.post('/admin/trigger-fetch', async (c) => {
     };
     
     const promise = task();
-    if (c.executionCtx && c.executionCtx.waitUntil) {
-      c.executionCtx.waitUntil(promise);
-    }
+    try {
+      if (c.executionCtx && c.executionCtx.waitUntil) {
+        c.executionCtx.waitUntil(promise);
+      }
+    } catch(e) {}
     // we don't await promise here so if client disconnects stream is closed but waitUntil keeps promise alive.
     // wait, stream function expects us to await if we want to keep it open
     await promise;

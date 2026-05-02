@@ -147,12 +147,12 @@ export default function Home() {
                 {highlight && (
                   <section className="mb-24">
                     <div className="flex items-center gap-4 mb-12 opacity-80">
-                      <div className="flex gap-1.5">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/80"></div>
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/50"></div>
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-700/20"></div>
+                      <div className="flex gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-700/80"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-700/50"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-700/20"></div>
                       </div>
-                      <h2 className="text-xs font-bold text-slate-800 tracking-[0.4em] uppercase">今日推荐</h2>
+                      <h2 className="text-xl font-bold text-slate-800 tracking-[0.4em] uppercase">今日推荐</h2>
                       <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
                     </div>
                     
@@ -292,10 +292,12 @@ export default function Home() {
           {/* New Interactive Sidebar/Filter */}
           <aside className="w-full lg:w-72 shrink-0 order-2 lg:order-2 lg:sticky lg:top-32">
              <div className="flex items-center gap-4 mb-12 opacity-80">
-               <div className="flex gap-1.5 hidden lg:flex">
-                 <div className="w-1.5 h-1.5 rounded-full bg-amber-700/80"></div>
+               <div className="flex gap-2 hidden lg:flex">
+                 <div className="w-2.5 h-2.5 rounded-full bg-amber-700/80"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-amber-700/50"></div>
+                 <div className="w-2.5 h-2.5 rounded-full bg-amber-700/20"></div>
                </div>
-               <h2 className="text-xs font-bold text-slate-800 tracking-[0.4em] uppercase">艺术焦点</h2>
+               <h2 className="text-xl font-bold text-slate-800 tracking-[0.4em] uppercase">艺术焦点</h2>
                <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
              </div>
              

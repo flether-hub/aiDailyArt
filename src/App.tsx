@@ -28,7 +28,7 @@ function Navbar() {
   return (
     <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-50 sticky top-0">
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 h-full flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 group">
+        <Link to="/" className="flex items-center gap-3 group shrink-0">
           <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-all duration-500 shadow-lg">
             <Palette className="w-5 h-5 text-amber-500" />
           </div>
@@ -40,7 +40,51 @@ function Navbar() {
           </div>
         </Link>
         
-        <div className="flex items-center gap-6">
+        {/* Animated AI Robot & Data Streams graphic */}
+        <div className="hidden lg:flex flex-1 justify-center items-center px-8 pointer-events-none select-none opacity-80">
+          <svg width="340" height="40" viewBox="0 0 340 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 20 Q 85 5, 140 20" stroke="url(#lineGrad1)" strokeWidth="1.5" fill="none" className="animate-[pulse_3s_ease-in-out_infinite]" />
+            <path d="M340 20 Q 255 35, 200 20" stroke="url(#lineGrad2)" strokeWidth="1.5" fill="none" className="animate-[pulse_3.5s_ease-in-out_infinite]" />
+            <path d="M0 25 Q 100 35, 145 25" stroke="url(#lineGrad1)" strokeWidth="1" fill="none" strokeDasharray="2 3" opacity="0.5" className="animate-[pulse_4s_ease-in-out_infinite]" />
+            <path d="M340 15 Q 240 5, 195 15" stroke="url(#lineGrad2)" strokeWidth="1" fill="none" strokeDasharray="3 4" opacity="0.5" className="animate-[pulse_2.5s_ease-in-out_infinite]" />
+            
+            {/* Energy Nodes */}
+            <circle cx="70" cy="12" r="2" fill="#d97706" className="animate-ping" />
+            <circle cx="270" cy="28" r="2" fill="#d97706" className="animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
+            
+            <circle r="1.5" fill="#f59e0b">
+              <animateMotion dur="4s" repeatCount="indefinite" path="M0 20 Q 85 5, 140 20" />
+            </circle>
+            <circle r="1.5" fill="#f59e0b">
+              <animateMotion dur="3.5s" repeatCount="indefinite" path="M340 20 Q 255 35, 200 20" />
+            </circle>
+
+            {/* AI Robot Core */}
+            <g transform="translate(155, 10)">
+              <rect x="0" y="4" width="30" height="18" rx="6" fill="#f8fafc" stroke="#94a3b8" strokeWidth="1.5" className="animate-[pulse_5s_ease-in-out_infinite]" />
+              {/* Eyes */}
+              <rect x="6" y="10" width="6" height="3" rx="1.5" fill="#0f172a" className="animate-[pulse_1.5s_ease-in-out_infinite]" />
+              <rect x="18" y="10" width="6" height="3" rx="1.5" fill="#0f172a" className="animate-[pulse_1.5s_ease-in-out_infinite]" />
+              {/* Antennae */}
+              <path d="M15 4 L15 0" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="15" cy="0" r="2" fill="#f59e0b" className="animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+              <circle cx="15" cy="0" r="2" fill="#f59e0b" />
+            </g>
+            
+            <defs>
+              <linearGradient id="lineGrad1" x1="0" y1="0" x2="140" y2="0" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#f59e0b" stopOpacity="0" />
+                <stop offset="1" stopColor="#d97706" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="lineGrad2" x1="340" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#f59e0b" stopOpacity="0" />
+                <stop offset="1" stopColor="#d97706" stopOpacity="0.8" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <div className="flex items-center gap-6 shrink-0">
           {visits !== null && (
             <div className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
               <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
@@ -106,7 +150,7 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="flex-1 w-full flex flex-col items-center"
+      className="flex-1 w-full flex flex-col"
     >
       {children}
     </motion.div>
@@ -117,7 +161,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#faf9f6] flex flex-col font-sans text-slate-900 gallery-paper">
       <Navbar />
-      <main className="flex-1 overflow-x-hidden p-0 sm:p-0 flex justify-center selection:bg-amber-100">
+      <main className="flex-1 w-full flex flex-col overflow-x-hidden p-0 sm:p-0 selection:bg-amber-100">
         {children}
       </main>
       <footer className="py-12 border-t border-slate-200/60 text-center bg-white/30 backdrop-blur-sm">
