@@ -108,26 +108,22 @@ export default function Home() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+              transition={{ delay: 0.2, duration: 1 }}
+              className="max-w-4xl mx-auto relative px-8 py-4"
             >
-              <h1 className="text-4xl md:text-6xl font-serif font-black text-slate-950 mb-6 tracking-tighter leading-none">
-                AI <span className="text-amber-800 italic font-medium">每日画廊</span>
-              </h1>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 1 }}
-              className="max-w-xl mx-auto"
-            >
-              <p className="text-base md:text-lg text-slate-500 font-serif mb-6 leading-relaxed">
+              <div className="absolute top-0 left-4 text-[6rem] md:text-[8rem] leading-none text-amber-900/5 font-serif select-none -translate-y-8 -translate-x-4 md:-translate-x-8">
+                "
+              </div>
+              <div className="absolute bottom-12 right-4 text-[6rem] md:text-[8rem] leading-none text-amber-900/5 font-serif select-none translate-y-8 translate-x-4 md:translate-x-8">
+                "
+              </div>
+              <p className="relative z-10 text-2xl md:text-3xl lg:text-4xl text-slate-700 font-serif mb-12 leading-relaxed italic tracking-wide">
                 “每一位艺术家都将画笔浸入自己的灵魂，将自己的本性画入画中。”
               </p>
-              <div className="flex items-center justify-center gap-4">
-                <div className="h-px w-12 bg-slate-200"></div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.4em]">经典杰作</span>
-                <div className="h-px w-12 bg-slate-200"></div>
+              <div className="flex items-center justify-center gap-6 opacity-70 relative z-10">
+                <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-400"></div>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.5em]">经典杰作</span>
+                <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-400"></div>
               </div>
             </motion.div>
          </div>
@@ -271,15 +267,15 @@ export default function Home() {
                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
                      <div className="w-2 h-2 bg-amber-600 rounded-full"></div> 艺术焦点
                    </h3>
-                   <div className="flex flex-col gap-1">
+                   <div className="flex flex-wrap gap-2">
                      {keywords.slice(0, 50).map(k => (
                        <button
                          key={k}
                          onClick={() => handleKeywordClick(k)}
-                         className={`text-left text-xs font-bold py-2.5 px-3 transition-all uppercase tracking-widest border-l-2 ${
+                         className={`text-center text-xs font-bold py-1.5 px-3 rounded-full transition-all tracking-widest border ${
                            selectedKeyword === k 
                              ? 'border-amber-600 bg-amber-50 text-amber-900' 
-                             : 'border-transparent text-slate-400 hover:text-slate-900 hover:border-slate-300'
+                             : 'border-slate-200 bg-slate-50 text-slate-500 hover:text-slate-900 hover:border-slate-300'
                          }`}
                        >
                          #{k}

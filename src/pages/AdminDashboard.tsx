@@ -6,7 +6,7 @@ import { useJobs } from '../JobContext';
 import { Settings2, RefreshCw, ShieldCheck, Eye, Palette, Save, Info } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { isAdmin, token, logout } = useAuth();
+  const { isAdmin, isLoadingAuth, token, logout } = useAuth();
   const { fetchingWorks, setFetchingWorks, fetchingProgress, setFetchingProgress, reinterpretingId, setReinterpretingId, reinterpretMessages, setReinterpretMessages } = useJobs();
   const navigate = useNavigate();
   const [settings, setSettings] = useState<any>({});
@@ -30,6 +30,8 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    if (isLoadingAuth) return;
+    
     if (!isAdmin) {
       navigate('/admin/login');
       return;
@@ -45,7 +47,7 @@ export default function AdminDashboard() {
       setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
       setLoading(false);
     });
-  }, [isAdmin, navigate, token]);
+  }, [isAdmin, isLoadingAuth, navigate, token]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -357,7 +359,7 @@ export default function AdminDashboard() {
   if (loading) return <div className="text-center py-20 text-slate-500 animate-pulse">加载配置中...</div>;
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {toastMessage && (
         <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-bold shadow-xl animate-in slide-in-from-top-4 fade-in duration-300 flex items-center gap-3 ${toastMessage.isError ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
           <span>{toastMessage.message}</span>

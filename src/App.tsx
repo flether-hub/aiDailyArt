@@ -27,55 +27,57 @@ function Navbar() {
   }, []);
   
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 flex items-center justify-between px-6 sm:px-10 shrink-0 z-50 sticky top-0">
-      <Link to="/" className="flex items-center gap-3 group">
-        <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-all duration-500 shadow-lg">
-          <Palette className="w-5 h-5 text-amber-500" />
-        </div>
-        <div className="flex flex-col -space-y-1">
-          <h1 className="text-xl font-black tracking-tighter text-slate-900 font-serif uppercase">
-            AI <span className="text-amber-700">每日画廊</span>
-          </h1>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">人工智能 策展赏析</span>
-        </div>
-      </Link>
-      
-      <div className="flex items-center gap-6">
-        {visits !== null && (
-          <div className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-            <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
-            累计访客: {visits.toLocaleString()}
+    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-50 sticky top-0">
+      <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 h-full flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 bg-slate-950 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-all duration-500 shadow-lg">
+            <Palette className="w-5 h-5 text-amber-500" />
           </div>
-        )}
+          <div className="flex flex-col">
+            <h1 className="text-xl font-black tracking-tighter text-slate-900 font-serif uppercase leading-tight">
+              AI <span className="text-amber-700">每日画廊</span>
+            </h1>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">人工智能 策展赏析</span>
+          </div>
+        </Link>
         
-        <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
+        <div className="flex items-center gap-6">
+          {visits !== null && (
+            <div className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+              累计访客: {visits.toLocaleString()}
+            </div>
+          )}
+          
+          <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
 
-        {isAdmin ? (
-          <div className="flex items-center gap-4 md:gap-6">
+          {isAdmin ? (
+            <div className="flex items-center gap-3 md:gap-4">
+              <Link 
+                to="/admin/dashboard" 
+                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+                title="管理"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </Link>
+              <button 
+                onClick={logout}
+                className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
+                title="退出登录"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
             <Link 
-              to="/admin/dashboard" 
-              className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+              to="/admin/login" 
+              className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
               title="管理"
             >
               <LayoutGrid className="w-5 h-5" />
             </Link>
-            <button 
-              onClick={logout}
-              className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
-              title="退出登录"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        ) : (
-          <Link 
-            to="/admin/login" 
-            className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
-            title="管理"
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </Link>
-        )}
+          )}
+        </div>
       </div>
     </header>
   );

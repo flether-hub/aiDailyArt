@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 type AuthContextType = {
   isAdmin: boolean;
+  isLoadingAuth: boolean;
   checkAuth: (providedToken?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   setToken: (token: string) => void;
@@ -12,6 +13,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [memoryToken, setMemoryToken] = useState<string | null>(null);
 
   const getToken = () => {
@@ -42,6 +44,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const checkAuth = async (providedToken?: string) => {
+    setIsLoadingAuth(true);
     try {
       const activeToken = providedToken || getToken();
       const res = await fetch('/api/auth/check', {
@@ -50,14 +53,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await res.json();
       if (!data.isAdmin) {
         removeToken();
-      } else if (providedToken) {
-        setToken(providedToken);
+      } else if (activeToken) {
+        setToken(activeToken);
       }
       setIsAdmin(data.isAdmin === true);
       return data.isAdmin === true;
     } catch {
       setIsAdmin(false);
       return false;
+    } finally {
+      setIsLoadingAuth(false);
     }
   };
 
@@ -72,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAdmin, checkAuth, logout, setToken, token: getToken() }}>
+    <AuthContext.Provider value={{ isAdmin, isLoadingAuth, checkAuth, logout, setToken, token: getToken() }}>
       {children}
     </AuthContext.Provider>
   );
