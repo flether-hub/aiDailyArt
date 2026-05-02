@@ -89,7 +89,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
        artistDisplayName: b.creatorLabel?.value || '未知艺术家',
        objectDate: b.date?.value ? b.date.value.split('T')[0] : '未知年份',
        repository: sourceName,
-       primaryImage: rawImg,
+       primaryImage: rawImg.replace('http://', 'https://'),
        objectURL: b.item?.value || ''
      }
   }).filter(b => b.primaryImage && b.title !== '未知作品');

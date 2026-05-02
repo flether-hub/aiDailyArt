@@ -127,11 +127,11 @@ export default function ArtworkDetail() {
                 <div className="shrink-0 flex flex-col gap-4">
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">浏览次数</span>
-                    <span className="text-sm font-serif italic text-slate-600 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5"/> {artwork.views.toLocaleString()} 次</span>
+                    <span className="text-sm font-serif italic text-slate-600 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5"/> {(artwork.views || 0).toLocaleString()} 次</span>
                   </div>
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">收录时间</span>
-                    <span className="text-sm font-serif italic text-slate-600">{formatDistanceToNow(new Date(artwork.created_at), { addSuffix: true, locale: zhCN })}</span>
+                    <span className="text-sm font-serif italic text-slate-600">{formatDistanceToNow(new Date((artwork.created_at ? (artwork.created_at + (artwork.created_at.endsWith('Z') ? '' : 'Z')) : Date.now())), { addSuffix: true, locale: zhCN })}</span>
                   </div>
                 </div>
               </div>
