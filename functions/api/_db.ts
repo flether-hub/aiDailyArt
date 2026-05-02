@@ -32,13 +32,16 @@ class D1Client implements DBClient {
     const stmt = this.d1.prepare(sql);
     return {
       run: async (...params: any[]) => {
-        return await stmt.bind(...params).run();
+        const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+        return await bound.run();
       },
       get: async (...params: any[]) => {
-        return await stmt.bind(...params).first();
+        const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+        return await bound.first();
       },
       all: async (...params: any[]) => {
-        const res = await stmt.bind(...params).all();
+        const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+        const res = await bound.all();
         return res.results || [];
       }
     };
@@ -107,7 +110,8 @@ export async function initDB(db: DBClient) {
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');
   await insertSetting.run('model_id', 'gemini-1.5-flash');
-  await insertSetting.run('daily_limit', '1');
+  await insertSetting.run('interval_hours', '0');
+  await insertSetting.run('interval_minutes', '30');
 }
 
 export default {

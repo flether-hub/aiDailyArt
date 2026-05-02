@@ -124,18 +124,31 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   const provider = (await getSetting('ai_provider'))?.value || 'gemini';
   const modelId = (await getSetting('model_id'))?.value;
   const apiKey = (await getSetting('api_key'))?.value;
-  const dailyLimit = parseInt((await getSetting('daily_limit'))?.value || '1', 10);
   
-  let todayCount = 0;
-  try {
-     const result = await db.prepare("SELECT count(*) as c FROM artworks WHERE date(created_at) = date('now')").get();
-     todayCount = result?.c || 0;
-  } catch (e) {}
+  const intervalHours = parseInt((await getSetting('interval_hours'))?.value || '0', 10);
+  const intervalMinutes = parseInt((await getSetting('interval_minutes'))?.value || '30', 10);
+  let intervalMs = (intervalHours * 60 + intervalMinutes) * 60 * 1000;
+  if (intervalMs < 30 * 60 * 1000) intervalMs = 30 * 60 * 1000; // minimum 30 mins
   
-  const targetCount = isManual ? 1 : dailyLimit;
-  if (!isManual && todayCount >= targetCount) {
-    await notify('已达到每日抓取上限，跳过自动抓取任务。');
-    return { success: false, message: '已达到每日获取上限。' };
+  const targetCount = 1;
+
+  if (!isManual) {
+     try {
+       const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
+       let lastRunMs = 0;
+       if (result?.last_run) {
+          const dateStr = String(result.last_run).trim();
+          let isoStr = dateStr;
+          if (!dateStr.includes('T')) isoStr = dateStr.replace(' ', 'T');
+          if (!isoStr.endsWith('Z') && !isoStr.includes('+')) isoStr += 'Z';
+          lastRunMs = isNaN(new Date(isoStr).getTime()) ? 0 : new Date(isoStr).getTime();
+       }
+       const now = Date.now();
+       if (now - lastRunMs < intervalMs) {
+         await notify('未达到抓取间隔，跳过自动抓取任务。');
+         return { success: false, message: '未达到自动抓取间隔时间。' };
+       }
+     } catch(e) {}
   }
 
   await notify(`系统开始获取名画，本次计划获取 ${targetCount} 幅...`);
@@ -143,7 +156,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   let newlyAdded = 0;
 
   for (const source of shuffledSources) {
-     if (newlyAdded >= targetCount || (!isManual && newlyAdded + todayCount >= targetCount)) break;
+     if (newlyAdded >= targetCount) break;
      await notify(`正在连接 ${source.name} 的数据源...`);
      let candidates = [];
      try {
@@ -157,7 +170,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
      if (candidates.length === 0) continue;
 
      for (const objData of candidates) {
-        if (newlyAdded >= targetCount || (!isManual && newlyAdded + todayCount >= targetCount)) break;
+        if (newlyAdded >= targetCount) break;
         try {
           const exists = await db.prepare('SELECT id FROM artworks WHERE source_id = ?').get(objData.sourceId);
           if (exists) continue;

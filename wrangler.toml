@@ -16,3 +16,6 @@ database_id = "a23c6453-9283-45b7-8e7c-793f3c3b63a7"
 [[r2_buckets]]
 binding = "ART_GALLERY_IMAGES"
 bucket_name = "art-images"
+
+[triggers]
+crons = ["*/5 * * * *"]

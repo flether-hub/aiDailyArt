@@ -2,17 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
+import { useJobs } from '../JobContext';
 import { Settings2, RefreshCw, ShieldCheck, Eye, Palette, Save, Info } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { isAdmin, token, logout } = useAuth();
+  const { fetchingWorks, setFetchingWorks, fetchingProgress, setFetchingProgress, reinterpretingId, setReinterpretingId, reinterpretMessages, setReinterpretMessages } = useJobs();
   const navigate = useNavigate();
   const [settings, setSettings] = useState<any>({});
   const [artworks, setArtworks] = useState<any[]>([]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchingWorks, setFetchingWorks] = useState(false);
-  const [fetchingProgress, setFetchingProgress] = useState<{message: string, error?: string} | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -50,6 +50,13 @@ export default function AdminDashboard() {
   };
 
   const saveSettings = async () => {
+    const hours = parseInt(settings.interval_hours || '0', 10);
+    const mins = parseInt(settings.interval_minutes || '0', 10);
+    if (isNaN(hours) || isNaN(mins) || hours * 60 + mins < 30) {
+      showToast('自动抓取间隔不能小于30分钟', true);
+      return;
+    }
+
     setSavingSettings(true);
     await fetch('/api/admin/settings', {
       method: 'POST',
@@ -71,6 +78,11 @@ export default function AdminDashboard() {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
       });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`请求失败 (${res.status}): ${errorText.substring(0, 100)}...`);
+      }
       
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
@@ -98,20 +110,28 @@ export default function AdminDashboard() {
                   trimmed = trimmed.substring(6).trim();
                }
                
-               // Attempt to find individual JSON objects if they got glued together
-               const jsonBlocks = trimmed.match(/\{.*?\}(?=\s*\{|$)/g);
-               if (!jsonBlocks) continue; // Skip lines that don't contain valid looking JSON blocks
-               
-               for (const block of jsonBlocks) {
-                  try {
-                     const data = JSON.parse(block);
-                     if (data.type === 'progress') {
-                        setFetchingProgress({ message: data.message, error: data.error ? '预警' : undefined });
-                     } else if (data.type === 'complete') {
-                        finalResult = data.data;
+               try {
+                  const data = JSON.parse(trimmed);
+                  if (data.type === 'progress') {
+                     setFetchingProgress({ message: data.message, error: data.error ? '预警' : undefined });
+                  } else if (data.type === 'complete') {
+                     finalResult = data.data;
+                  }
+               } catch (e) {
+                  console.warn('Failed to parse line:', trimmed, e);
+                  // Attempt recovery if multiple objects somehow got concatenated without newlines
+                  const parts = trimmed.split('}{');
+                  if (parts.length > 1) {
+                     for (let i = 0; i < parts.length; i++) {
+                        let part = parts[i];
+                        if (i > 0) part = '{' + part;
+                        if (i < parts.length - 1) part = part + '}';
+                        try {
+                           const data = JSON.parse(part);
+                           if (data.type === 'progress') setFetchingProgress({ message: data.message, error: data.error ? '预警' : undefined });
+                           else if (data.type === 'complete') finalResult = data.data;
+                        } catch(e2) {}
                      }
-                  } catch (e) {
-                     console.warn('Failed to parse block:', block, e);
                   }
                }
             }
@@ -122,13 +142,22 @@ export default function AdminDashboard() {
       if (buffer.trim()) {
          let trimmed = buffer.trim();
          if (trimmed.startsWith('data: ')) trimmed = trimmed.substring(6).trim();
-         const jsonBlocks = trimmed.match(/\{.*?\}(?=\s*\{|$)/g);
-         if (jsonBlocks) {
-            for (const block of jsonBlocks) {
-               try {
-                  const data = JSON.parse(block);
-                  if (data.type === 'complete') finalResult = data.data;
-               } catch (e) {}
+         try {
+            const data = JSON.parse(trimmed);
+            if (data.type === 'complete') finalResult = data.data;
+         } catch (e) {
+            // Attempt recovery
+            const parts = trimmed.split('}{');
+            if (parts.length > 1) {
+               for (let i = 0; i < parts.length; i++) {
+                  let part = parts[i];
+                  if (i > 0) part = '{' + part;
+                  if (i < parts.length - 1) part = part + '}';
+                  try {
+                     const data = JSON.parse(part);
+                     if (data.type === 'complete') finalResult = data.data;
+                  } catch(e2) {}
+               }
             }
          }
       }
@@ -136,13 +165,18 @@ export default function AdminDashboard() {
       const data = finalResult;
       if (data?.success) {
         setFetchingProgress({ message: data.message });
+      } else if (data) {
+        setFetchingProgress({ message: '抓取中止', error: data.message });
+      } else {
+        setFetchingProgress({ message: '流已断开，后台可能仍在继续执行...' });
+      }
+      
+      // Always refresh list
+      try {
         const resArts = await fetch('/api/artworks').then(r => r.json());
         setArtworks(Array.isArray(resArts) ? resArts : (resArts.data || []));
-      } else if (data) {
-        setFetchingProgress({ message: '抓取中断', error: data.message });
-      } else {
-        setFetchingProgress({ message: '抓取结束', error: '无法解析返回流水' });
-      }
+      } catch (e) {}
+
     } catch (e: any) {
        setFetchingProgress({ message: '连接服务发生异常', error: e.message || '网络断开' });
     } finally {
@@ -152,7 +186,6 @@ export default function AdminDashboard() {
   };
 
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; message: string; onConfirm: () => void; } | null>(null);
-  const [reinterpretingId, setReinterpretingId] = useState<string | null>(null);
 
   const deleteKeyword = (keyword: string) => {
     setConfirmDialog({
@@ -182,8 +215,6 @@ export default function AdminDashboard() {
       }
     });
   };
-
-  const [reinterpretMessages, setReinterpretMessages] = useState<Record<string, string>>({});
 
   const reinterpretArtwork = async (id: string) => {
     setReinterpretingId(id);
@@ -236,12 +267,21 @@ export default function AdminDashboard() {
       if (finalData && finalData.success) {
         setArtworks(prev => prev.map(a => a.id === id ? { ...a, ai_interpretation: finalData.ai_interpretation, keywords: finalData.keywords, title: finalData.title, artist: finalData.artist } : a));
         showToast('重新解读成功');
-      } else {
-        const err = finalData ? finalData.message : '未知错误';
+      } else if (finalData) {
+        const err = finalData.message;
         showToast(`重新解读失败: ${err}`, true);
         setReinterpretMessages(prev => ({ ...prev, [id]: `❌ ${err}` }));
         hasError = true;
+      } else {
+        showToast('请求流已断开，操作将在后台继续执行');
       }
+      
+      // Try refresh to ensure we didn't miss completion
+      try {
+        const resArts = await fetch('/api/artworks').then(r => r.json());
+        setArtworks(Array.isArray(resArts) ? resArts : (resArts.data || []));
+      } catch (e) {}
+
     } catch (e: any) {
       showToast(`发生错误: ${e.message}`, true);
       setReinterpretMessages(prev => ({ ...prev, [id]: `❌ ${e.message}` }));
@@ -388,15 +428,33 @@ export default function AdminDashboard() {
                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1"><Info className="w-3 h-3"/> 若在此设置，将优先于环境变量加载</p>
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                   <label className="text-xs font-bold text-slate-600">单次抓取数量上限</label>
-                   <input 
-                     type="number"
-                     value={settings.daily_limit || '1'}
-                     onChange={e => handleSettingsChange('daily_limit', e.target.value)}
-                     className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center"
-                     placeholder="1"
-                   />
+                <div className="pt-2 space-y-2 border-t border-slate-100">
+                   <label className="text-xs font-bold text-slate-600 flex items-center justify-between">
+                     后台自动抓取间隔 <span className="text-[10px] text-slate-400 font-normal">最少30分钟</span>
+                   </label>
+                   <div className="flex items-center gap-4">
+                     <div className="flex items-center gap-2">
+                       <input 
+                         type="number"
+                         min="0"
+                         value={settings.interval_hours ?? '0'}
+                         onChange={e => handleSettingsChange('interval_hours', e.target.value)}
+                         className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center"
+                       />
+                       <span className="text-xs text-slate-500 font-bold">小时</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                       <input 
+                         type="number"
+                         min="0"
+                         max="59"
+                         value={settings.interval_minutes ?? '30'}
+                         onChange={e => handleSettingsChange('interval_minutes', e.target.value)}
+                         className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center"
+                       />
+                       <span className="text-xs text-slate-500 font-bold">分钟</span>
+                     </div>
+                   </div>
                 </div>
 
                 <button 

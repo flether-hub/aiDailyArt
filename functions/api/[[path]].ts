@@ -91,44 +91,66 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
     c.header('Content-Type', 'text/event-stream');
     c.header('Cache-Control', 'no-cache');
     c.header('Connection', 'keep-alive');
-    const db = await getDB();
-    const id = c.req.param('id');
-    const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id) as any;
-    if (!artwork) {
-       await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: 'not found' } }) + '\n');
-       return;
-    }
-
-    const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
-    const provider = (await getSetting('ai_provider'))?.value || 'gemini';
-    const modelId = (await getSetting('model_id'))?.value;
-    let apiKey = (await getSetting('api_key'))?.value;
-    if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
-      apiKey = process.env.GEMINI_API_KEY;
-    }
-
-    const { generateDetailedInterpretation } = await import('./_ai-fetcher');
     
-    const notify = async (msg: string, isError: boolean = false) => {
-       await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n');
+    let isStreamClosed = false;
+    stream.onAbort(() => {
+      isStreamClosed = true;
+    });
+
+    const task = async () => {
+      try {
+        const db = await getDB();
+        const id = c.req.param('id');
+        const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id) as any;
+        if (!artwork) {
+           if (!isStreamClosed) {
+               try { await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: 'not found' } }) + '\n'); } catch(e){}
+           }
+           return;
+        }
+
+        const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
+        const provider = (await getSetting('ai_provider'))?.value || 'gemini';
+        const modelId = (await getSetting('model_id'))?.value;
+        let apiKey = (await getSetting('api_key'))?.value;
+        if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
+          apiKey = process.env.GEMINI_API_KEY;
+        }
+
+        const { generateDetailedInterpretation } = await import('./_ai-fetcher');
+        
+        const notify = async (msg: string, isError: boolean = false) => {
+           if (!isStreamClosed) {
+               try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } catch(e) { isStreamClosed = true; }
+           }
+        };
+
+        const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey, notify);
+
+        const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
+        const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
+
+        const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
+        
+        await db.prepare(`
+          UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
+        `).run(aiData.content, keywordsStr, titleZh, artistZh, id);
+
+        if (!isStreamClosed) {
+            try { await stream.write(JSON.stringify({ type: 'complete', data: { success: true, ai_interpretation: aiData.content, keywords: keywordsStr, title: titleZh, artist: artistZh } }) + '\n'); } catch(e) {}
+        }
+      } catch(err: any) {
+        if (!isStreamClosed) {
+            try { await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: err.message } }) + '\n'); } catch(e) {}
+        }
+      }
     };
-
-    try {
-      const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey, notify);
-
-      const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
-      const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
-
-      const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
-      
-      await db.prepare(`
-        UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
-      `).run(aiData.content, keywordsStr, titleZh, artistZh, id);
-
-      await stream.write(JSON.stringify({ type: 'complete', data: { success: true, ai_interpretation: aiData.content, keywords: keywordsStr, title: titleZh, artist: artistZh } }) + '\n');
-    } catch(err: any) {
-      await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: err.message } }) + '\n');
+    
+    const promise = task();
+    if (c.executionCtx && c.executionCtx.waitUntil) {
+      c.executionCtx.waitUntil(promise);
     }
+    await promise;
   });
 });
 
@@ -215,19 +237,42 @@ app.post('/admin/trigger-fetch', async (c) => {
     c.header('Cache-Control', 'no-cache');
     c.header('Connection', 'keep-alive');
     
-    try {
-      await runAIAggregation(true, async (msg, isError) => {
-         await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n');
-      });
-      // Send final summary
-      const db = await getDB();
-      const result = await db.prepare("SELECT count(*) as c FROM artworks WHERE date(created_at) = date('now')").get();
-      const newlyAdded = (result as any)?.c || 0;
-      await stream.write(JSON.stringify({ type: 'complete', data: { success: true, message: `分析任务已圆满完成。`, count: newlyAdded } }) + '\n');
-    } catch (err: any) {
-      console.error('Streaming API Error:', err);
-      await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: `流处理异常: ${err.message}` } }) + '\n');
+    let isStreamClosed = false;
+    stream.onAbort(() => {
+      isStreamClosed = true;
+    });
+    
+    const task = async () => {
+      try {
+        await runAIAggregation(true, async (msg, isError) => {
+           if (!isStreamClosed) {
+             try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } 
+             catch(e) { isStreamClosed = true; }
+           }
+        });
+        const db = await getDB();
+        const result = await db.prepare("SELECT count(*) as c FROM artworks WHERE date(created_at) = date('now')").get();
+        const newlyAdded = (result as any)?.c || 0;
+        if (!isStreamClosed) {
+          try { await stream.write(JSON.stringify({ type: 'complete', data: { success: true, message: `分析任务已圆满完成。`, count: newlyAdded } }) + '\n'); } 
+          catch(e) {}
+        }
+      } catch (err: any) {
+        console.error('Streaming API Error:', err);
+        if (!isStreamClosed) {
+          try { await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: `流处理异常: ${err.message}` } }) + '\n'); } 
+          catch(e) {}
+        }
+      }
+    };
+    
+    const promise = task();
+    if (c.executionCtx && c.executionCtx.waitUntil) {
+      c.executionCtx.waitUntil(promise);
     }
+    // we don't await promise here so if client disconnects stream is closed but waitUntil keeps promise alive.
+    // wait, stream function expects us to await if we want to keep it open
+    await promise;
   });
 });
 
