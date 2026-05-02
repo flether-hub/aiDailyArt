@@ -14,7 +14,7 @@ type Artwork = {
   summary: string;
   created_at: string;
   views: number;
-  keywords?: string;
+  keywords?: string[];
   image_url?: string;
 };
 

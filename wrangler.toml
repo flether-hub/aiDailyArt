@@ -6,7 +6,6 @@ pages_build_output_dir = "dist"
 [vars]
 # Add these in Cloudflare Dashboard -> Workers & Pages -> Functions -> Variables
 # ADMIN_PASSWORD = "..."
-# GEMINI_API_KEY = "..."
 # APP_URL = "https://your-app.pages.dev"
 
 [[d1_databases]]

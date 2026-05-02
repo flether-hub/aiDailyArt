@@ -240,7 +240,7 @@ export default function AdminDashboard() {
                   className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20"
                 >
                   <option value="gemini">Google Gemini (推荐)</option>
-                  <option value="qwen">阿里通义千问 (Qwen)</option>
+                  <option value="dashscope">阿里百炼 / 通义千问 (DashScope)</option>
                 </select>
               </div>
 
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
                    value={settings.model_id || ''}
                    onChange={e => handleSettingsChange('model_id', e.target.value)}
                    className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 font-mono outline-none focus:ring-2 focus:ring-amber-500/20"
-                   placeholder={settings.ai_provider === 'gemini' ? "gemini-2.0-flash" : "qwen-plus"}
+                   placeholder={settings.ai_provider === 'gemini' ? "gemini-1.5-flash" : "qwen-plus"}
                  />
               </div>
 

@@ -1,46 +1,41 @@
-import { createServer } from 'http';
-import { getRequestListener } from '@hono/node-server';
+import express from 'express';
 import { createServer as createViteServer } from 'vite';
-import app from './src/server/app';
-import { getDB, initDB } from './src/server/db';
+import { getRequestListener } from '@hono/node-server';
+import path from 'path';
+import { app } from './functions/api/[[path]]';
 
-const isProd = process.env.NODE_ENV === 'production';
-const PORT = 3000;
+async function startServer() {
+  const server = express();
+  const PORT = 3000;
 
-async function start() {
-  // Initialize DB once
-  const db = getDB();
-  await initDB(db);
+  // Hono API Handler
+  const honoHandler = getRequestListener(app.fetch);
 
-  const handler = getRequestListener(app.fetch);
-  let vite: any;
+  // API Routes - Mount Hono (which already has /api base path)
+  server.all('/api/*all', (req, res) => {
+    honoHandler(req, res);
+  });
 
-  if (!isProd) {
-    vite = await createViteServer({
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== 'production') {
+    const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
+    server.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    server.use(express.static(distPath));
+    server.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
   }
 
-  const server = createServer((req, res) => {
-    if (req.url?.startsWith('/api')) {
-      handler(req, res);
-    } else {
-      if (isProd) {
-        // Simple production fallback or static serving could go here
-        res.statusCode = 404;
-        res.end('Not Found');
-      } else {
-        vite.middlewares(req, res);
-      }
-    }
-  });
-
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server starting on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-start().catch(err => {
+startServer().catch(err => {
   console.error('Failed to start server:', err);
 });

@@ -127,13 +127,13 @@ export default function ArtworkDetail() {
                </div>
              </div>
 
-             {artwork.keywords && (
+             {artwork.keywords && Array.isArray(artwork.keywords) && (
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest border-b border-slate-900 pb-2 mb-4">艺术焦点</span>
                   <div className="flex flex-wrap gap-x-2 gap-y-1">
-                    {artwork.keywords.split(/[，,]/).map((k: string) => (
+                    {artwork.keywords.map((k: string) => (
                       <span key={k} className="text-[10px] font-bold text-slate-400 uppercase hover:text-amber-800 transition-colors cursor-default">
-                        #{k.trim()}
+                        #{k}
                       </span>
                     ))}
                   </div>
