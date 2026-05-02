@@ -55,7 +55,7 @@ function Navbar() {
             <Link 
               to="/admin/dashboard" 
               className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
-              title="管理后台"
+              title="管理"
             >
               <LayoutGrid className="w-5 h-5" />
             </Link>
@@ -71,7 +71,7 @@ function Navbar() {
           <Link 
             to="/admin/login" 
             className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
-            title="后台"
+            title="管理"
           >
             <LayoutGrid className="w-5 h-5" />
           </Link>

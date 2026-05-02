@@ -134,19 +134,22 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   if (!isManual) {
      try {
-       const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
-       let lastRunMs = 0;
-       if (result?.last_run) {
-          const dateStr = String(result.last_run).trim();
-          let isoStr = dateStr;
-          if (!dateStr.includes('T')) isoStr = dateStr.replace(' ', 'T');
-          if (!isoStr.endsWith('Z') && !isoStr.includes('+')) isoStr += 'Z';
-          lastRunMs = isNaN(new Date(isoStr).getTime()) ? 0 : new Date(isoStr).getTime();
-       }
-       const now = Date.now();
-       if (now - lastRunMs < intervalMs) {
-         await notify('未达到抓取间隔，跳过自动抓取任务。');
-         return { success: false, message: '未达到自动抓取间隔时间。' };
+       const useMinInterval = ((await getSetting('use_min_interval'))?.value || 'true') === 'true'; // Default true for backward compatibility or false? The user said "后台改成是否设置最小间隔，如果勾选则检查间隔"
+       if (useMinInterval) {
+         const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
+         let lastRunMs = 0;
+         if (result?.last_run) {
+            const dateStr = String(result.last_run).trim();
+            let isoStr = dateStr;
+            if (!dateStr.includes('T')) isoStr = dateStr.replace(' ', 'T');
+            if (!isoStr.endsWith('Z') && !isoStr.includes('+')) isoStr += 'Z';
+            lastRunMs = isNaN(new Date(isoStr).getTime()) ? 0 : new Date(isoStr).getTime();
+         }
+         const now = Date.now();
+         if (now - lastRunMs < intervalMs) {
+           await notify('未达到触发间隔，跳过自动抓取任务。');
+           return { success: false, message: '未达到自动抓取间隔时间。' };
+         }
        }
      } catch(e) {}
   }
@@ -230,7 +233,10 @@ export async function generateDetailedInterpretation(title: string, artist: stri
        return { keywords, content: "<p>尚未配置 API 密钥。请在管理员控制台设置 API 密钥以生成艺术解读。</p>" };
      }
 
-     if (notify) await notify(`🤖 正在调用 ${provider === 'dashscope' || provider === 'bailian' ? '阿里云大模型' : 'Google Gemini'}  (${modelId || '默认模型'}) ...`);
+     const isAli = provider === 'dashscope' || provider === 'bailian';
+     const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
+     const displayedModelId = isAli ? (modelId || '默认模型') : 'gemini-2.5-flash';
+     if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId}) ...`);
      let text = "";
 
      if (provider === 'dashscope' || provider === 'bailian') {

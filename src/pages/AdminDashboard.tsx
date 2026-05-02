@@ -15,6 +15,19 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [page, setPage] = useState(0);
+  const [totalArtworks, setTotalArtworks] = useState(0);
+  const limit = 12;
+
+  const fetchAdminArtworks = async (currentPage: number) => {
+    try {
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : undefined;
+      const res = await fetch(`/api/admin/artworks?limit=${limit}&offset=${currentPage * limit}`, { headers });
+      const data = await res.json();
+      setArtworks(Array.isArray(data) ? data : (data.data || []));
+      if (data.total !== undefined) setTotalArtworks(data.total);
+    } catch(e) {}
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -26,15 +39,19 @@ export default function AdminDashboard() {
 
     Promise.all([
       fetch('/api/admin/settings', { headers }).then(r => r.json()),
-      fetch('/api/artworks').then(r => r.json()),
       fetch('/api/keywords').then(r => r.json())
-    ]).then(([settingsData, artworksData, keywordsData]) => {
+    ]).then(([settingsData, keywordsData]) => {
       setSettings(settingsData);
-      setArtworks(Array.isArray(artworksData) ? artworksData : (artworksData.data || []));
       setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
       setLoading(false);
     });
   }, [isAdmin, navigate, token]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAdminArtworks(page);
+    }
+  }, [page, isAdmin, token]);
 
   const handleSettingsChange = (key: string, value: string) => {
     setSettings({ ...settings, [key]: value, [`${key}Masked`]: value });
@@ -172,10 +189,7 @@ export default function AdminDashboard() {
       }
       
       // Always refresh list
-      try {
-        const resArts = await fetch('/api/artworks').then(r => r.json());
-        setArtworks(Array.isArray(resArts) ? resArts : (resArts.data || []));
-      } catch (e) {}
+      await fetchAdminArtworks(page);
 
     } catch (e: any) {
        setFetchingProgress({ message: '连接服务发生异常', error: e.message || '网络断开' });
@@ -277,10 +291,7 @@ export default function AdminDashboard() {
       }
       
       // Try refresh to ensure we didn't miss completion
-      try {
-        const resArts = await fetch('/api/artworks').then(r => r.json());
-        setArtworks(Array.isArray(resArts) ? resArts : (resArts.data || []));
-      } catch (e) {}
+      await fetchAdminArtworks(page);
 
     } catch (e: any) {
       showToast(`发生错误: ${e.message}`, true);
@@ -305,6 +316,7 @@ export default function AdminDashboard() {
         });
         setArtworks(artworks.filter(n => n.id !== id));
         setSelectedIds(selectedIds.filter(sid => sid !== id));
+        setTotalArtworks(prev => Math.max(0, prev - 1));
       }
     });
   };
@@ -336,6 +348,7 @@ export default function AdminDashboard() {
           body: JSON.stringify({ ids: selectedIds })
         });
         setArtworks(prev => prev.filter(n => !selectedIds.includes(n.id)));
+        setTotalArtworks(prev => Math.max(0, prev - selectedIds.length));
         setSelectedIds([]);
       }
     });
@@ -430,30 +443,48 @@ export default function AdminDashboard() {
 
                 <div className="pt-2 space-y-2 border-t border-slate-100">
                    <label className="text-xs font-bold text-slate-600 flex items-center justify-between">
-                     后台自动抓取间隔 <span className="text-xs text-slate-400 font-normal">最少30分钟</span>
+                     <div className="flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          checked={settings.use_min_interval !== 'false'} 
+                          onChange={e => handleSettingsChange('use_min_interval', e.target.checked ? 'true' : 'false')} 
+                        />
+                        启用后台自动抓取间隔
+                     </div>
+                     <span className="text-xs text-slate-400 font-normal">最少30分钟</span>
                    </label>
-                   <div className="flex items-center gap-4">
-                     <div className="flex items-center gap-2">
-                       <input 
-                         type="number"
-                         min="0"
-                         value={settings.interval_hours ?? '0'}
-                         onChange={e => handleSettingsChange('interval_hours', e.target.value)}
-                         className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center"
-                       />
-                       <span className="text-xs text-slate-500 font-bold">小时</span>
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                       <div className="flex items-center gap-2">
+                         <input 
+                           type="number"
+                           min="0"
+                           disabled={settings.use_min_interval === 'false'}
+                           value={settings.interval_hours ?? '0'}
+                           onChange={e => handleSettingsChange('interval_hours', e.target.value)}
+                           className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
+                         />
+                         <span className="text-xs text-slate-500 font-bold">小时</span>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <input 
+                           type="number"
+                           min="0"
+                           max="59"
+                           disabled={settings.use_min_interval === 'false'}
+                           value={settings.interval_minutes ?? '30'}
+                           onChange={e => handleSettingsChange('interval_minutes', e.target.value)}
+                           className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
+                         />
+                         <span className="text-xs text-slate-500 font-bold">分钟</span>
+                       </div>
                      </div>
-                     <div className="flex items-center gap-2">
-                       <input 
-                         type="number"
-                         min="0"
-                         max="59"
-                         value={settings.interval_minutes ?? '30'}
-                         onChange={e => handleSettingsChange('interval_minutes', e.target.value)}
-                         className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center"
-                       />
-                       <span className="text-xs text-slate-500 font-bold">分钟</span>
-                     </div>
+                     {settings.cron_last_trigger && (
+                        <div className="text-[11px] text-slate-400 text-right">
+                          上次收到触发任务:<br/>
+                          <span className="font-mono text-xs">{new Date(settings.cron_last_trigger).toLocaleString()}</span>
+                        </div>
+                     )}
                    </div>
                 </div>
 
@@ -590,6 +621,33 @@ export default function AdminDashboard() {
                </div>
              ))}
           </div>
+          
+          {totalArtworks > 0 && (
+            <div className="p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50">
+              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                共 {totalArtworks} 幅佳作
+              </span>
+              <div className="flex gap-2">
+                 <button 
+                   onClick={() => setPage(Math.max(0, page - 1))} 
+                   disabled={page === 0}
+                   className="px-3 py-1 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                 >
+                   上一页
+                 </button>
+                 <span className="text-xs text-slate-500 font-mono py-1 px-2 border border-transparent">
+                   {page + 1} / {Math.ceil(totalArtworks / limit) || 1}
+                 </span>
+                 <button 
+                   onClick={() => setPage(page + 1)} 
+                   disabled={(page + 1) * limit >= totalArtworks}
+                   className="px-3 py-1 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                 >
+                   下一页
+                 </button>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

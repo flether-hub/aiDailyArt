@@ -42,6 +42,15 @@ app.get('/cron', async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
+  // Record the trigger time
+  try {
+    const db = await getDB();
+    const nowIso = new Date().toISOString();
+    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('cron_last_trigger', nowIso);
+  } catch (err) {
+    console.error('Error saving cron_last_trigger:', err);
+  }
+
   // Asynchronous execution without blocking the response
   c.executionCtx.waitUntil(
     (async () => {
@@ -58,6 +67,24 @@ app.get('/cron', async (c) => {
   return c.json({ success: true, message: 'Cron job initiated in the background.' });
 });
 
+app.get('/admin/artworks', async (c) => {
+  const db = await getDB();
+  const limit = parseInt(c.req.query('limit') || '12', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+  
+  const artworks = await db.prepare('SELECT * FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
+    .all(limit, offset);
+  const totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks').get()) as any;
+  const total = totalResult?.total || 0;
+
+  const processedArtworks = (Array.isArray(artworks) ? artworks : []).map((item: any) => ({
+    ...item,
+    keywords: typeof item.keywords === 'string' ? item.keywords.split(/[，,]/).map((k: string) => k.trim()) : (Array.isArray(item.keywords) ? item.keywords : [])
+  }));
+
+  return c.json({ data: processedArtworks, total });
+});
+
 app.get('/artworks', async (c) => {
   const db = await getDB();
   const keyword = c.req.query('keyword');
@@ -65,20 +92,27 @@ app.get('/artworks', async (c) => {
   const offset = parseInt(c.req.query('offset') || '0', 10);
 
   let artworks;
+  let totalResult;
+  let total = 0;
+  
   if (keyword) {
     artworks = await db.prepare('SELECT * FROM artworks WHERE is_visible = 1 AND keywords LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?')
       .all(`%${keyword}%`, limit, offset);
+    totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks WHERE is_visible = 1 AND keywords LIKE ?').get(`%${keyword}%`)) as any;
   } else {
     artworks = await db.prepare('SELECT * FROM artworks WHERE is_visible = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?')
       .all(limit, offset);
+    totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks WHERE is_visible = 1').get()) as any;
   }
+
+  total = totalResult?.total || 0;
 
   const processedArtworks = (Array.isArray(artworks) ? artworks : []).map((item: any) => ({
     ...item,
     keywords: typeof item.keywords === 'string' ? item.keywords.split(/[，,]/).map((k: string) => k.trim()) : (Array.isArray(item.keywords) ? item.keywords : [])
   }));
 
-  return c.json(processedArtworks);
+  return c.json({ data: processedArtworks, total });
 });
 
 app.get('/artworks/:id', async (c) => {
