@@ -545,8 +545,13 @@ export default function AdminDashboard() {
           <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
              <div className="flex items-center gap-3">
                <h2 className="font-bold text-slate-700 flex items-center gap-2"><Palette className="w-4 h-4 text-slate-400" /> 藏品库管理</h2>
+               {totalArtworks > 0 && (
+                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] bg-white border border-slate-200 px-2.5 py-1 rounded-full shadow-sm ml-2">
+                    INVENTORY: {totalArtworks}
+                 </span>
+               )}
                {artworks.length > 0 && (
-                 <button onClick={toggleSelectAll} className="text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                 <button onClick={toggleSelectAll} className="text-xs text-blue-600 hover:text-blue-800 transition-colors ml-2">
                    {selectedIds.length === artworks.length ? '取消全选' : '全选当前页'}
                  </button>
                )}
@@ -636,14 +641,8 @@ export default function AdminDashboard() {
           </div>
           
           {totalArtworks > 0 && (
-            <div className="px-4 py-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              <div className="order-2 md:order-1">
-                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] bg-white border border-slate-100 px-3 py-1.5 rounded-full shadow-sm">
-                   Inventory: {totalArtworks} Masterpieces
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-1 order-1 md:order-2">
+            <div className="px-4 py-4 border-t border-slate-100 flex justify-end items-center bg-slate-50/50">
+              <div className="flex items-center gap-1">
                  <button 
                    onClick={() => setPage(Math.max(0, page - 1))} 
                    disabled={page === 0}

@@ -75,6 +75,9 @@ export default function AdminLogin() {
                   placeholder="••••••••••••"
                 />
               </div>
+              <p className="mt-2 text-xs text-slate-400">
+                默认本预览应用测试密码为 1234
+              </p>
             </div>
 
             {error && (
