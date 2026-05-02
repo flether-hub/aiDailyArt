@@ -15,7 +15,7 @@ app.use('*', async (c, next) => {
   
   if (!dbInitialized) {
     try {
-      const db = getDB();
+      const db = await getDB();
       // Always try to initialize, getDB() handles switching between Local and D1
       await initDB(db);
       dbInitialized = true;
@@ -40,7 +40,7 @@ app.onError((err, c) => {
 app.get('/health', (c) => c.json({ status: 'ok', environment: 'cloudflare' }));
 
 app.get('/artworks', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const keyword = c.req.query('keyword');
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
@@ -63,7 +63,7 @@ app.get('/artworks', async (c) => {
 });
 
 app.get('/artworks/:id', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const id = c.req.param('id');
   const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id);
   
@@ -81,14 +81,14 @@ app.get('/artworks/:id', async (c) => {
 });
 
 app.delete('/admin/artworks/:id', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const id = c.req.param('id');
   await db.prepare('DELETE FROM artworks WHERE id = ?').run(id);
   return c.json({ success: true });
 });
 
 app.post('/admin/artworks/bulk-delete', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const { ids } = await c.req.json();
   if (Array.isArray(ids) && ids.length > 0) {
     const placeholders = ids.map(() => '?').join(',');
@@ -98,7 +98,7 @@ app.post('/admin/artworks/bulk-delete', async (c) => {
 });
 
 app.get('/stats', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const countResult = await db.prepare('SELECT count(*) as count FROM artworks').get();
   const count = (countResult as any)?.count || 0;
   return c.json({ artworks: count, visits: 1337 + count * 4 }); 
@@ -109,7 +109,7 @@ app.post('/stats/visit', async (c) => {
 });
 
 app.get('/keywords', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const results = await db.prepare('SELECT keywords FROM artworks').all();
   const fetchedResults = Array.isArray(results) ? results : [];
   const keywordSet = new Set<string>();
@@ -143,7 +143,7 @@ app.get('/auth/check', async (c) => {
 });
 
 app.get('/admin/settings', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const settings = await db.prepare('SELECT * FROM settings').all();
   const result: any = {};
   (settings || []).forEach((s: any) => result[s.key] = s.value);
@@ -151,7 +151,7 @@ app.get('/admin/settings', async (c) => {
 });
 
 app.post('/admin/settings', async (c) => {
-  const db = getDB();
+  const db = await getDB();
   const body = await c.req.json();
   for (const [key, value] of Object.entries(body)) {
     await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
@@ -171,7 +171,7 @@ app.post('/admin/trigger-fetch', async (c) => {
          await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n');
       });
       // Send final summary
-      const db = getDB();
+      const db = await getDB();
       const result = await db.prepare("SELECT count(*) as c FROM artworks WHERE date(created_at) = date('now')").get();
       const newlyAdded = (result as any)?.c || 0;
       await stream.write(JSON.stringify({ type: 'complete', data: { success: true, message: `分析任务已圆满完成。`, count: newlyAdded } }) + '\n');

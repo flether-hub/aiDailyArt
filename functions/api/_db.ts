@@ -1,5 +1,4 @@
 import { getCloudEnv } from './_cloud-env';
-import sqlite from 'better-sqlite3';
 
 export interface DBClient {
   prepare(sql: string): {
@@ -27,9 +26,15 @@ class D1Client implements DBClient {
 
 class LocalClient implements DBClient {
   private db: any;
-  constructor() {
-    this.db = new sqlite('local.db');
+  
+  static async create() {
+    const instance = new LocalClient();
+    // Dynamic import to avoid bundling on Cloudflare
+    const sqlite = (await import('better-sqlite3')).default;
+    instance.db = new sqlite('local.db');
+    return instance;
   }
+
   prepare(sql: string) {
     const stmt = this.db.prepare(sql);
     return {
@@ -45,12 +50,12 @@ class LocalClient implements DBClient {
 
 let dbInstance: DBClient | null = null;
 
-export function getDB(): DBClient {
+export async function getDB(): Promise<DBClient> {
   const env = getCloudEnv();
   
   if (!env || !env.ART_GALLERY_DB) {
     if (!dbInstance) {
-      dbInstance = new LocalClient();
+      dbInstance = await LocalClient.create();
     }
     return dbInstance;
   }
@@ -88,7 +93,7 @@ export async function initDB(db: DBClient) {
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');
-  await insertSetting.run('model_id', 'gemini-1.5-flash');
+  await insertSetting.run('model_id', 'gemini-2.0-flash');
   await insertSetting.run('daily_limit', '1');
 }
 

@@ -118,7 +118,7 @@ async function fetchFromMet(notify) {
 }
 
 export async function runAIAggregation(isManual: boolean = false, onProgress?: (msg: string, isError?: boolean) => void | Promise<void>) {
-  const db = getDB();
+  const db = await getDB();
   const notify = async (msg: string, isError = false) => { if (onProgress) await onProgress(msg, isError); };
 
   const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
