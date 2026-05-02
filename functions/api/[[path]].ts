@@ -3,7 +3,7 @@ import { handle } from 'hono/cloudflare-pages';
 import { cors } from 'hono/cors';
 import { getDB, initDB } from './_db';
 import { runAIAggregation } from './_ai-fetcher';
-import { setCloudEnv } from './_cloud-env';
+import { setCloudEnv, getCloudEnv } from './_cloud-env';
 
 const app = new Hono<any>().basePath('/api');
 
