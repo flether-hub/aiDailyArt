@@ -33,7 +33,7 @@ function Navbar() {
         </div>
         <div className="flex flex-col -space-y-1">
           <h1 className="text-xl font-black tracking-tighter text-slate-900 font-serif uppercase">
-            AI <span className="text-amber-700">名画艺术馆</span>
+            AI <span className="text-amber-700">每日画廊</span>
           </h1>
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">人工智能 策展赏析</span>
         </div>
@@ -117,7 +117,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       </main>
       <footer className="py-12 border-t border-slate-200/60 text-center bg-white/30 backdrop-blur-sm">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
-          AI 名画艺术馆 &copy; {new Date().getFullYear()} — 永恒经典与人工智能的碰撞
+          AI 每日画廊 &copy; {new Date().getFullYear()} — 永恒经典与人工智能的碰撞
         </p>
       </footer>
     </div>

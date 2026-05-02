@@ -99,7 +99,7 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col pb-24 w-full">
       {/* Cinematic Hero Section */}
-      <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
+      <header className="relative w-full py-16 flex flex-col items-center justify-center overflow-hidden">
          {/* Subtle background texture or soft glow */}
          <div className="absolute inset-0 bg-gradient-to-b from-white to-[#faf9f6] z-0"></div>
          <div className="absolute inset-0 opacity-10 filter blur-3xl scale-125"></div>
@@ -110,8 +110,8 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <h1 className="text-5xl md:text-8xl font-serif font-black text-slate-950 mb-8 tracking-tighter leading-none">
-                名画 <span className="text-amber-800 italic font-medium">每日赏析</span>
+              <h1 className="text-4xl md:text-6xl font-serif font-black text-slate-950 mb-6 tracking-tighter leading-none">
+                AI <span className="text-amber-800 italic font-medium">每日画廊</span>
               </h1>
             </motion.div>
             
@@ -121,12 +121,12 @@ export default function Home() {
               transition={{ delay: 0.5, duration: 1 }}
               className="max-w-xl mx-auto"
             >
-              <p className="text-lg md:text-xl text-slate-500 font-serif mb-8 leading-relaxed">
+              <p className="text-base md:text-lg text-slate-500 font-serif mb-6 leading-relaxed">
                 “每一位艺术家都将画笔浸入自己的灵魂，将自己的本性画入画中。”
               </p>
               <div className="flex items-center justify-center gap-4">
                 <div className="h-px w-12 bg-slate-200"></div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">由 AI 重新定义的经典杰作</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">经典杰作</span>
                 <div className="h-px w-12 bg-slate-200"></div>
               </div>
             </motion.div>
