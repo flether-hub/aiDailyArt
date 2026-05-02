@@ -1,5 +1,4 @@
 import { getDB } from './_db';
-import { v4 as uuidv4 } from 'uuid';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getCloudEnv } from './_cloud-env';
 
@@ -167,7 +166,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
         await notify(`精选名画: 《${objData.title}》 - ${objData.artistDisplayName}`);
         await notify(`💡 正在进行深度分析并转存资源...`);
 
-        const artworkId = uuidv4();
+        const artworkId = crypto.randomUUID();
         const r2Url = await uploadToR2(objData.primaryImage, artworkId);
         const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey);
 

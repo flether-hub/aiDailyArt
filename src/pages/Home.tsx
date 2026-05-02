@@ -33,9 +33,10 @@ export default function Home() {
     try {
       const res = await fetch('/api/keywords');
       const data = await res.json();
-      setKeywords(data || []);
+      setKeywords(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
+      setKeywords([]);
     }
   };
 

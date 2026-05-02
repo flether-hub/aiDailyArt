@@ -17,7 +17,11 @@ function Navbar() {
     fetch('/api/stats/visit', { method: 'POST' })
       .then(() => fetch('/api/stats'))
       .then(res => res.json())
-      .then(data => setVisits(data.visits))
+      .then(data => {
+        if (data && typeof data.visits === 'number') {
+           setVisits(data.visits);
+        }
+      })
       .catch(console.error);
   }, []);
   
