@@ -3,20 +3,18 @@ import { handle } from 'hono/cloudflare-pages';
 import { cors } from 'hono/cors';
 import { getDB, initDB } from './_db';
 import { runAIAggregation } from './_ai-fetcher';
-import { setCloudEnv, getCloudEnv } from './_cloud-env';
+import { setCloudEnv } from './_cloud-env';
 
 const app = new Hono<any>().basePath('/api');
 
 let dbInitialized = false;
 
 app.use('*', async (c, next) => {
-  // Capture Cloudflare Env (D1, R2, etc)
   setCloudEnv(c.env);
   
   if (!dbInitialized) {
     try {
       const db = await getDB();
-      // Always try to initialize, getDB() handles switching between Local and D1
       await initDB(db);
       dbInitialized = true;
     } catch (e) {
@@ -200,4 +198,3 @@ app.get('/cdn/*', async (c) => {
 });
 
 export const onRequest = handle(app);
-export { app }; // For local server.ts

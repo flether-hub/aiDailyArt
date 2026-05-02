@@ -1,18 +1,18 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
-import { getRequestListener } from '@hono/node-server';
+import { handle } from '@hono/node-server';
 import path from 'path';
-import { app } from './functions/api/[[path]]';
+import app from './src/server/app';
 
 async function startServer() {
   const server = express();
   const PORT = 3000;
 
   // Hono API Handler
-  const honoHandler = getRequestListener(app.fetch);
+  const honoHandler = handle(app);
 
   // API Routes - Mount Hono (which already has /api base path)
-  server.all('/api/*all', (req, res) => {
+  server.all('/api/*', (req, res) => {
     honoHandler(req, res);
   });
 

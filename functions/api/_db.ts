@@ -24,43 +24,16 @@ class D1Client implements DBClient {
   }
 }
 
-class LocalClient implements DBClient {
-  private db: any;
-  
-  static async create() {
-    const instance = new LocalClient();
-    // Dynamic import to avoid bundling on Cloudflare
-    const sqlite = (await import('better-sqlite3')).default;
-    instance.db = new sqlite('local.db');
-    return instance;
-  }
-
-  prepare(sql: string) {
-    const stmt = this.db.prepare(sql);
-    return {
-      run: async (...params: any[]) => stmt.run(...params),
-      get: async (...params: any[]) => stmt.get(...params),
-      all: async (...params: any[]) => stmt.all(...params),
-    };
-  }
-  async exec(sql: string) {
-    this.db.exec(sql);
-  }
-}
-
 let dbInstance: DBClient | null = null;
 
 export async function getDB(): Promise<DBClient> {
   const env = getCloudEnv();
   
   if (!env || !env.ART_GALLERY_DB) {
-    if (!dbInstance) {
-      dbInstance = await LocalClient.create();
-    }
-    return dbInstance;
+    throw new Error('Cloudflare D1 binding "ART_GALLERY_DB" not found.');
   }
 
-  if (!(dbInstance instanceof D1Client)) {
+  if (!dbInstance) {
     dbInstance = new D1Client(env.ART_GALLERY_DB);
   }
   
@@ -97,8 +70,6 @@ export async function initDB(db: DBClient) {
   await insertSetting.run('daily_limit', '1');
 }
 
-export const dbProxy = {
+export default {
   get instance() { return getDB(); }
 };
-
-export default dbProxy;
