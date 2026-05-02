@@ -58,10 +58,22 @@
 
 ### 1. 云端资源准备
 1. 登录 Cloudflare 控制台。
-2. 在 **D1 数据库** 面板中创建一个新的数据库，记录其名称以供绑定。
+2. 在 **D1 数据库** 面板中创建一个新的数据库，**务必记录下该数据库的 `database_id` (通常是一串 UUID，例如 `a23c6453-...`)** 以及它的名称。
 3. 在 **R2 对象存储** 面板中创建一个新的存储桶。
 
-### 2. 通过 GitHub 连接部署
+### 2. 更新配置文件 (wrangler.toml)
+在将代码推送到 GitHub 之前，你需要修改项目根目录下的 `wrangler.toml` 文件：
+1. 找到 `[[d1_databases]]` 下的 `database_id` 字段。
+2. 将其替换为你刚刚创建的真实 **D1 数据库的 ID**。
+   ```toml
+   [[d1_databases]]
+   binding = "ART_GALLERY_DB"
+   database_name = "art_db"  # 这里可以随意，只要 ID 对得上
+   database_id = "你的真实-UUID-放在这里"
+   ```
+*(注：由于 Cloudflare Pages 部署时会读取项目内的 `wrangler.toml` 进行资源绑定校验，如果 ID 错误，部署或运行时将找不到对应数据库。)*
+
+### 3. 通过 GitHub 连接部署
 1. 将当前项目推送到你的 GitHub 仓库中。
 2. 在 Cloudflare 控制台的 **Workers & Pages** 栏目下，点击 **Create application (创建应用)** -> **Pages** -> **Connect to Git (连接到 Git)**。
 3. 选择您推送的这个 GitHub 仓库。
@@ -71,7 +83,7 @@
     - Build output directory: `dist`
 5. 点击 **Save and Deploy (保存并部署)**。首次部署由于我们还没有绑定数据库和 R2，API 会暂时失效，此时可以先忽略。
 
-### 3. 系统资源配置与绑定 (Bindings)
+### 4. 系统资源配置与绑定 (Bindings)
 部署完成后，进入项目详情页，点击 **Settings (设置)** -> **Functions** 面板：
 1. **D1 数据库绑定**: 找到 D1 database bindings，点击添加，变量名 **必须为 `ART_GALLERY_DB`**，并将其指向您在这之前创建的 D1 数据库。
 2. **R2 存储桶绑定**: 找到 R2 bucket bindings，点击添加，变量名 **必须为 `ART_GALLERY_IMAGES`**，并指向第一步创建的 R2 存储桶。
@@ -79,11 +91,11 @@
     - 添加环境变量 `ADMIN_PASSWORD` (必需)：设置管理后台的登录密码。
     - 添加环境变量 `CRON_SECRET` (可选)：设置一个密钥值，如果你使用计划触发器等，用于保护 cron 接口。
 
-### 4. 重新部署与自动建表
+### 5. 重新部署与自动建表
 1. 所有资源绑定更新完毕后，前往 **Deployments (部署记录)** 页面，点击最新的部署，选择 **Retry deployment (重试部署)**。
 2. 重新部署成功后，只要你首次通过浏览器访问任何网站上的 API 端点，系统便会自动感知并在 D1 中迁移并建立所需的表结构！
 
-### 5. AI 模型激活
+### 6. AI 模型激活
 1. 访问线上部署好的站点 URL 后跟 `/admin/login`。
 2. 输入刚才配置的管理密码 (`ADMIN_PASSWORD`) 登录系统。
 3. 在鉴赏模型配置区域，输入你的 **Gemini API Key** 或者是 **阿里百炼 API Key** （也可选择切换并修改默认分析模型），点击保存。

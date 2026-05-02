@@ -27,7 +27,7 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const limit = 12;
+  const limit = 13;
 
   const fetchKeywords = async () => {
     try {

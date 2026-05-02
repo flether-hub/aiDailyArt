@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [totalArtworks, setTotalArtworks] = useState(0);
-  const limit = 12;
+  const limit = 20;
 
   const fetchAdminArtworks = async (currentPage: number) => {
     try {
