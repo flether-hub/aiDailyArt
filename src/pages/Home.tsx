@@ -254,15 +254,22 @@ export default function Home() {
                         </button>
                         
                         <div className="flex items-center gap-1 px-4">
-                          {Array.from({ length: Math.min(5, Math.ceil(totalArtworks / limit)) }, (_, i) => {
+                          {(() => {
                             const pageCount = Math.ceil(totalArtworks / limit);
-                            let pageNum = page + i - 2;
-                            if (pageNum < 0) pageNum = i;
-                            if (pageNum >= pageCount) pageNum = pageCount - 5 + i;
-                            if (pageNum < 0) pageNum = i;
-                            if (pageNum >= pageCount) return null;
-
-                            return (
+                            if (pageCount === 0) return null;
+                            let startPage = Math.max(0, page - 2);
+                            let endPage = Math.min(pageCount - 1, page + 2);
+                            if (endPage - startPage < 4) {
+                              if (startPage === 0) {
+                                endPage = Math.min(pageCount - 1, startPage + 4);
+                              } else {
+                                startPage = Math.max(0, endPage - 4);
+                              }
+                            }
+                            return Array.from(
+                              { length: endPage - startPage + 1 },
+                              (_, i) => startPage + i
+                            ).map((pageNum) => (
                                <button
                                  key={pageNum}
                                  onClick={() => setPage(pageNum)}
@@ -270,8 +277,8 @@ export default function Home() {
                                >
                                  {pageNum + 1}
                                </button>
-                            );
-                          })}
+                            ));
+                          })()}
                         </div>
 
                         <button 

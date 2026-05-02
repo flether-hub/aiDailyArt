@@ -33,7 +33,7 @@ export default function AdminDashboard() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [totalArtworks, setTotalArtworks] = useState(0);
-  const limit = 20;
+  const limit = 12;
 
   const fetchAdminArtworks = async (currentPage: number) => {
     try {
@@ -447,11 +447,13 @@ export default function AdminDashboard() {
       )}
       <header className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h2 className="text-slate-800 mt-1 text-base sm:text-lg font-bold flex items-center gap-2">
+          <h2 className="text-slate-700 mt-1 text-base sm:text-lg flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 shrink-0" />
             <span>
               目前馆藏：
-              <span className="font-normal text-[0.9em]">{totalArtworks}</span>{" "}
+              <span>
+                {totalArtworks}
+              </span>{" "}
               幅名作
             </span>
           </h2>
@@ -485,12 +487,12 @@ export default function AdminDashboard() {
           <button
             onClick={triggerFetch}
             disabled={fetchingWorks}
-            className="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 w-full sm:w-auto shrink-0"
+            className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2.5 rounded-full hover:bg-slate-100 disabled:opacity-50 shrink-0"
+            title="手动甄选单幅名画"
           >
             <RefreshCw
-              className={`w-5 h-5 ${fetchingWorks ? "animate-spin" : ""}`}
+              className={`w-6 h-6 ${fetchingWorks ? "animate-spin" : ""}`}
             />
-            {fetchingWorks ? "正在鉴赏中..." : "手动甄选单幅名画"}
           </button>
         </div>
       </header>
@@ -500,13 +502,20 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-6 col-span-1 lg:col-span-1 h-fit order-2 lg:order-1">
           <div className="bg-slate-100 p-6 rounded-xl border border-slate-200">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
+              <div className="bg-slate-50 border-b border-slate-100 text-slate-800 px-4 py-3 flex justify-between items-center gap-2">
                 <h3 className="text-base font-bold flex items-center gap-2">
                   <Settings2 className="w-5 h-5 text-amber-500" /> 鉴赏模型配置
                 </h3>
-                <span className="text-xs bg-slate-700 px-2 py-1 rounded uppercase font-bold tracking-wider">
-                  生效中
-                </span>
+                <div className="flex items-center gap-2 relative">
+                  <button
+                    onClick={saveSettings}
+                    disabled={savingSettings}
+                    className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0"
+                    title="保存核心配置"
+                  >
+                    <Save className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 space-y-4">
@@ -632,11 +641,11 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     {settings.cron_last_trigger && (
-                      <div className="text-[10px] text-slate-400 p-2 bg-slate-50/50 border border-slate-200/50 rounded-md">
-                        <span className="uppercase font-bold tracking-wider opacity-60">
+                      <div className="text-xs sm:text-sm font-mono text-slate-400 p-2 bg-slate-50/50 border border-slate-200/50 rounded-md">
+                        <span className="shrink-0">
                           上次收到触发任务:
                         </span>
-                        <span className="font-mono ml-2 text-slate-600">
+                        <span className="ml-2 text-slate-500">
                           {new Date(
                             settings.cron_last_trigger
                               ? settings.cron_last_trigger +
@@ -653,21 +662,13 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-
-                <button
-                  onClick={saveSettings}
-                  disabled={savingSettings}
-                  className="w-full bg-slate-900 text-white text-base font-bold py-3 rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-colors mt-4 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                >
-                  <Save className="w-5 h-5" /> 保存核心配置
-                </button>
               </div>
             </div>
           </div>
 
           <div className="bg-slate-100 p-6 rounded-xl border border-slate-200">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
+              <div className="bg-slate-50 border-b border-slate-100 text-slate-800 px-4 py-3 flex justify-between items-center">
                 <h3 className="text-base font-bold flex items-center gap-2">
                   <Palette className="w-5 h-5 text-amber-500" /> 焦点管理
                 </h3>
@@ -727,7 +728,7 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          <div className="flex flex-col divide-y divide-slate-100 overflow-y-auto max-h-[700px]">
+          <div className="flex flex-col divide-y divide-slate-100">
             {artworks.length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
                 <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
@@ -754,7 +755,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="text-slate-400 font-mono text-xs sm:text-sm w-6 sm:w-8 shrink-0">
-                      {String(index + 1).padStart(2, "0")}
+                      {String(page * limit + index + 1).padStart(2, "0")}
                     </div>
                     <Link
                       to={`/artwork/${item.id}`}
@@ -870,27 +871,31 @@ export default function AdminDashboard() {
                 </button>
 
                 <div className="flex items-center gap-1.5 px-3">
-                  {Array.from(
-                    { length: Math.min(5, Math.ceil(totalArtworks / limit)) },
-                    (_, i) => {
-                      const pageCount = Math.ceil(totalArtworks / limit);
-                      let pageNum = page + i - 2;
-                      if (pageNum < 0) pageNum = i;
-                      if (pageNum >= pageCount) pageNum = pageCount - 5 + i;
-                      if (pageNum < 0) pageNum = i;
-                      if (pageNum >= pageCount) return null;
-
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => setPage(pageNum)}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${page === pageNum ? "bg-slate-900 text-white shadow-md shadow-slate-200 scale-110" : "bg-white border border-slate-100 text-slate-500 hover:border-slate-300"}`}
-                        >
-                          {pageNum + 1}
-                        </button>
-                      );
-                    },
-                  )}
+                  {(() => {
+                    const pageCount = Math.ceil(totalArtworks / limit);
+                    if (pageCount === 0) return null;
+                    let startPage = Math.max(0, page - 2);
+                    let endPage = Math.min(pageCount - 1, page + 2);
+                    if (endPage - startPage < 4) {
+                      if (startPage === 0) {
+                        endPage = Math.min(pageCount - 1, startPage + 4);
+                      } else {
+                        startPage = Math.max(0, endPage - 4);
+                      }
+                    }
+                    return Array.from(
+                      { length: endPage - startPage + 1 },
+                      (_, i) => startPage + i
+                    ).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${page === pageNum ? "bg-slate-800 text-white shadow-md shadow-slate-200 scale-110" : "bg-white border border-slate-100 text-slate-500 hover:border-slate-300"}`}
+                      >
+                        {pageNum + 1}
+                      </button>
+                    ));
+                  })()}
                 </div>
 
                 <button
@@ -908,7 +913,7 @@ export default function AdminDashboard() {
       </div>
 
       {confirmDialog && confirmDialog.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-2">系统确认</h3>
             <p className="text-sm text-slate-600 mb-8">

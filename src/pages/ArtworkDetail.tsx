@@ -43,7 +43,7 @@ export default function ArtworkDetail() {
     <>
       <div className="w-full min-h-screen bg-[#faf9f6] flex py-8 sm:py-12 px-4 sm:px-8 md:px-12 lg:px-16 pb-32">
         <div className="w-full max-w-[1280px] mx-auto">
-          <Link to="/" className="group inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
+          <Link to="/" className="group inline-flex items-center gap-2 text-sm font-medium tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
             <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4 group-hover:-translate-x-1 transition-transform" />
             <span className="hidden sm:inline">返回档案库</span>
           </Link>
@@ -148,22 +148,29 @@ export default function ArtworkDetail() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-[#faf9f6]/95 backdrop-blur-sm flex items-center justify-center p-4 lg:p-12 cursor-zoom-out"
+            className="fixed inset-0 z-50 bg-[#faf9f6]/95 backdrop-blur-sm flex items-center justify-center overflow-hidden cursor-zoom-out"
             onClick={() => setIsZoomed(false)}
           >
-            <button className="absolute top-6 right-6 lg:top-10 lg:right-10 bg-white/50 hover:bg-white text-slate-900 p-3 rounded-full transition-colors shadow-sm" onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}>
+            <button className="absolute top-6 right-6 lg:top-10 lg:right-10 bg-white/50 hover:bg-white text-slate-900 z-10 p-3 rounded-full transition-colors shadow-sm" onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}>
                <X className="w-6 h-6" />
             </button>
-            <motion.img 
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              src={artwork.image_url} 
-              alt={artwork.title} 
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-sm border border-slate-200/50" 
-              referrerPolicy="no-referrer"
-            />
+            <motion.div 
+              className="w-full h-full flex items-center justify-center"
+            >
+              <motion.img 
+                drag
+                dragConstraints={{ left: -1500, right: 1500, top: -1500, bottom: 1500 }}
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 2 }}
+                exit={{ scale: 0.95 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                src={artwork.image_url} 
+                alt={artwork.title} 
+                className="max-w-[80vw] max-h-[80vh] object-contain shadow-2xl rounded-sm border border-slate-200/50 cursor-grab active:cursor-grabbing" 
+                referrerPolicy="no-referrer"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

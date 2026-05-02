@@ -61,7 +61,7 @@ const SOURCES = [
 async function fetchFromWikidata(qid, sourceName, notify) {
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
-      VALUES ?type { wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 }
+      VALUES ?type { wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 wd:Q428054 wd:Q2152862 wd:Q1750219 }
       ?item wdt:P31 ?type;
             wdt:P195 wd:${qid};
             wdt:P18 ?image.
@@ -163,7 +163,16 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   }
 
   await notify(`系统开始获取名画，本次计划获取 ${targetCount} 幅...`);
-  const shuffledSources = [...SOURCES].sort(() => 0.5 - Math.random());
+  let shuffledSources = [...SOURCES].sort(() => 0.5 - Math.random());
+  
+  // 50% chance to put Chinese sources at the front to ensure Chinese paintings are frequently fetched
+  if (Math.random() < 0.5) {
+     const chineseNames = ['故宫博物院', '国立故宫博物院', '上海博物馆', '辽宁省博物馆', '浙江省博物馆'];
+     const cSources = shuffledSources.filter(s => chineseNames.some(n => s.name.includes(n)));
+     const wSources = shuffledSources.filter(s => !chineseNames.some(n => s.name.includes(n)));
+     shuffledSources = [...cSources, ...wSources];
+  }
+
   let newlyAdded = 0;
 
   for (const source of shuffledSources) {
