@@ -186,7 +186,7 @@ export default function AdminDashboard() {
           },
           body: JSON.stringify({ ids: selectedIds })
         });
-        setArtworks(artworks.filter(n => !selectedIds.includes(n.id)));
+        setArtworks(prev => prev.filter(n => !selectedIds.includes(n.id)));
         setSelectedIds([]);
       }
     });
