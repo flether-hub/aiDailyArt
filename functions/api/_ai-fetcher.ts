@@ -168,7 +168,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
         const artworkId = crypto.randomUUID();
         const r2Url = await uploadToR2(objData.primaryImage, artworkId);
-        const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey);
+        const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
 
         const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
         const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
@@ -184,7 +184,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   return { success: true, count: newlyAdded };
 }
 
-export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string) {
+export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>) {
   const prompt = `你是一位风趣幽默、见多识广、偶尔带点“凡尔赛”气息的顶级艺术策展人。
 请为以下名画撰写一篇让人欲罢不能的深度赏析。同时，请将画作名称和创作者翻译成中文（如果是外语）。
 【创作要求】：
@@ -212,9 +212,11 @@ export async function generateDetailedInterpretation(title: string, artist: stri
   try {
      const aiKey = userApiKey;
      if (!aiKey) {
+       if (notify) await notify("⚠️ 尚未配置 API 密钥", true);
        return { keywords, content: "<p>尚未配置 API 密钥。请在管理员控制台设置 API 密钥以生成艺术解读。</p>" };
      }
 
+     if (notify) await notify(`🤖 正在调用 ${provider === 'dashscope' || provider === 'bailian' ? '阿里云大模型' : 'Google Gemini'}  (${modelId || '默认模型'}) ...`);
      let text = "";
 
      if (provider === 'dashscope' || provider === 'bailian') {
@@ -240,7 +242,10 @@ export async function generateDetailedInterpretation(title: string, artist: stri
         }
         
         const data: any = await res.json();
-        text = data.choices[0]?.message?.content || "{}";
+        if (data.code && data.message && !data.choices) {
+            throw new Error(`Alibaba AI Error: [${data.code}] ${data.message}`);
+        }
+        text = data.choices?.[0]?.message?.content || "{}";
      } else {
         // Default: Gemini
         const genAI = new GoogleGenerativeAI(aiKey);
@@ -278,8 +283,11 @@ export async function generateDetailedInterpretation(title: string, artist: stri
      keywords = parsed.keywords || keywords;
      if (parsed.title_zh) title_zh = parsed.title_zh;
      if (parsed.artist_zh) artist_zh = parsed.artist_zh;
+     
+     if (notify) await notify("✅ AI 深度解读完成并提取结果。");
   } catch (e: any) {
      console.error('AI error:', e);
+     if (notify) await notify(`❌ AI 调用失败: ${e.message}`, true);
      aiInterpretation = `<p>解读生成失败：${e.message || '未知错误'}</p>`;
   }
   return { keywords, content: aiInterpretation, title_zh, artist_zh };

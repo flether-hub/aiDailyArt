@@ -86,27 +86,50 @@ app.delete('/admin/artworks/:id', async (c) => {
 });
 
 app.post('/admin/artworks/:id/reinterpret', async (c) => {
-  const db = await getDB();
-  const id = c.req.param('id');
-  const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id) as any;
-  if (!artwork) return c.json({ error: 'not found' }, 404);
+  const { stream } = await import('hono/streaming');
+  return stream(c, async (stream) => {
+    c.header('Content-Type', 'text/event-stream');
+    c.header('Cache-Control', 'no-cache');
+    c.header('Connection', 'keep-alive');
+    const db = await getDB();
+    const id = c.req.param('id');
+    const artwork = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id) as any;
+    if (!artwork) {
+       await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: 'not found' } }) + '\n');
+       return;
+    }
 
-  const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
-  const provider = (await getSetting('ai_provider'))?.value || 'gemini';
-  const modelId = (await getSetting('model_id'))?.value;
-  const apiKey = (await getSetting('api_key'))?.value;
+    const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
+    const provider = (await getSetting('ai_provider'))?.value || 'gemini';
+    const modelId = (await getSetting('model_id'))?.value;
+    let apiKey = (await getSetting('api_key'))?.value;
+    if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
+      apiKey = process.env.GEMINI_API_KEY;
+    }
 
-  const { generateDetailedInterpretation } = await import('./_ai-fetcher');
-  const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey);
+    const { generateDetailedInterpretation } = await import('./_ai-fetcher');
+    
+    const notify = async (msg: string, isError: boolean = false) => {
+       await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n');
+    };
 
-  const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
-  const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
+    try {
+      const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey, notify);
 
-  await db.prepare(`
-    UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
-  `).run(aiData.content, aiData.keywords, titleZh, artistZh, id);
+      const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
+      const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
 
-  return c.json({ success: true, ai_interpretation: aiData.content, keywords: aiData.keywords, title: titleZh, artist: artistZh });
+      const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
+      
+      await db.prepare(`
+        UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
+      `).run(aiData.content, keywordsStr, titleZh, artistZh, id);
+
+      await stream.write(JSON.stringify({ type: 'complete', data: { success: true, ai_interpretation: aiData.content, keywords: keywordsStr, title: titleZh, artist: artistZh } }) + '\n');
+    } catch(err: any) {
+      await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: err.message } }) + '\n');
+    }
+  });
 });
 
 app.post('/admin/artworks/bulk-delete', async (c) => {
@@ -134,16 +157,20 @@ app.get('/keywords', async (c) => {
   const db = await getDB();
   const results = await db.prepare('SELECT keywords FROM artworks').all();
   const fetchedResults = Array.isArray(results) ? results : [];
-  const keywordSet = new Set<string>();
+  const keywordCounts: Record<string, number> = {};
   fetchedResults.forEach((row: any) => {
     if (row.keywords) {
       row.keywords.split(/[，,]/).forEach((k: string) => {
         const trimmed = k.trim();
-        if (trimmed) keywordSet.add(trimmed);
+        if (trimmed) keywordCounts[trimmed] = (keywordCounts[trimmed] || 0) + 1;
       });
     }
   });
-  return c.json(Array.from(keywordSet).slice(0, 50));
+  const sortedKeywords = Object.entries(keywordCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50)
+    .map(entry => entry[0]);
+  return c.json(sortedKeywords);
 });
 
 app.post('/auth/login', async (c) => {

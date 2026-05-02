@@ -269,10 +269,10 @@ export default function Home() {
              <div className="bg-white border border-slate-100 p-8 shadow-sm rounded-none">
                 <div className="mb-8">
                    <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
-                     <div className="w-2 h-2 bg-amber-600 rounded-full"></div> 精选标签
+                     <div className="w-2 h-2 bg-amber-600 rounded-full"></div> 艺术焦点
                    </h3>
                    <div className="flex flex-col gap-1">
-                     {keywords.slice(0, 15).map(k => (
+                     {keywords.slice(0, 50).map(k => (
                        <button
                          key={k}
                          onClick={() => handleKeywordClick(k)}
@@ -282,7 +282,7 @@ export default function Home() {
                              : 'border-transparent text-slate-400 hover:text-slate-900 hover:border-slate-300'
                          }`}
                        >
-                         {k}
+                         #{k}
                        </button>
                      ))}
                    </div>

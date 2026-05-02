@@ -39,6 +39,13 @@ export default function AdminDashboard() {
     setSettings({ ...settings, [key]: value, [`${key}Masked`]: value });
   };
 
+  const [toastMessage, setToastMessage] = useState<{message: string, isError: boolean} | null>(null);
+
+  const showToast = (message: string, isError = false) => {
+    setToastMessage({ message, isError });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
   const saveSettings = async () => {
     setSavingSettings(true);
     await fetch('/api/admin/settings', {
@@ -50,7 +57,7 @@ export default function AdminDashboard() {
       body: JSON.stringify(settings)
     });
     setSavingSettings(false);
-    alert('配置已成功保存');
+    showToast('配置已成功保存');
   };
 
   const triggerFetch = async () => {
@@ -147,7 +154,7 @@ export default function AdminDashboard() {
   const deleteKeyword = (keyword: string) => {
     setConfirmDialog({
       isOpen: true,
-      message: `确定要全局删除标签 "${keyword}" 吗？所有名画中包含的该标签都将被抹除。`,
+      message: `确定要全局删除焦点 "${keyword}" 吗？所有名画中包含的该焦点都将被抹除。`,
       onConfirm: async () => {
         try {
           const res = await fetch('/api/admin/keywords/delete', {
@@ -173,24 +180,67 @@ export default function AdminDashboard() {
     });
   };
 
+  const [reinterpretMessages, setReinterpretMessages] = useState<Record<string, string>>({});
+
   const reinterpretArtwork = async (id: string) => {
     setReinterpretingId(id);
+    setReinterpretMessages(prev => ({ ...prev, [id]: '正在启动重新解读...' }));
     try {
       const res = await fetch(`/api/admin/artworks/${id}/reinterpret`, {
         method: 'POST',
         headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
       });
-      if (res.ok) {
-        const data = await res.json();
-        setArtworks(prev => prev.map(a => a.id === id ? { ...a, ai_interpretation: data.ai_interpretation, keywords: data.keywords, title: data.title, artist: data.artist } : a));
-        alert('重新解读成功');
-      } else {
-        alert('重新解读失败');
+      
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error('No readable stream');
+
+      let done = false;
+      let finalData = null;
+      let buffer = '';
+
+      while (!done) {
+         const { value, done: readerDone } = await reader.read();
+         done = readerDone;
+         if (value) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+               let trimmed = line.trim();
+               if (!trimmed) continue;
+               if (trimmed.startsWith('data: ')) trimmed = trimmed.substring(6).trim();
+               
+               const jsonBlocks = trimmed.match(/\{.*?\}(?=\s*\{|$)/g);
+               if (!jsonBlocks) continue;
+               
+               for (const block of jsonBlocks) {
+                  try {
+                    const data = JSON.parse(block);
+                    if (data.type === 'progress') {
+                       setReinterpretMessages(prev => ({ ...prev, [id]: data.message }));
+                    } else if (data.type === 'complete') {
+                       finalData = data.data;
+                    }
+                  } catch(e) { }
+               }
+            }
+         }
       }
-    } catch (e) {
-      alert('发生错误');
+
+      if (finalData && finalData.success) {
+        setArtworks(prev => prev.map(a => a.id === id ? { ...a, ai_interpretation: finalData.ai_interpretation, keywords: finalData.keywords, title: finalData.title, artist: finalData.artist } : a));
+        showToast('重新解读成功');
+      } else {
+        const err = finalData ? finalData.message : '未知错误';
+        showToast(`重新解读失败: ${err}`, true);
+      }
+    } catch (e: any) {
+      showToast(`发生错误: ${e.message}`, true);
     } finally {
       setReinterpretingId(null);
+      setReinterpretMessages(prev => ({ ...prev, [id]: '' }));
     }
   };
 
@@ -245,6 +295,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {toastMessage && (
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-bold shadow-xl animate-in slide-in-from-top-4 fade-in duration-300 ${toastMessage.isError ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+          {toastMessage.message}
+        </div>
+      )}
       <header className="flex justify-between items-end pb-4 border-b border-slate-200">
         <div>
            <h1 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
@@ -253,9 +308,9 @@ export default function AdminDashboard() {
            </h1>
            <p className="text-slate-500 mt-1 text-sm">管理每日抓取的名画及解读内容。</p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-3">
           {fetchingProgress && (
-             <div className={`text-xs px-3 py-1.5 rounded-md font-medium border ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+             <div className={`text-xs px-3 py-1.5 rounded-md font-mono border max-w-sm truncate animate-pulse ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}>
                {fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}
              </div>
           )}
@@ -342,19 +397,19 @@ export default function AdminDashboard() {
           <div className="bg-slate-100 p-6 rounded-xl border border-slate-200">
              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
-                  <h3 className="text-sm font-bold flex items-center gap-2"><Palette className="w-4 h-4" /> 标签管理</h3>
+                  <h3 className="text-sm font-bold flex items-center gap-2"><Palette className="w-4 h-4" /> 焦点管理</h3>
                 </div>
                 <div className="p-4 flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                    {keywords.length === 0 ? (
-                     <div className="text-xs text-slate-400 text-center w-full py-4">暂无标签内容</div>
+                     <div className="text-xs text-slate-400 text-center w-full py-4">暂无焦点内容</div>
                    ) : (
                      keywords.map(kw => (
                        <div key={kw} className="bg-slate-50 border border-slate-200 px-2 py-1 rounded text-xs font-medium text-slate-600 flex items-center gap-2 group">
-                         <span>{kw}</span>
+                         <span>#{kw}</span>
                          <button 
                            onClick={() => deleteKeyword(kw)}
                            className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                           title="全局删除该标签"
+                           title="全局删除该焦点"
                          >
                            &times;
                          </button>
@@ -428,6 +483,17 @@ export default function AdminDashboard() {
                    </div>
                  </div>
                  <div className="flex items-center gap-2">
+                   {reinterpretMessages[item.id] && (
+                     <div className="text-[11px] font-mono text-amber-600 bg-amber-50 px-2 py-1 rounded truncate max-w-[200px] border border-amber-200">
+                       <motion.span
+                           initial={{ opacity: 0, x: 10 }}
+                           animate={{ opacity: 1, x: 0 }}
+                           key={reinterpretMessages[item.id]}
+                       >
+                         {reinterpretMessages[item.id]}
+                       </motion.span>
+                     </div>
+                   )}
                    <button 
                      onClick={() => reinterpretArtwork(item.id)}
                      disabled={reinterpretingId === item.id}

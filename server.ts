@@ -77,27 +77,50 @@ app.delete('/api/admin/artworks/:id', async (req, res) => {
 });
 
 app.post('/api/admin/artworks/:id/reinterpret', async (req, res) => {
-  const db = await getDB();
-  const id = req.params.id;
-  const artwork: any = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id);
-  if (!artwork) return res.status(404).json({ error: 'not found' });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  try {
+    const db = await getDB();
+    const id = req.params.id;
+    const artwork: any = await db.prepare('SELECT * FROM artworks WHERE id = ?').get(id);
+    if (!artwork) {
+      res.write(JSON.stringify({ type: 'complete', data: { success: false, message: '未找到该名画' } }) + '\n');
+      return res.end();
+    }
 
-  const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
-  const provider = (await getSetting('ai_provider'))?.value || 'gemini';
-  const modelId = (await getSetting('model_id'))?.value;
-  const apiKey = (await getSetting('api_key'))?.value;
+    const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
+    const provider = (await getSetting('ai_provider'))?.value || 'gemini';
+    const modelId = (await getSetting('model_id'))?.value;
+    let apiKey = (await getSetting('api_key'))?.value;
+    if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
+      apiKey = process.env.GEMINI_API_KEY;
+    }
 
-  const { generateDetailedInterpretation } = await import('./functions/api/_ai-fetcher.js');
-  const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey);
+    const { generateDetailedInterpretation } = await import('./functions/api/_ai-fetcher.ts');
+    
+    const notify = (msg: string, isError: boolean = false) => {
+       res.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n');
+    };
 
-  const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
-  const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
+    const aiData = await generateDetailedInterpretation(artwork.title, artwork.artist, artwork.year, provider, modelId, apiKey, notify);
 
-  await db.prepare(`
-    UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
-  `).run(aiData.content, aiData.keywords, titleZh, artistZh, id);
+    const titleZh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : artwork.title;
+    const artistZh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : artwork.artist;
 
-  res.json({ success: true, ai_interpretation: aiData.content, keywords: aiData.keywords, title: titleZh, artist: artistZh });
+    const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
+    
+    await db.prepare(`
+      UPDATE artworks SET ai_interpretation = ?, keywords = ?, title = ?, artist = ? WHERE id = ?
+    `).run(aiData.content, keywordsStr, titleZh, artistZh, id);
+
+    res.write(JSON.stringify({ type: 'complete', data: { success: true, ai_interpretation: aiData.content, keywords: keywordsStr, title: titleZh, artist: artistZh } }) + '\n');
+    res.end();
+  } catch (err: any) {
+    res.write(JSON.stringify({ type: 'complete', data: { success: false, message: err.message } }) + '\n');
+    res.end();
+  }
 });
 
 app.post('/api/admin/artworks/bulk-delete', async (req, res) => {
@@ -125,16 +148,20 @@ app.get('/api/keywords', async (req, res) => {
   const db = await getDB();
   const results = await db.prepare('SELECT keywords FROM artworks').all();
   const fetchedResults = Array.isArray(results) ? results : [];
-  const keywordSet = new Set<string>();
+  const keywordCounts: Record<string, number> = {};
   fetchedResults.forEach((row: any) => {
     if (row.keywords) {
       row.keywords.split(/[，,]/).forEach((k: string) => {
         const trimmed = k.trim();
-        if (trimmed) keywordSet.add(trimmed);
+        if (trimmed) keywordCounts[trimmed] = (keywordCounts[trimmed] || 0) + 1;
       });
     }
   });
-  res.json(Array.from(keywordSet).slice(0, 50));
+  const sortedKeywords = Object.entries(keywordCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 50)
+    .map(entry => entry[0]);
+  res.json(sortedKeywords);
 });
 
 app.post('/api/admin/keywords/delete', async (req, res) => {
