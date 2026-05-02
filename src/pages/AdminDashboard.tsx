@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { Settings2, RefreshCw, ShieldCheck, Eye, Palette, Save, Info } from 'lucide-react';
@@ -43,7 +44,9 @@ export default function AdminDashboard() {
 
   const showToast = (message: string, isError = false) => {
     setToastMessage({ message, isError });
-    setTimeout(() => setToastMessage(null), 3000);
+    if (!isError) {
+      setTimeout(() => setToastMessage(null), 3000);
+    }
   };
 
   const saveSettings = async () => {
@@ -144,7 +147,7 @@ export default function AdminDashboard() {
        setFetchingProgress({ message: '连接服务发生异常', error: e.message || '网络断开' });
     } finally {
       setFetchingWorks(false);
-      setTimeout(() => setFetchingProgress(null), 5000); // Clear after 5 seconds
+      setTimeout(() => setFetchingProgress(prev => prev?.error ? prev : null), 5000); // Clear after 5 seconds if not an error
     }
   };
 
@@ -185,6 +188,7 @@ export default function AdminDashboard() {
   const reinterpretArtwork = async (id: string) => {
     setReinterpretingId(id);
     setReinterpretMessages(prev => ({ ...prev, [id]: '正在启动重新解读...' }));
+    let hasError = false;
     try {
       const res = await fetch(`/api/admin/artworks/${id}/reinterpret`, {
         method: 'POST',
@@ -235,12 +239,18 @@ export default function AdminDashboard() {
       } else {
         const err = finalData ? finalData.message : '未知错误';
         showToast(`重新解读失败: ${err}`, true);
+        setReinterpretMessages(prev => ({ ...prev, [id]: `❌ ${err}` }));
+        hasError = true;
       }
     } catch (e: any) {
       showToast(`发生错误: ${e.message}`, true);
+      setReinterpretMessages(prev => ({ ...prev, [id]: `❌ ${e.message}` }));
+      hasError = true;
     } finally {
       setReinterpretingId(null);
-      setReinterpretMessages(prev => ({ ...prev, [id]: '' }));
+      if (!hasError) {
+        setReinterpretMessages(prev => ({ ...prev, [id]: '' }));
+      }
     }
   };
 
@@ -296,8 +306,11 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {toastMessage && (
-        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-bold shadow-xl animate-in slide-in-from-top-4 fade-in duration-300 ${toastMessage.isError ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
-          {toastMessage.message}
+        <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full text-sm font-bold shadow-xl animate-in slide-in-from-top-4 fade-in duration-300 flex items-center gap-3 ${toastMessage.isError ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+          <span>{toastMessage.message}</span>
+          {toastMessage.isError && (
+            <button onClick={() => setToastMessage(null)} className="hover:opacity-75 text-white/80 transition-opacity" title="关闭">&times;</button>
+          )}
         </div>
       )}
       <header className="flex justify-between items-end pb-4 border-b border-slate-200">
@@ -310,8 +323,11 @@ export default function AdminDashboard() {
         </div>
         <div className="flex items-center gap-3">
           {fetchingProgress && (
-             <div className={`text-xs px-3 py-1.5 rounded-md font-mono border max-w-sm truncate animate-pulse ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}>
-               {fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}
+             <div className={`text-xs px-3 py-1.5 rounded-md font-mono border max-w-sm flex items-center gap-2 ${fetchingProgress.error ? 'bg-red-50 text-red-600 border-red-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`} title={fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}>
+               <span className="truncate">{fetchingProgress.error ? `${fetchingProgress.message}: ${fetchingProgress.error}` : fetchingProgress.message}</span>
+               {fetchingProgress.error && (
+                 <button onClick={() => setFetchingProgress(null)} className="opacity-60 hover:opacity-100 flex-shrink-0" title="关闭">&times;</button>
+               )}
              </div>
           )}
           <button 
@@ -484,14 +500,19 @@ export default function AdminDashboard() {
                  </div>
                  <div className="flex items-center gap-2">
                    {reinterpretMessages[item.id] && (
-                     <div className="text-[11px] font-mono text-amber-600 bg-amber-50 px-2 py-1 rounded truncate max-w-[200px] border border-amber-200">
+                     <div className={`text-[11px] font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith('❌') ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                        <motion.span
+                           className="truncate"
                            initial={{ opacity: 0, x: 10 }}
                            animate={{ opacity: 1, x: 0 }}
                            key={reinterpretMessages[item.id]}
+                           title={reinterpretMessages[item.id]}
                        >
                          {reinterpretMessages[item.id]}
                        </motion.span>
+                       {reinterpretMessages[item.id].startsWith('❌') && (
+                         <button onClick={() => setReinterpretMessages(prev => ({...prev, [item.id]: ''}))} className="opacity-60 hover:opacity-100 flex-shrink-0" title="关闭">&times;</button>
+                       )}
                      </div>
                    )}
                    <button 

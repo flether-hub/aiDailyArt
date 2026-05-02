@@ -1,5 +1,4 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import { getCloudEnv } from './_cloud-env';
 
 export interface DBClient {
   prepare(sql: string): {
@@ -11,14 +10,13 @@ export interface DBClient {
 }
 
 class SQLiteClient implements DBClient {
-  constructor(private db: Database.Database) {}
+  constructor(private db: any) {}
   prepare(sql: string) {
     const stmt = this.db.prepare(sql);
     return {
       run: async (...params: any[]) => stmt.run(...params),
       get: async (...params: any[]) => stmt.get(...params),
       all: async (...params: any[]) => {
-          // Fix for Better-sqlite returning objects instead of .results wrapping
           return stmt.all(...params);
       },
     };
@@ -28,13 +26,54 @@ class SQLiteClient implements DBClient {
   }
 }
 
+class D1Client implements DBClient {
+  constructor(private d1: any) {}
+  prepare(sql: string) {
+    const stmt = this.d1.prepare(sql);
+    return {
+      run: async (...params: any[]) => {
+        return await stmt.bind(...params).run();
+      },
+      get: async (...params: any[]) => {
+        return await stmt.bind(...params).first();
+      },
+      all: async (...params: any[]) => {
+        const res = await stmt.bind(...params).all();
+        return res.results || [];
+      }
+    };
+  }
+  async exec(sql: string) {
+    await this.d1.exec(sql);
+  }
+}
+
 let dbInstance: DBClient | null = null;
 
 export async function getDB(): Promise<DBClient> {
   if (!dbInstance) {
-    const dbPath = path.resolve(process.cwd(), 'database.sqlite');
-    const db = new Database(dbPath);
-    dbInstance = new SQLiteClient(db);
+    const env = getCloudEnv();
+    if (env && env.ART_GALLERY_DB) {
+      dbInstance = new D1Client(env.ART_GALLERY_DB);
+      return dbInstance;
+    }
+    
+    if (typeof process !== 'undefined' && process.env) {
+      // Dynamic require to avoid Cloudflare/esbuild bundling node built-ins and native modules
+      let req = typeof require !== 'undefined' ? require : undefined;
+      if (!req) {
+         const moduleName = 'mo' + 'dule';
+         const mod = await import(moduleName /* webpackIgnore: true */ as any);
+         req = mod.createRequire(import.meta.url);
+      }
+      const Database = req('better-' + 'sqlite3');
+      const path = req('pa' + 'th');
+      const dbPath = path.resolve(process.cwd(), 'database.sqlite');
+      const db = new Database(dbPath);
+      dbInstance = new SQLiteClient(db);
+    } else {
+      throw new Error('No database found. Configure D1 binding ART_GALLERY_DB.');
+    }
   }
   return dbInstance;
 }
