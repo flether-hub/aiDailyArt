@@ -126,14 +126,14 @@ export default function Home() {
               </p>
               <div className="flex items-center justify-center gap-4">
                 <div className="h-px w-12 bg-slate-200"></div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.4em]">经典杰作</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.4em]">经典杰作</span>
                 <div className="h-px w-12 bg-slate-200"></div>
               </div>
             </motion.div>
          </div>
       </header>
 
-      <div className="w-full max-w-[1400px] mx-auto px-6 md:px-12">
+      <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           {/* Main Content Area */}
           <div className="flex-1 order-2 lg:order-1">
@@ -172,7 +172,7 @@ export default function Home() {
                            />
                         </div>
                         <div className="lg:w-2/5 p-12 lg:p-16 flex flex-col">
-                           <span className="text-[10px] font-bold text-amber-700 uppercase tracking-[0.3em] mb-6">展览焦点</span>
+                           <span className="text-xs font-bold text-amber-700 uppercase tracking-[0.3em] mb-6">展览焦点</span>
                            <h3 className="text-3xl md:text-4xl font-serif font-black text-slate-950 mb-6 leading-tight group-hover:text-amber-900 transition-colors">
                              {highlight.title}
                            </h3>
@@ -183,12 +183,12 @@ export default function Home() {
                            
                            <div className="mt-auto pt-10 border-t border-slate-100 flex items-center gap-8">
                              <div className="flex flex-col gap-1">
-                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">馆藏机构</span>
-                               <span className="text-xs font-bold text-slate-700">{highlight.museum}</span>
+                               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">馆藏机构</span>
+                               <span className="text-sm font-bold text-slate-700">{highlight.museum}</span>
                              </div>
                              <div className="flex flex-col gap-1">
-                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">浏览量</span>
-                               <span className="text-xs font-bold text-slate-700">{highlight.views}</span>
+                               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">浏览量</span>
+                               <span className="text-sm font-bold text-slate-700">{highlight.views}</span>
                              </div>
                            </div>
                         </div>
@@ -206,7 +206,7 @@ export default function Home() {
                         </span>
                       ) : "永恒档案"}
                     </h2>
-                    <div className="hidden md:flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <div className="hidden md:flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
                        漫步于历史的长廊 <div className="w-12 h-px bg-slate-200"></div>
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function Home() {
                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
                                  {item.artist} · {item.year}
                                </p>
-                               <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                               <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-widest">
                                  <span>{item.museum}</span>
                                  <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {item.views}</span>
                                </div>
@@ -252,7 +252,7 @@ export default function Home() {
                       <button
                         onClick={() => setPage(p => p + 1)}
                         disabled={isFetchingMore}
-                        className="group relative inline-flex items-center gap-4 px-10 py-5 bg-slate-950 text-white text-[11px] font-bold uppercase tracking-[0.4em] overflow-hidden"
+                        className="group relative inline-flex items-center gap-4 px-10 py-5 bg-slate-950 text-white text-xs font-bold uppercase tracking-[0.4em] overflow-hidden"
                       >
                         <span className="relative z-10">{isFetchingMore ? '正在展开...' : '探索深度档案'}</span>
                         <div className="absolute inset-0 bg-amber-800 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
@@ -268,7 +268,7 @@ export default function Home() {
           <aside className="w-full lg:w-72 shrink-0 order-1 lg:order-2 lg:sticky lg:top-32">
              <div className="bg-white border border-slate-100 p-8 shadow-sm rounded-none">
                 <div className="mb-8">
-                   <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
+                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
                      <div className="w-2 h-2 bg-amber-600 rounded-full"></div> 艺术焦点
                    </h3>
                    <div className="flex flex-col gap-1">
@@ -291,7 +291,7 @@ export default function Home() {
                 {selectedKeyword && (
                   <button 
                     onClick={() => { setSelectedKeyword(null); setPage(0); }}
-                    className="w-full py-4 bg-slate-50 text-[10px] font-bold text-slate-600 uppercase tracking-widest hover:bg-slate-100 transition-colors"
+                    className="w-full py-4 bg-slate-50 text-xs font-bold text-slate-600 uppercase tracking-widest hover:bg-slate-100 transition-colors"
                   >
                     清除筛选
                   </button>

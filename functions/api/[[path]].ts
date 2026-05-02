@@ -34,8 +34,29 @@ app.onError((err, c) => {
   }, 500);
 });
 
-// Explicit health check
-app.get('/health', (c) => c.json({ status: 'ok', environment: 'cloudflare' }));
+app.get('/cron', async (c) => {
+  const cronSecret = c.req.query('secret');
+  const env = getCloudEnv();
+  // Validates secret from environment variable (if set), to protect the endpoint
+  if (env.CRON_SECRET && cronSecret !== env.CRON_SECRET) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  // Asynchronous execution without blocking the response
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const { runAIAggregation } = await import('./_ai-fetcher');
+        await runAIAggregation(false);
+        console.log('[Cron] Aggregation finished.');
+      } catch (err) {
+        console.error('[Cron] Error running aggregation:', err);
+      }
+    })()
+  );
+
+  return c.json({ success: true, message: 'Cron job initiated in the background.' });
+});
 
 app.get('/artworks', async (c) => {
   const db = await getDB();

@@ -389,12 +389,12 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="bg-slate-800 text-white px-4 py-3 flex justify-between items-center">
                 <h3 className="text-sm font-bold flex items-center gap-2"><Settings2 className="w-4 h-4" /> 鉴赏模型配置</h3>
-                <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded uppercase font-bold">生效中</span>
+                <span className="text-xs bg-slate-700 px-2 py-0.5 rounded uppercase font-bold">生效中</span>
               </div>
               
               <div className="p-4 space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase">解读引擎 (AI Provider)</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">解读引擎 (AI Provider)</label>
                   <select 
                     value={settings.ai_provider || 'gemini'}
                     onChange={e => handleSettingsChange('ai_provider', e.target.value)}
@@ -406,7 +406,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1.5">
-                   <label className="text-[11px] font-bold text-slate-500 uppercase">模型标识 (Model ID)</label>
+                   <label className="text-xs font-bold text-slate-500 uppercase">模型标识 (Model ID)</label>
                    <input 
                      disabled={settings.ai_provider === 'gemini'}
                      value={settings.ai_provider === 'gemini' ? '' : (settings.model_id || '')}
@@ -417,7 +417,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="space-y-1.5">
-                   <label className="text-[11px] font-bold text-slate-500 uppercase">API 密钥 (加密存储)</label>
+                   <label className="text-xs font-bold text-slate-500 uppercase">API 密钥 (加密存储)</label>
                    <input 
                      type="password"
                      value={settings.api_keyMasked || ''}
@@ -425,12 +425,12 @@ export default function AdminDashboard() {
                      className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20"
                      placeholder="留空则使用部署环境默认 Key"
                    />
-                   <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1"><Info className="w-3 h-3"/> 若在此设置，将优先于环境变量加载</p>
+                   <p className="text-xs text-slate-400 mt-1 flex items-center gap-1"><Info className="w-3 h-3"/> 若在此设置，将优先于环境变量加载</p>
                 </div>
 
                 <div className="pt-2 space-y-2 border-t border-slate-100">
                    <label className="text-xs font-bold text-slate-600 flex items-center justify-between">
-                     后台自动抓取间隔 <span className="text-[10px] text-slate-400 font-normal">最少30分钟</span>
+                     后台自动抓取间隔 <span className="text-xs text-slate-400 font-normal">最少30分钟</span>
                    </label>
                    <div className="flex items-center gap-4">
                      <div className="flex items-center gap-2">
@@ -543,7 +543,7 @@ export default function AdminDashboard() {
                         <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
                         <span className="text-slate-400 font-normal"> - {item.artist}</span>
                      </p>
-                     <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-1">
+                     <div className="flex items-center gap-3 text-xs font-mono text-slate-400 mt-1">
                        <span className="text-slate-600 flex items-center gap-1"><Eye className="w-3 h-3"/> {item.views}</span>
                        <span title="抓取时间">收录: {new Date(item.created_at).toLocaleString()}</span>
                        {item.source_url ? (
@@ -558,7 +558,7 @@ export default function AdminDashboard() {
                  </div>
                  <div className="flex items-center gap-2">
                    {reinterpretMessages[item.id] && (
-                     <div className={`text-[11px] font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith('❌') ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                     <div className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith('❌') ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                        <motion.span
                            className="truncate"
                            initial={{ opacity: 0, x: 10 }}

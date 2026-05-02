@@ -36,13 +36,13 @@ function Navbar() {
           <h1 className="text-xl font-black tracking-tighter text-slate-900 font-serif uppercase">
             AI <span className="text-amber-700">每日画廊</span>
           </h1>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">人工智能 策展赏析</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">人工智能 策展赏析</span>
         </div>
       </Link>
       
       <div className="flex items-center gap-6">
         {visits !== null && (
-          <div className="hidden md:flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="hidden md:flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
             <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
             累计访客: {visits.toLocaleString()}
           </div>
@@ -51,26 +51,29 @@ function Navbar() {
         <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
 
         {isAdmin ? (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 md:gap-6">
             <Link 
               to="/admin/dashboard" 
-              className="text-xs font-bold text-slate-600 hover:text-amber-700 uppercase tracking-widest transition-colors flex items-center gap-2"
+              className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+              title="管理后台"
             >
-              <LayoutGrid className="w-3.5 h-3.5" /> 管理后台
+              <LayoutGrid className="w-5 h-5" />
             </Link>
             <button 
               onClick={logout}
-              className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-700 uppercase tracking-widest transition-colors"
+              className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
+              title="退出登录"
             >
-              <LogOut className="w-3.5 h-3.5" /> 退出登录
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         ) : (
           <Link 
             to="/admin/login" 
-            className="text-xs font-bold text-slate-400 hover:text-slate-900 uppercase tracking-[0.2em] transition-colors"
+            className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+            title="后台"
           >
-            后台
+            <LayoutGrid className="w-5 h-5" />
           </Link>
         )}
       </div>
@@ -117,7 +120,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <footer className="py-12 border-t border-slate-200/60 text-center bg-white/30 backdrop-blur-sm">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] px-4">
           AI 每日画廊 &copy; {new Date().getFullYear()} — 永恒经典与人工智能的碰撞
         </p>
       </footer>
