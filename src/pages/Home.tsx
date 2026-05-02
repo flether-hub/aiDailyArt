@@ -102,7 +102,7 @@ export default function Home() {
       <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
          {/* Subtle background texture or soft glow */}
          <div className="absolute inset-0 bg-gradient-to-b from-white to-[#faf9f6] z-0"></div>
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-amber-100/30 rounded-full blur-[120px] pointer-events-none"></div>
+         <div className="absolute inset-0 opacity-10 filter blur-3xl scale-125"></div>
          
          <div className="relative z-10 text-center px-6">
             <motion.div
@@ -163,7 +163,7 @@ export default function Home() {
                     
                     <Link to={`/artwork/${highlight.id}`} className="group block relative">
                       <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500">
-                        <div className="lg:w-3/5 relative overflow-hidden bg-slate-950 flex items-center justify-center p-8">
+                        <div className="lg:w-3/5 relative overflow-hidden bg-slate-100 flex items-center justify-center p-8">
                            <div className="absolute inset-0 opacity-20 filter blur-xl scale-110">
                              <img src={highlight.image_url} alt="" className="w-full h-full object-cover" />
                            </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { Settings2, RefreshCw, ShieldCheck, Eye, Palette, Save, Info } from 'lucide-react';
 
@@ -323,17 +323,30 @@ export default function AdminDashboard() {
                    />
                  </div>
                  <div className="text-slate-400 font-mono text-xs w-6 shrink-0">{String(index + 1).padStart(2, '0')}</div>
-                 {item.image_url && (
-                    <div className="shrink-0 w-12 h-12 bg-slate-100 rounded overflow-hidden">
-                       <img src={item.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                 )}
-                 <div className="flex-1 min-w-0">
-                   <p className="font-medium text-sm text-slate-800 truncate">{item.title} <span className="text-slate-400 font-normal"> - {item.artist}</span></p>
-                   <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-1">
-                     <span className="text-slate-600 flex items-center gap-1"><Eye className="w-3 h-3"/> {item.views}</span>
-                     <span title="抓取时间">收录: {new Date(item.created_at).toLocaleString()}</span>
-                     <span className="text-blue-500">来自 API</span>
+                 <div className="flex-1 min-w-0 flex items-center gap-4">
+                   <Link to={`/artwork/${item.id}`} className="shrink-0 w-12 h-12 bg-slate-100 rounded overflow-hidden hover:opacity-80">
+                   {item.image_url ? (
+                         <img src={item.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                   ) : (
+                         <div className="w-full h-full bg-slate-200"></div>
+                   )}
+                   </Link>
+                   <div className="flex-1 min-w-0">
+                     <p className="font-medium text-sm text-slate-800 truncate">
+                        <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
+                        <span className="text-slate-400 font-normal"> - {item.artist}</span>
+                     </p>
+                     <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 mt-1">
+                       <span className="text-slate-600 flex items-center gap-1"><Eye className="w-3 h-3"/> {item.views}</span>
+                       <span title="抓取时间">收录: {new Date(item.created_at).toLocaleString()}</span>
+                       {item.source_url ? (
+                         <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 hover:underline truncate inline-block max-w-[200px] lg:max-w-[400px]" title={item.source_url}>
+                           来源网站
+                         </a>
+                       ) : (
+                         <span className="text-blue-500">来自 API</span>
+                       )}
+                     </div>
                    </div>
                  </div>
                  <button 

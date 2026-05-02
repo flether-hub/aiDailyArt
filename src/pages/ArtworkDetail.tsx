@@ -52,7 +52,7 @@ export default function ArtworkDetail() {
   return (
     <div className="w-full flex flex-col items-center">
       {/* Immersive Image Header */}
-      <section className="w-full bg-slate-950 flex items-center justify-center py-16 md:py-32 px-6 relative overflow-hidden">
+      <section className="w-full bg-slate-100 border-b border-slate-200 flex items-center justify-center py-16 md:py-32 px-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 filter blur-3xl scale-125">
            <img src={artwork.image_url} alt="" className="w-full h-full object-cover" />
         </div>

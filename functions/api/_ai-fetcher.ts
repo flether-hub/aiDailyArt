@@ -170,10 +170,13 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
         const r2Url = await uploadToR2(objData.primaryImage, artworkId);
         const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey);
 
+        const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
+        const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
+
         await db.prepare(`
           INSERT INTO artworks (id, source_id, title, artist, year, museum, image_url, source_url, ai_interpretation, keywords)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(artworkId, objData.sourceId, objData.title, objData.artistDisplayName, objData.objectDate, objData.repository, r2Url, objData.objectURL, aiData.content, aiData.keywords);
+        `).run(artworkId, objData.sourceId, title_zh, artist_zh, objData.objectDate, objData.repository, r2Url, objData.objectURL, aiData.content, aiData.keywords);
 
         newlyAdded++;
      }
@@ -183,7 +186,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
 async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string) {
   const prompt = `你是一位风趣幽默、见多识广、偶尔带点“凡尔赛”气息的顶级艺术策展人。
-请为以下名画撰写一篇让人欲罢不能的深度赏析。
+请为以下名画撰写一篇让人欲罢不能的深度赏析。同时，请将画作名称和创作者翻译成中文（如果是外语）。
 【创作要求】：
 1. **讲故事，别讲课**：讲讲这幅画背后的轶事、画家的“槽点”或者那个时代的荒诞瞬间。
 2. **幽默但专业**：在幽默中夹杂硬核艺术见解。
@@ -193,14 +196,18 @@ async function generateDetailedInterpretation(title: string, artist: string, yea
 名称：《${title}》
 创作者：${artist}
 创作年份：${year}
-请严格按以下 JSON 格式输出：
+请严格按以下 JSON 格式输出（必须返回合法的JSON字符串）：
 {
-  "keywords": "关键词1, 关键词2, 关键词3",
-  "content": "...内容..."
+  "title_zh": "中文译名（如已有中文则保持）",
+  "artist_zh": "中文画家名（如已有中文则保持）",
+  "keywords": "至少三个关键词，如：印象派, 梵高, 麦田",
+  "content": "...赏析内容..."
 }`;
   
   let aiInterpretation = "<p>未能生成详细解读。</p>";
   let keywords = "艺术, 名画";
+  let title_zh = title;
+  let artist_zh = artist;
 
   try {
      const aiKey = userApiKey;
@@ -237,7 +244,7 @@ async function generateDetailedInterpretation(title: string, artist: string, yea
      } else {
         // Default: Gemini
         const genAI = new GoogleGenerativeAI(aiKey);
-        const model = genAI.getGenerativeModel({ model: modelId || 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: modelId || 'gemini-2.5-flash' });
         const result = await model.generateContent({
            contents: [{ role: 'user', parts: [{ text: prompt }] }],
            generationConfig: { responseMimeType: "application/json" }
@@ -258,9 +265,11 @@ async function generateDetailedInterpretation(title: string, artist: string, yea
 
      aiInterpretation = parsed.content || `<p>暂无解读内容。</p>`;
      keywords = parsed.keywords || keywords;
+     if (parsed.title_zh) title_zh = parsed.title_zh;
+     if (parsed.artist_zh) artist_zh = parsed.artist_zh;
   } catch (e: any) {
      console.error('AI error:', e);
      aiInterpretation = `<p>解读生成失败：${e.message || '未知错误'}</p>`;
   }
-  return { keywords, content: aiInterpretation };
+  return { keywords, content: aiInterpretation, title_zh, artist_zh };
 }
