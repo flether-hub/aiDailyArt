@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import { JobProvider } from './JobContext';
 import { Palette, LogOut, Activity, LayoutGrid } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -133,13 +132,11 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <AuthProvider>
-      <JobProvider>
-        <Router>
-          <MainLayout>
-            <AnimatedRoutes />
-          </MainLayout>
-        </Router>
-      </JobProvider>
+      <Router>
+        <MainLayout>
+          <AnimatedRoutes />
+        </MainLayout>
+      </Router>
     </AuthProvider>
   );
 }

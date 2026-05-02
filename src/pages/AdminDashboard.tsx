@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { useJobs } from '../JobContext';
 import { Settings2, RefreshCw, ShieldCheck, Eye, Palette, Save, Info } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
-  const { fetchingWorks, setFetchingWorks, fetchingProgress, setFetchingProgress, reinterpretingId, setReinterpretingId, reinterpretMessages, setReinterpretMessages } = useJobs();
+  const [fetchingWorks, setFetchingWorks] = useState(false);
+  const [fetchingProgress, setFetchingProgress] = useState<{message: string, error?: string} | null>(null);
+  const [reinterpretingId, setReinterpretingId] = useState<string | null>(null);
+  const [reinterpretMessages, setReinterpretMessages] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const [settings, setSettings] = useState<any>({});
   const [artworks, setArtworks] = useState<any[]>([]);
@@ -455,36 +457,46 @@ export default function AdminDashboard() {
                      </div>
                      <span className="text-xs text-slate-400 font-normal">最少30分钟</span>
                    </label>
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-4">
-                       <div className="flex items-center gap-2">
-                         <input 
-                           type="number"
-                           min="0"
-                           disabled={settings.use_min_interval === 'false'}
-                           value={settings.interval_hours ?? '0'}
-                           onChange={e => handleSettingsChange('interval_hours', e.target.value)}
-                           className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
-                         />
-                         <span className="text-xs text-slate-500 font-bold">小时</span>
+                   <div className="flex flex-col gap-3">
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-4">
+                         <div className="flex items-center gap-2">
+                           <input 
+                             type="number"
+                             min="0"
+                             disabled={settings.use_min_interval === 'false'}
+                             value={settings.interval_hours ?? '0'}
+                             onChange={e => handleSettingsChange('interval_hours', e.target.value)}
+                             className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
+                           />
+                           <span className="text-xs text-slate-500 font-bold">小时</span>
+                         </div>
+                         <div className="flex items-center gap-2">
+                           <input 
+                             type="number"
+                             min="0"
+                             max="59"
+                             disabled={settings.use_min_interval === 'false'}
+                             value={settings.interval_minutes ?? '30'}
+                             onChange={e => handleSettingsChange('interval_minutes', e.target.value)}
+                             className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
+                           />
+                           <span className="text-xs text-slate-500 font-bold">分钟</span>
+                         </div>
                        </div>
-                       <div className="flex items-center gap-2">
-                         <input 
-                           type="number"
-                           min="0"
-                           max="59"
-                           disabled={settings.use_min_interval === 'false'}
-                           value={settings.interval_minutes ?? '30'}
-                           onChange={e => handleSettingsChange('interval_minutes', e.target.value)}
-                           className="w-16 bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 outline-none text-center disabled:opacity-50"
-                         />
-                         <span className="text-xs text-slate-500 font-bold">分钟</span>
-                       </div>
+                       <button 
+                         onClick={saveSettings}
+                         disabled={savingSettings}
+                         className="bg-amber-100/50 text-amber-700 hover:bg-amber-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                       >
+                         {savingSettings ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                         快速保存
+                       </button>
                      </div>
                      {settings.cron_last_trigger && (
-                        <div className="text-[11px] text-slate-400 text-right">
-                          上次收到触发任务:<br/>
-                          <span className="font-mono text-xs">{new Date(settings.cron_last_trigger).toLocaleString()}</span>
+                        <div className="text-[10px] text-slate-400 p-2 bg-slate-50/50 border border-slate-200/50 rounded-md">
+                          <span className="uppercase font-bold tracking-wider opacity-60">上次收到触发任务:</span>
+                          <span className="font-mono ml-2 text-slate-600">{new Date(settings.cron_last_trigger).toLocaleString()}</span>
                         </div>
                      )}
                    </div>
@@ -553,17 +565,17 @@ export default function AdminDashboard() {
              {artworks.length === 0 ? (
                <div className="p-6 text-sm text-slate-500">暂无馆藏名画。</div>
              ) : artworks.map((item, index) => (
-               <div key={item.id} className={`flex justify-between items-center p-4 line-clamp-1 gap-4 transition-colors ${index % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50`}>
-                 <div className="flex items-center justify-center shrink-0 w-6">
-                   <input 
-                     type="checkbox" 
-                     checked={selectedIds.includes(item.id)}
-                     onChange={() => toggleSelect(item.id)}
-                     className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
-                   />
-                 </div>
-                 <div className="text-slate-400 font-mono text-xs w-6 shrink-0">{String(index + 1).padStart(2, '0')}</div>
-                 <div className="flex-1 min-w-0 flex items-center gap-4">
+               <div key={item.id} className={`flex flex-col sm:flex-row sm:items-center p-4 gap-4 transition-colors ${index % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'} hover:bg-slate-50`}>
+                 <div className="flex items-center gap-4">
+                   <div className="flex items-center justify-center shrink-0 w-6">
+                     <input 
+                       type="checkbox" 
+                       checked={selectedIds.includes(item.id)}
+                       onChange={() => toggleSelect(item.id)}
+                       className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                     />
+                   </div>
+                   <div className="text-slate-400 font-mono text-xs w-6 shrink-0">{String(index + 1).padStart(2, '0')}</div>
                    <Link to={`/artwork/${item.id}`} className="shrink-0 w-12 h-12 bg-slate-100 rounded overflow-hidden hover:opacity-80">
                    {item.image_url ? (
                          <img src={item.image_url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -571,25 +583,18 @@ export default function AdminDashboard() {
                          <div className="w-full h-full bg-slate-200"></div>
                    )}
                    </Link>
-                   <div className="flex-1 min-w-0">
-                     <p className="font-medium text-sm text-slate-800 truncate">
-                        <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
-                        <span className="text-slate-400 font-normal"> - {item.artist}</span>
-                     </p>
-                     <div className="flex items-center gap-3 text-xs font-mono text-slate-400 mt-1">
-                       <span className="text-slate-600 flex items-center gap-1"><Eye className="w-3 h-3"/> {item.views}</span>
-                       <span title="抓取时间">收录: {new Date(item.created_at).toLocaleString()}</span>
-                       {item.source_url ? (
-                         <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 hover:underline truncate inline-block max-w-[200px] lg:max-w-[400px]" title={item.source_url}>
-                           来源网站
-                         </a>
-                       ) : (
-                         <span className="text-blue-500">来自 API</span>
-                       )}
-                     </div>
+                 </div>
+                 <div className="flex-1 min-w-0 flex flex-col justify-center">
+                   <p className="font-medium text-sm text-slate-800 truncate">
+                      <Link to={`/artwork/${item.id}`} className="hover:text-amber-600 transition-colors">{item.title}</Link> 
+                      <span className="text-slate-400 font-normal"> - {item.artist}</span>
+                   </p>
+                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-slate-400 mt-1">
+                     <span className="text-slate-600 flex items-center gap-1 shrink-0"><Eye className="w-3 h-3"/> {item.views}</span>
+                     <span className="shrink-0" title="收录时间">收录: {new Date(item.created_at).toLocaleDateString()}</span>
                    </div>
                  </div>
-                 <div className="flex items-center gap-2">
+                 <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end">
                    {reinterpretMessages[item.id] && (
                      <div className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith('❌') ? 'bg-red-50 text-red-600 border-red-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
                        <motion.span
@@ -625,27 +630,51 @@ export default function AdminDashboard() {
           </div>
           
           {totalArtworks > 0 && (
-            <div className="p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50">
-              <span className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                共 {totalArtworks} 幅佳作
-              </span>
-              <div className="flex gap-2">
+            <div className="px-4 py-6 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="order-2 md:order-1">
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] bg-white border border-slate-100 px-3 py-1.5 rounded-full shadow-sm">
+                   Inventory: {totalArtworks} Masterpieces
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-1 order-1 md:order-2">
                  <button 
                    onClick={() => setPage(Math.max(0, page - 1))} 
                    disabled={page === 0}
-                   className="px-3 py-1 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                   className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-30 transition-all font-bold text-lg"
+                   title="上一页"
                  >
-                   上一页
+                   ‹
                  </button>
-                 <span className="text-xs text-slate-500 font-mono py-1 px-2 border border-transparent">
-                   {page + 1} / {Math.ceil(totalArtworks / limit) || 1}
-                 </span>
+                 
+                 <div className="flex items-center gap-1.5 px-3">
+                   {Array.from({ length: Math.min(5, Math.ceil(totalArtworks / limit)) }, (_, i) => {
+                     const pageCount = Math.ceil(totalArtworks / limit);
+                     let pageNum = page + i - 2;
+                     if (pageNum < 0) pageNum = i;
+                     if (pageNum >= pageCount) pageNum = pageCount - 5 + i;
+                     if (pageNum < 0) pageNum = i;
+                     if (pageNum >= pageCount) return null;
+
+                     return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${page === pageNum ? 'bg-slate-900 text-white shadow-md shadow-slate-200 scale-110' : 'bg-white border border-slate-100 text-slate-500 hover:border-slate-300'}`}
+                        >
+                          {pageNum + 1}
+                        </button>
+                     );
+                   })}
+                 </div>
+
                  <button 
                    onClick={() => setPage(page + 1)} 
                    disabled={(page + 1) * limit >= totalArtworks}
-                   className="px-3 py-1 bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded hover:bg-slate-50 disabled:opacity-50"
+                   className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-30 transition-all font-bold text-lg"
+                   title="下一页"
                  >
-                   下一页
+                   ›
                  </button>
               </div>
             </div>

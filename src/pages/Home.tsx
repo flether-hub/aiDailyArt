@@ -99,31 +99,41 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col pb-24 w-full">
       {/* Cinematic Hero Section */}
-      <header className="relative w-full py-16 flex flex-col items-center justify-center overflow-hidden">
-         {/* Subtle background texture or soft glow */}
-         <div className="absolute inset-0 bg-gradient-to-b from-white to-[#faf9f6] z-0"></div>
-         <div className="absolute inset-0 opacity-10 filter blur-3xl scale-125"></div>
+      <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center">
+         {/* Artistic background with Van Gogh Starry Night */}
+         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <img 
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg" 
+              alt="Starry Night" 
+              className="w-full h-full object-cover scale-105 opacity-25"
+              style={{ objectPosition: 'center 30%' }}
+              referrerPolicy="no-referrer"
+              crossOrigin="anonymous"
+            />
+            {/* Fade out the edges so it blends seamlessly into the page (#faf9f6) */}
+            <div className="absolute inset-0 bg-gradient-to-b from-[#faf9f6] via-transparent to-[#faf9f6]"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-[#faf9f6] via-transparent to-[#faf9f6] opacity-60"></div>
+         </div>
          
-         <div className="relative z-10 text-center px-6">
+         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 1 }}
-              className="max-w-4xl mx-auto relative px-8 py-4"
+              transition={{ delay: 0.2, duration: 1.2 }}
+              className="relative px-4 py-8"
             >
-              <div className="absolute top-0 left-4 text-[6rem] md:text-[8rem] leading-none text-amber-900/5 font-serif select-none -translate-y-8 -translate-x-4 md:-translate-x-8">
+              <div className="absolute -top-6 -left-4 md:-left-12 text-[8rem] md:text-[12rem] leading-none text-slate-900/5 font-serif select-none pointer-events-none">
                 "
               </div>
-              <div className="absolute bottom-12 right-4 text-[6rem] md:text-[8rem] leading-none text-amber-900/5 font-serif select-none translate-y-8 translate-x-4 md:translate-x-8">
-                "
-              </div>
-              <p className="relative z-10 text-2xl md:text-3xl lg:text-4xl text-slate-700 font-serif mb-12 leading-relaxed italic tracking-wide">
-                “每一位艺术家都将画笔浸入自己的灵魂，将自己的本性画入画中。”
+              
+              <p className="relative z-10 text-2xl md:text-3xl lg:text-4xl text-slate-800 font-serif mb-8 leading-[1.6] md:leading-[1.8] italic tracking-widest drop-shadow-md">
+                “每一位艺术家都将画笔浸入自己的灵魂，<br className="hidden md:block"/>将自己的本性画入画中。”
               </p>
-              <div className="flex items-center justify-center gap-6 opacity-70 relative z-10">
-                <div className="h-px w-24 bg-gradient-to-r from-transparent to-slate-400"></div>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.5em]">经典杰作</span>
-                <div className="h-px w-24 bg-gradient-to-l from-transparent to-slate-400"></div>
+              
+              <div className="flex items-center justify-center gap-4 md:gap-6 opacity-70 relative z-10">
+                <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent to-slate-400"></div>
+                <span className="text-[10px] md:text-xs font-black text-slate-600 uppercase tracking-[0.4em] md:tracking-[0.5em]">Vincent van Gogh</span>
+                <div className="h-px w-16 md:w-32 bg-gradient-to-l from-transparent to-slate-400"></div>
               </div>
             </motion.div>
          </div>
@@ -132,7 +142,7 @@ export default function Home() {
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           {/* Main Content Area */}
-          <div className="flex-1 order-2 lg:order-1">
+          <div className="flex-1 order-1 lg:order-1">
             {loading && artworks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-40 gap-4">
                 <div className="w-12 h-12 border-2 border-amber-800 border-t-transparent rounded-full animate-spin"></div>
@@ -261,7 +271,7 @@ export default function Home() {
           </div>
 
           {/* New Interactive Sidebar/Filter */}
-          <aside className="w-full lg:w-72 shrink-0 order-1 lg:order-2 lg:sticky lg:top-32">
+          <aside className="w-full lg:w-72 shrink-0 order-2 lg:order-2 lg:sticky lg:top-32">
              <div className="bg-white border border-slate-100 p-8 shadow-sm rounded-none">
                 <div className="mb-8">
                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.4em] mb-6 flex items-center gap-3">
