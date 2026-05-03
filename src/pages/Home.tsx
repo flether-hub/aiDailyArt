@@ -245,15 +245,15 @@ export default function Home() {
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
                             </div>
                             <div className="flex flex-col px-1">
-                               <h3 className="text-xl font-serif font-bold text-slate-900 mb-2 group-hover:text-amber-800 transition-colors leading-snug line-clamp-2">
+                               <h3 className="text-xl font-serif font-bold text-slate-900 mb-2 group-hover:text-amber-800 transition-colors leading-snug line-clamp-2 h-14 flex items-start">
                                  {item.title}
                                </h3>
-                               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-                                 {item.artist} · {item.year}
+                               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 truncate">
+                                 {item.artist} · {item.year ? item.year.toString().substring(0, 4) : '年代未知'}
                                </p>
                                <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-widest">
-                                 <span>{item.museum}</span>
-                                 <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {item.views}</span>
+                                 <span className="truncate mr-4">{item.museum}</span>
+                                 <span className="flex items-center gap-1 shrink-0"><Eye className="w-3 h-3" /> {item.views}</span>
                                </div>
                             </div>
                          </Link>

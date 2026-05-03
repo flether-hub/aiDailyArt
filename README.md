@@ -65,25 +65,38 @@ npm run build
 wrangler pages deploy dist
 ```
 
-### 7. 配置定时任务 (Cron Triggers)
-为了让名画能够自动“长”出来，您需要配置定时器：
+### 7. 配置自动化任务 (Cron Triggers)
 
-1. **方法 A: Cloudflare Pages Scheduled Tasks (推荐)**
-   - 进入 Cloudflare 控制台 -> Pages 项目 -> 设置 -> Functions -> Cron Triggers。
-   - 添加一个定时器，例如 `0 */1 * * *` (每 1 小时抓取一次)。
-   - 本项目 `functions/_middleware.ts` 已导出 `scheduled` 处理逻辑。
+Cloudflare Pages Functions 目前无法直接导出 `scheduled` 处理逻辑。为了实现名画的自动抓取与策展，推荐使用以下方案：
 
-2. **方法 B: 使用 Cron Worker (本项目提供 `cron-worker.js`)**
-   - 部署一个单独的 Worker `cron-worker.js`，设置环境变量 `CRON_TARGET_URL` 为 `https://你的域名/api/cron?secret=你的秘钥`。
+**方案：使用独立 Worker 触发 (推荐)**
+本项目已在根目录提供 `cron-worker.js`，您只需将其部署为一个标准的 Cloudflare Worker，它会定期请求您的 Pages 接口：
+
+1. **部署 Cron Worker**:
+   ```bash
+   wrangler deploy cron-worker.js --name aidailyart-cron
+   ```
+2. **配置 Worker 环境变量**:
+   在 Cloudflare 控制台中为该 Worker 设置以下变量：
+   - `CRON_TARGET_URL`: 填入您的 Pages 应用 Cron 地址。
+     例如: `https://your-app.pages.dev/api/cron?secret=您的CRON_SECRET`
+3. **设置触发器**:
+   在该 Worker 的“设置” -> “触发器”中添加 Cron 触发器（例如 `0 */1 * * *` 表示每小时触发一次）。
 
 ---
 
-## 🛠️ 本地开发
+## 🛠️ 本地开发与配置说明
 
 1. **安装依赖**: `npm install`
 2. **启动开发服务器**: `npm run dev`
-   - 本地开发模式下，系统会使用 `better-sqlite3` 在根目录自动创建 `database.sqlite`。
-3. **设置 AI**: 访问 `/admin` 页面，输入 `ADMIN_PASSWORD` 登录，在设置页面配置您的 Gemini 或 阿里大模型 API Key。
+   - 系统会使用 `better-sqlite3` 在本地自动创建 `database.sqlite`。
+3. **配置 AI 引擎**:
+   1. 访问 `/admin` 页面并用 `ADMIN_PASSWORD` 登录。
+   2. 在“设置”界面中：
+      - **API Key**: 填入您的 Gemini 或 阿里云百炼 API Key。
+      - **AI 供应商**: 选择您偏好的模型提供方。
+      - **模型 ID**: 如果使用阿里模型，可自定义 ID (如 `qwen-max`)。
+   *(注意：这些密钥存储在数据库 D1/SQLite 中，无需在 Cloudflare 环境变量中重复配置)*
 
 ## 📁 目录结构与功能
 
