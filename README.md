@@ -1,103 +1,106 @@
-# AI 每日画廊 (AI Art Daily)
+# aiDailyArt - 您的数字名画美术馆
 
-这是一个基于人工智能的艺术策展与赏析平台。系统每天会自动从全球各大博物馆（如大都会艺术博物馆、维基数据）抓取名画，并利用 Google Gemini 或 阿里云通义千问（DashScope/百炼）进行深度艺术解读。
+aiDailyArt 是一家为您全天候开放的数字美术馆。它不仅是一个展示平台，更是一个自动进化的艺术生态系统。系统会自动从全球顶级博物馆（如大都会艺术博物馆、卢浮宫、故宫博物院等）寻得传世名作，并以辛辣、深刻且富有感染力的 AI 视角进行解读与策展。
 
-## 📊 项目规模
+## ✨ 核心特性
 
-根据代码库统计，本项目包含约 **2,500+** 行高质量代码（TypeScript/React/Hono），实现了从后端抓取、图像托管到前端沉浸式展示的全栈功能。
+- **全球溯源**: 自动对接 Met API、Wikidata (SPARQL) 等权威数据源，涵盖东西方艺术精品。
+- **AI 策展**: 基于 Google Gemini 或 阿里云大模型，为每幅画作生成独特的、讲故事式的赏析。
+- **全自动运行**: 定时任务自动发现、分析并入库名画，无需人工干预。
+- **交互体验**: 支持评论互动、IP 归属地自动显示、优雅的画廊排版。
+- **现代架构**: 前端基于 React 19 + Tailwind CSS 4，后端自适应 Node.js 与 Cloudflare Pages。
 
-## 🏗️ 核心架构与技术栈
+---
 
-- **前端**: React 18 + Vite + Tailwind CSS + Framer Motion (用于动画)
+## 📊 项目统计与架构
+
+本项目包含约 **2,500+** 行代码，采用前沿的全栈边缘计算架构：
+
+- **前端**: React 18+ + Vite + Tailwind CSS 4 + Framer Motion (动画)
 - **后端**: Cloudflare Pages Functions (基于 Hono 框架)
-- **数据库**: Cloudflare D1 (生产环境) / SQLite (开发环境)
-- **存储**: Cloudflare R2 (用于托管抓取的艺术品图像)
-- **AI 引擎**: Google Gemini API / 阿里云百炼 (DashScope)
+- **数据库**: Cloudflare D1 (生产) / SQLite (开发)
+- **存储**: Cloudflare R2 (图像持久化)
+- **AI 引擎**: Google Gemini SDK (@google/genai) / 阿里云通义千问 (DashScope)
 
-## 📂 文件结构与功能详解
+---
 
-### 1. 核心 API 发动机 (`/functions/api/`)
+## 🚀 部署至 Cloudflare (Pages + D1 + R2)
 
-*   **`[[path]].ts`**: API 总入口。定义了路由（Hono），处理身份验证（SHA-256 令牌）、设置管理、作品增删改查以及 CDN 代理。
-*   **`_ai-fetcher.ts`**: **核心逻辑所在**。
-    *   包含从 Wikidata 和 Met Museum 抓取数据的爬虫逻辑。
-    *   实现了 `fetchWithRetry` 机制，增加请求健壮性，优化中国大陆资源的访问。
-    *   管理 AI 接口调用逻辑，支持 Gemini 和 阿里云百炼，具备指数退避重试机制。
-    *   负责将远程图像同步到 R2 存储。
-*   **`_db.ts`**: 数据库抽象层。自动检测环境：在 Cloudflare 运行时使用 D1，在 AI Studio 预览环境使用 `better-sqlite3`。
-*   **`_cloud-env.ts`**: 环境参数统一提取，确保 API Key 和配置在不同部署环境下都能正确读取。
+本项目深度优化了 Cloudflare 生态，能够以极低成本甚至零成本在边缘节点运行。
 
-### 2. 前端界面层 (`/src/pages/`)
+### 1. 前置准备
+- 安装 [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/): `npm install -g wrangler`
+- 登录 Cloudflare: `wrangler login`
 
-*   **`Home.tsx`**: 首页。
-    *   **沉浸式 Hero 区**: 展示每日艺术格言，背景通过 Canvas 全混合模式模糊背景画作，实现艺术质感。
-    *   **推荐区**: 展示最新的 AI 解读作品。
-*   **`ArtworkDetail.tsx`**: 画作详情页。
-    *   **焦点导读**: 自动从 AI 解读文本中提取第一个小标题作为视觉引子。
-    *   **深度内容**: 使用 `prose` 排版渲染 AI 生成的深度赏析手稿。
-*   **`AdminDashboard.tsx`**: 管理后台。
-    *   **模型配置**: 支持动态切换 AI 引擎。Gemini 模式下自动选择模型，阿里模式下支持自定义（默认 `qwen3.6-max-preview`）。
-    *   **任务追踪**: 实时监控 AI 抓取作业的状态。即使离开页面，系统也会通过数据库记录状态，回来后仍能看到准确进度。
-    *   **作品管理**: 批量删除或重新生成单篇解读。
-*   **`AdminLogin.tsx`**: 安全门控。
+### 2. 创建 Cloudflare 资源
+在 Cloudflare 控制台或使用命令行创建以下资源：
 
-### 3. 工具与配置 (`/src/lib/`, `/`)
+**D1 数据库 (用于存储艺术品与设置)**:
+```bash
+wrangler d1 create art_db
+```
+*记录下输出中的 `database_id`，并更新至 `wrangler.toml` 的 `[[d1_databases]]` 部分。*
 
-*   **`artUtils.ts`**: 文本处理工具，用于提取 HTML 标题和清洗 AI 输出内容，防止重复显示。
-*   **`App.tsx`**: 路由导航中心，定义了全站统一的底部视觉区域。
-*   **`database.sqlite`**: 本地开发数据库。
+**R2 存储桶 (用于持久化托管名画图像)**:
+```bash
+wrangler r2 bucket create art-images
+```
 
-## 🛡️ 健壮性与安全性设计
+### 3. 配置 wrangler.toml
+确保 `wrangler.toml` 中的绑定名称如下（这是代码中引用的名称）：
+- D1 绑定名称: `ART_GALLERY_DB`
+- R2 绑定名称: `ART_GALLERY_IMAGES`
 
-1.  **容错抓取**: 针对外部 API 不稳定的情况，所有抓取请求都封装了重试逻辑。
-2.  **僵死任务重置**: 后台任务如果因为各种原因（如 Worker 超时）中断，接口层会在 10 分钟后自动重置状态，防止前端进度条永久卡死。
-3.  **身份隔离**: 管理权限不直接比对明文密码，而是对比加盐后的 SHA-256 哈希值，防止传输泄露风险。
-4.  **CDN 缓存**: 通过 `/api/cdn/*` 代理 R2 图像，并配置了 1 年的持久缓存头部，极大提升了加载速度并降低了流量成本。
+### 4. 设置环境变量
+在 Cloudflare Pages 项目控制台 -> **设置** -> **环境变量** 中添加以下变量：
+- `ADMIN_PASSWORD`: 管理后台登录密码。
+- `CRON_SECRET`: (可选) 用于保护 `/api/cron` 接口的密钥。
 
-## 🚀 部署至 Cloudflare Pages
+### 5. 初始化数据库
+本项目具备自动初始化逻辑，首次访问应用接口时会自动创建所需的表。如果您想手动初始化，可以在控制台直接运行 SQL。
 
-本项目专为 Cloudflare 生态（Pages + D1 + R2）设计。以下是部署步骤：
+### 6. 部署应用
+```bash
+npm run build
+wrangler pages deploy dist
+```
 
-### 前置条件
-- 已安装 Node.js (建议 v20+)
-- 已安装 [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-- 拥有 Cloudflare 账号
+### 7. 配置定时任务 (Cron Triggers)
+为了让名画能够自动“长”出来，您需要配置定时器：
 
-### 部署步骤
+1. **方法 A: Cloudflare Pages Scheduled Tasks (推荐)**
+   - 进入 Cloudflare 控制台 -> Pages 项目 -> 设置 -> Functions -> Cron Triggers。
+   - 添加一个定时器，例如 `0 */1 * * *` (每 1 小时抓取一次)。
+   - 本项目 `functions/_middleware.ts` 已导出 `scheduled` 处理逻辑。
 
-1. **登录 Cloudflare**
-   在终端运行：
-   ```bash
-   wrangler login
-   ```
+2. **方法 B: 使用 Cron Worker (本项目提供 `cron-worker.js`)**
+   - 部署一个单独的 Worker `cron-worker.js`，设置环境变量 `CRON_TARGET_URL` 为 `https://你的域名/api/cron?secret=你的秘钥`。
 
-2. **准备 D1 数据库与 R2 存储**
-   - 在 Cloudflare 控制台创建 D1 数据库和 R2 存储桶。
-   - 修改 `wrangler.toml` 文件中的以下绑定，确保与控制台创建的名称一致：
-     - `d1_databases`: 配置绑定的数据库 binding 名称 (例如 `ART_GALLERY_DB`).
-     - `r2_buckets`: 配置绑定的 R2 存储桶 binding 名称 (例如 `ART_GALLERY_IMAGES`).
+---
 
-### 3. 设置环境变量 (在 Cloudflare Dashboard)
-   进入 Cloudflare 控制台 -> Workers & Pages -> 你的项目 -> 设置 -> 环境变量，配置：
-   - `ADMIN_PASSWORD_HASH`: (必须！设置一个 SHA-256 哈希后的管理密码，用于保护后台)。
-   *(注意：其余模型 API Key (如 Gemini, 通义千问等) 无需在此配置，请在应用部署成功后，从后台管理界面通过“设置”进行统一管理。)*
+## 🛠️ 本地开发
 
-4. **初始化数据库表结构 (迁移)**
-   在项目根目录下运行以下命令，将生产环境的 D1 数据库表结构初始化：
-   ```bash
-   # 请将 <YOUR_DATABASE_BINDING_NAME> 替换为 wrangler.toml 中配置的 binding 名称
-   wrangler d1 migrations apply <YOUR_DATABASE_BINDING_NAME>
-   ```
+1. **安装依赖**: `npm install`
+2. **启动开发服务器**: `npm run dev`
+   - 本地开发模式下，系统会使用 `better-sqlite3` 在根目录自动创建 `database.sqlite`。
+3. **设置 AI**: 访问 `/admin` 页面，输入 `ADMIN_PASSWORD` 登录，在设置页面配置您的 Gemini 或 阿里大模型 API Key。
 
-5. **部署应用**
-   在项目根目录运行：
-   ```bash
-   npm run build
-   wrangler pages deploy
-   ```
+## 📁 目录结构与功能
 
-6. **最后检查**
-   确保 Cloudflare 控制台中项目的 “Functions” -> “设置” 中，D1 数据库和 R2 存储桶已成功绑定。
+- `/functions`: Cloudflare Pages Functions (API 路由)
+  - `api/[[path]].ts`: Hono 路由入口，处理 Auth, CRUD, CDN 代理等需求。
+  - `api/_ai-fetcher.ts`: **核心逻辑**。包含爬虫逻辑、R2 同步逻辑、AI 接口调用策略。
+  - `api/_db.ts`: 数据库驱动适配，支持 D1 与本地 SQLite。
+- `/src`: React 前端应用
+  - `pages/Home.tsx`: 沉浸式首页。
+  - `pages/ArtworkDetail.tsx`: 详情页，包含 AI 标题提取与 Prose 排版。
+  - `pages/AdminDashboard.tsx`: 全功能后台，支持模型切换与任务监控。
+
+## 🛡️ 安全与优化
+
+- **CDN 持久缓存**: 通过 `/api/cdn/*` 路由代理 R2 图片，配置了 1 年的持久缓存，减少回源开销。
+- **SHA-256 身份验证**: 登录 Token 基于密码生成安全哈希，避免明文传输。
+- **僵死任务处理**: 后台任务状态如果超过 10 分钟未更新，会被自动标记为 idle，防止前端挂死。
 
 ---
 详情请参阅 [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)。
