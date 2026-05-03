@@ -132,13 +132,15 @@ function GalleryLogo() {
             </radialGradient>
           </defs>
 
-          {/* Wooden Palette Base - Smoother, more organic rounded kidney shape */}
+          {/* Wooden Palette Base - Perfectly smooth rounded kidney shape without any sharp edges */}
           <g transform="rotate(-5, 100, 100)">
             <path 
-              d="M 180,110 C 180,165 140,190 90,190 C 40,190 15,150 15,100 C 15,50 55,15 110,15 C 140,15 160,50 140,80 C 120,110 145,145 180,110 Z" 
+              d="M 180,105 C 180,165 140,195 90,195 C 40,195 15,155 15,105 C 15,55 55,15 110,15 C 145,15 160,55 135,85 C 115,110 145,150 180,105 Z" 
               fill="url(#paletteGrad)" 
               stroke="#78350f" 
-              strokeWidth="1"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+              shapeRendering="geometricPrecision"
             />
             
             {/* Soft Wood Grain Lines */}

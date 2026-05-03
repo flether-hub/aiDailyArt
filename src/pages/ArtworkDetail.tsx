@@ -151,7 +151,16 @@ export default function ArtworkDetail() {
                   {/* Created At col */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[11px] md:text-xs font-black text-slate-500 uppercase tracking-[0.2em] h-5 flex items-center whitespace-nowrap">收录时间</span>
-                    <span className="text-[11px] md:text-xs text-slate-800 font-bold leading-relaxed whitespace-nowrap">{formatDistanceToNow(new Date((artwork.created_at ? (artwork.created_at + (artwork.created_at.endsWith('Z') ? '' : 'Z')) : Date.now())), { addSuffix: true, locale: zhCN })}</span>
+                    <span className="text-[11px] md:text-xs text-slate-800 font-bold leading-relaxed whitespace-nowrap">
+                      {artwork.created_at ? (() => {
+                        try {
+                          const dateStr = artwork.created_at.endsWith('Z') ? artwork.created_at : `${artwork.created_at}Z`;
+                          return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: zhCN });
+                        } catch (e) {
+                          return '刚刚';
+                        }
+                      })() : '时间未知'}
+                    </span>
                   </div>
                 </div>
 
