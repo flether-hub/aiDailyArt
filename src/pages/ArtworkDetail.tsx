@@ -409,7 +409,7 @@ export default function ArtworkDetail() {
                   <button
                     type="submit"
                     disabled={!newComment.trim() || isSubmitting}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-bold whitespace-nowrap hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
                   >
                     {isSubmitting ? '正在发布...' : (
                       <>
