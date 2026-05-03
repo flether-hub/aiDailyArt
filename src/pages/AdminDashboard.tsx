@@ -371,12 +371,22 @@ export default function AdminDashboard() {
             setKeywords((prev) => prev.filter((k) => k !== keyword));
             // Update local artworks keywords
             setArtworks((prev) =>
-              prev.map((a) => ({
-                ...a,
-                keywords: Array.isArray(a.keywords)
-                  ? a.keywords.filter((k: string) => k !== keyword)
-                  : a.keywords,
-              })),
+              prev.map((a) => {
+                if (Array.isArray(a.keywords)) {
+                  return {
+                    ...a,
+                    keywords: a.keywords.filter((k: string) => k !== keyword),
+                  };
+                } else if (typeof a.keywords === 'string') {
+                  const kwList = a.keywords.split(/[，,]/).map((k: string) => k.trim());
+                  const newKwList = kwList.filter((k) => k !== keyword);
+                  return {
+                    ...a,
+                    keywords: newKwList.join(', '),
+                  };
+                }
+                return a;
+              }),
             );
           }
         } catch (e) {
@@ -773,7 +783,7 @@ export default function AdminDashboard() {
                   <Palette className="w-5 h-5 text-amber-500" /> 焦点管理
                 </h3>
               </div>
-              <div className="p-4 flex flex-wrap gap-2 max-h-64 overflow-y-auto">
+              <div className="p-4 flex flex-wrap gap-2 max-h-64 overflow-y-auto scrollbar-hide">
                 {keywords.length === 0 ? (
                   <div className="text-xs text-slate-400 text-center w-full py-4">
                     暂无焦点内容

@@ -284,6 +284,29 @@ app.post('/admin/artworks/bulk-delete', async (c) => {
   return c.json({ success: true });
 });
 
+app.post('/admin/keywords/delete', async (c) => {
+  const db = await getDB();
+  const { keyword } = await c.req.json();
+  if (!keyword) return c.json({ error: 'Keyword is required' }, 400);
+
+  const artworks = await db.prepare("SELECT id, keywords FROM artworks WHERE keywords LIKE ?")
+    .all(`%${keyword}%`);
+
+  const fetchedArtworks = Array.isArray(artworks) ? artworks : [];
+  
+  for (const artwork of fetchedArtworks) {
+    if (!artwork.keywords) continue;
+    const kwList = (artwork.keywords as string).split(/[，,]/).map((k: string) => k.trim());
+    const newKwList = kwList.filter((k: string) => k !== keyword);
+    
+    if (kwList.length !== newKwList.length) {
+      await db.prepare("UPDATE artworks SET keywords = ? WHERE id = ?").run(newKwList.join(', '), artwork.id);
+    }
+  }
+
+  return c.json({ success: true });
+});
+
 app.get('/stats', async (c) => {
   const db = await getDB();
   
@@ -341,7 +364,7 @@ app.get('/keywords', async (c) => {
   });
   const sortedKeywords = Object.entries(keywordCounts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
+    .slice(0, 40)
     .map(entry => entry[0]);
   return c.json(sortedKeywords);
 });
