@@ -260,7 +260,7 @@ export default function ArtworkDetail() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500 tracking-[0.2em]">年代:</span>
-                  <span className="text-slate-800">{artwork.year ? artwork.year.toString().substring(0, 4) : '未知'}</span>
+                  <span className="text-slate-800">{artwork.year ? artwork.year.toString().substring(0, 4) : '年代未知'}</span>
                 </div>
               </div>
 

@@ -388,7 +388,7 @@ async function getIpLocation(ip: string): Promise<string> {
     if (!response.ok) throw new Error('Network error');
     const data = await response.json();
     if (data.status === 'success') {
-      return `${data.regionName} ${data.city}`;
+      return `${data.country} ${data.regionName} ${data.city}`;
     }
   } catch (e) {
     console.error('IP geocoding failed', e);
