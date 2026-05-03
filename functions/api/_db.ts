@@ -125,6 +125,17 @@ export async function initDB(db: DBClient) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      artwork_id TEXT,
+      content TEXT,
+      ip_address TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(artwork_id) REFERENCES artworks(id)
+    )
+  `).run();
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');

@@ -377,6 +377,51 @@ app.get('/auth/check', async (c) => {
   return c.json({ isAdmin: false });
 });
 
+// Comment Routes
+app.get('/comments/:artworkId', async (c) => {
+  const db = await getDB();
+  const artworkId = c.req.param('artworkId');
+  const comments = await db.prepare('SELECT * FROM comments WHERE artwork_id = ? ORDER BY created_at DESC')
+    .all(artworkId);
+  return c.json(comments || []);
+});
+
+app.post('/comments/:artworkId', async (c) => {
+  const db = await getDB();
+  const artworkId = c.req.param('artworkId');
+  const { content } = await c.req.json();
+  
+  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    return c.json({ error: '评论内容不能为空' }, 400);
+  }
+
+  const id = crypto.randomUUID();
+  const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || 'Unknown';
+  const now = new Date().toISOString();
+
+  await db.prepare('INSERT INTO comments (id, artwork_id, content, ip_address, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(id, artworkId, content.trim(), ip, now);
+
+  return c.json({ success: true, id });
+});
+
+app.delete('/admin/comments/:id', async (c) => {
+  const db = await getDB();
+  const id = c.req.param('id');
+  await db.prepare('DELETE FROM comments WHERE id = ?').run(id);
+  return c.json({ success: true });
+});
+
+app.post('/admin/comments/bulk-delete', async (c) => {
+  const db = await getDB();
+  const { ids } = await c.req.json();
+  if (Array.isArray(ids) && ids.length > 0) {
+    const placeholders = ids.map(() => '?').join(',');
+    await db.prepare(`DELETE FROM comments WHERE id IN (${placeholders})`).run(...ids);
+  }
+  return c.json({ success: true });
+});
+
 app.get('/admin/settings', async (c) => {
   const db = await getDB();
   const settings = await db.prepare('SELECT * FROM settings').all();

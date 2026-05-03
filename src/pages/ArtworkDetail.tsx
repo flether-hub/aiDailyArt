@@ -1,16 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Trash2, CheckCircle, Circle, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
+import { useAuth } from '../AuthContext';
 
 export default function ArtworkDetail() {
   const { id } = useParams();
+  const { isAdmin } = useAuth();
   const [artwork, setArtwork] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedComments, setSelectedComments] = useState<Set<string>>(new Set());
+  
+  // Custom Delete Confirmation State
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deleteMode, setDeleteMode] = useState<'single' | 'bulk' | null>(null);
+  const [targetId, setTargetId] = useState<string | null>(null);
+
+  const fetchComments = async () => {
+    try {
+      const res = await fetch(`/api/comments/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch comments', e);
+    }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -19,6 +42,9 @@ export default function ArtworkDetail() {
         if (!resArt.ok) throw new Error('Artwork not found');
         const item = await resArt.json();
         setArtwork(item);
+        
+        // Fetch comments in parallel
+        fetchComments();
       } catch (e) {
         console.error(e);
       } finally {
@@ -27,6 +53,98 @@ export default function ArtworkDetail() {
     };
     fetchAll();
   }, [id]);
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`/api/comments/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment.trim() })
+      });
+      if (res.ok) {
+        setNewComment('');
+        await fetchComments();
+      }
+    } catch (e) {
+      console.error('Failed to post comment', e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    setDeleteMode('single');
+    setTargetId(commentId);
+    setShowConfirmModal(true);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedComments.size === 0) return;
+    setDeleteMode('bulk');
+    setShowConfirmModal(true);
+  };
+
+  const confirmDelete = async () => {
+    const token = localStorage.getItem('admin_token');
+    
+    try {
+      if (deleteMode === 'single' && targetId) {
+        const res = await fetch(`/api/admin/comments/${targetId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          setComments(prev => prev.filter(c => c.id !== targetId));
+          setSelectedComments(prev => {
+            const next = new Set(prev);
+            next.delete(targetId);
+            return next;
+          });
+        }
+      } else if (deleteMode === 'bulk') {
+        const res = await fetch('/api/admin/comments/bulk-delete', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({ ids: Array.from(selectedComments) })
+        });
+        if (res.ok) {
+          const deletedIds = new Set(selectedComments);
+          setComments(prev => prev.filter(c => !deletedIds.has(c.id)));
+          setSelectedComments(new Set());
+        }
+      }
+    } catch (e) {
+      console.error('Action failed', e);
+    } finally {
+      setShowConfirmModal(false);
+      setDeleteMode(null);
+      setTargetId(null);
+    }
+  };
+
+  const toggleSelect = (commentId: string) => {
+    setSelectedComments(prev => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedComments.size === comments.length && comments.length > 0) {
+      setSelectedComments(new Set());
+    } else {
+      setSelectedComments(new Set(comments.map(c => c.id)));
+    }
+  };
 
   useEffect(() => {
     if (isZoomed) {
@@ -42,6 +160,49 @@ export default function ArtworkDetail() {
 
   return (
     <>
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {showConfirmModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowConfirmModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
+            >
+              <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">确认删除操作</h3>
+              <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
+                {deleteMode === 'single' ? '此操作将永久删除该条艺术谈评论，无法撤销。' : `此操作将永久删除选中的 ${selectedComments.size} 条艺术谈评论，无法撤销。`}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
+                >
+                  确认删除
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <div className="w-full min-h-screen bg-[#faf9f6] flex py-8 sm:py-12 px-4 sm:px-8 md:px-12 lg:px-16 pb-32">
         <div className="w-full max-w-[1280px] mx-auto">
           <Link to="/" className="group inline-flex items-center gap-2 text-[11px] md:text-sm font-bold tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
@@ -180,6 +341,153 @@ export default function ArtworkDetail() {
                   </div>
                 )}
               </div>
+            </div>
+          </motion.div>
+
+          {/* Comment Section */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mt-20 border-t border-slate-200 pt-16 max-w-4xl"
+          >
+            <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-amber-600" />
+                </div>
+                <h2 className="text-xl md:text-2xl font-serif font-black text-slate-900">艺术谈 (评论)</h2>
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-bold">{comments.length}</span>
+              </div>
+
+              {isAdmin && comments.length > 0 && (
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={toggleSelectAll}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors uppercase tracking-widest flex items-center gap-1.5"
+                  >
+                    {selectedComments.size === comments.length ? <CheckCircle className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                    全选
+                  </button>
+                  <AnimatePresence>
+                    {selectedComments.size > 0 && (
+                      <motion.button
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        onClick={handleBulkDelete}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-xs font-bold hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        批量删除 ({selectedComments.size})
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+
+            {/* Comment Form */}
+            <form onSubmit={handleCommentSubmit} className="mb-12 bg-white p-6 rounded-xl border border-slate-200/60 shadow-sm">
+              <div className="flex flex-col gap-4">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="在此处留下你对这幅名画的见解或感受..."
+                  className="w-full min-h-[120px] p-4 bg-slate-50 border border-slate-100 rounded-lg text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500/40 transition-all font-serif resize-none"
+                  maxLength={1000}
+                />
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    文明交流，传递艺术之美 (最多1000字)
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={!newComment.trim() || isSubmitting}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    {isSubmitting ? '正在发布...' : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        发布评论
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Comments List */}
+            <div className="space-y-6">
+              <AnimatePresence mode="popLayout">
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <motion.div
+                      layout
+                      key={comment.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`group relative p-6 rounded-xl border transition-all duration-300 ${
+                        selectedComments.has(comment.id) 
+                        ? 'bg-amber-50/50 border-amber-200/50 ring-1 ring-amber-200/50' 
+                        : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm hover:shadow-md'
+                      }`}
+                    >
+                      {isAdmin && (
+                        <div 
+                          className="absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => toggleSelect(comment.id)}
+                        >
+                          {selectedComments.has(comment.id) ? (
+                            <CheckCircle className="w-5 h-5 text-amber-600" />
+                          ) : (
+                            <Circle className="w-5 h-5 text-slate-300" />
+                          )}
+                        </div>
+                      )}
+
+                      <div className={`${isAdmin ? 'pl-6' : ''}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-500">{comment.ip_address.split('.').slice(-1)[0]}</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-bold text-slate-900 tracking-wide">游客_{comment.id.substring(0, 4)}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-slate-400 font-medium">{comment.ip_address}</span>
+                                <span className="w-1 h-1 rounded-full bg-slate-200" />
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  {formatDistanceToNow(new Date(comment.created_at.endsWith('Z') ? comment.created_at : `${comment.created_at}Z`), { addSuffix: true, locale: zhCN })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteComment(comment.id); }}
+                              className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-red-500 transition-all rounded-lg hover:bg-red-50"
+                              title="删除此条"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-slate-700 font-serif leading-relaxed whitespace-pre-wrap">
+                          {comment.content}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="text-center py-20 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                    <MessageSquare className="w-8 h-8 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-400 text-sm font-serif italic">暂无评论，虚位以待你的真知灼见</p>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         </div>
