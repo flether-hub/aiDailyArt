@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 type AuthContextType = {
   isAdmin: boolean;
@@ -16,34 +16,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [memoryToken, setMemoryToken] = useState<string | null>(null);
 
-  const getToken = () => {
+  const getToken = useCallback(() => {
     if (memoryToken) return memoryToken;
     try {
       return localStorage.getItem('admin_token');
     } catch {
       return null;
     }
-  };
+  }, [memoryToken]);
 
-  const setToken = (token: string) => {
+  const setToken = useCallback((token: string) => {
     setMemoryToken(token);
     try {
       localStorage.setItem('admin_token', token);
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const removeToken = () => {
+  const removeToken = useCallback(() => {
     setMemoryToken(null);
     try {
       localStorage.removeItem('admin_token');
     } catch {
       // ignore
     }
-  };
+  }, []);
 
-  const checkAuth = async (providedToken?: string) => {
+  const checkAuth = useCallback(async (providedToken?: string) => {
     setIsLoadingAuth(true);
     try {
       const activeToken = providedToken || getToken();
@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoadingAuth(false);
     }
-  };
+  }, [getToken, removeToken, setToken]);
 
   const logout = async () => {
     removeToken();
@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   return (
     <AuthContext.Provider value={{ isAdmin, isLoadingAuth, checkAuth, logout, setToken, token: getToken() }}>

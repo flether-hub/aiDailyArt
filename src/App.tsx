@@ -5,6 +5,8 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
+import ErrorBoundary from './components/ErrorBoundary';
+
 import Home from './pages/Home';
 import ArtworkDetail from './pages/ArtworkDetail';
 import AdminLogin from './pages/AdminLogin';
@@ -324,16 +326,18 @@ function AnimatedRoutes() {
   const location = useLocation();
   
   return (
-    <AnimatePresence mode="wait">
-      <div key={location.pathname}>
-        <Routes location={location}>
-          <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-          <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
-          <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
-          <Route path="/admin/dashboard" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
-        </Routes>
-      </div>
-    </AnimatePresence>
+    <ErrorBoundary>
+      <AnimatePresence mode="wait">
+        <div key={location.pathname}>
+          <Routes location={location}>
+            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+            <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
+            <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
+            <Route path="/admin/dashboard" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
+          </Routes>
+        </div>
+      </AnimatePresence>
+    </ErrorBoundary>
   );
 }
 

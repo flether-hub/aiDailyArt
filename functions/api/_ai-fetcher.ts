@@ -193,13 +193,13 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   }
 
   try {
-    const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    const provider = (await getSetting('ai_provider'))?.value || 'gemini';
-  const modelId = (await getSetting('model_id'))?.value;
-  const apiKey = (await getSetting('api_key'))?.value;
+    const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+    const provider = ((await getSetting('ai_provider')) as any)?.value || 'gemini';
+  const modelId = ((await getSetting('model_id')) as any)?.value;
+  const apiKey = ((await getSetting('api_key')) as any)?.value;
   
-  const intervalHours = parseInt((await getSetting('interval_hours'))?.value || '0', 10);
-  const intervalMinutes = parseInt((await getSetting('interval_minutes'))?.value || '30', 10);
+  const intervalHours = parseInt(((await getSetting('interval_hours')) as any)?.value || '0', 10);
+  const intervalMinutes = parseInt(((await getSetting('interval_minutes')) as any)?.value || '30', 10);
   let intervalMs = (intervalHours * 60 + intervalMinutes) * 60 * 1000;
   if (intervalMs < 30 * 60 * 1000) intervalMs = 30 * 60 * 1000; // minimum 30 mins
   
@@ -207,7 +207,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   if (!isManual) {
      try {
-       const useMinInterval = ((await getSetting('use_min_interval'))?.value || 'true') === 'true'; // Default true for backward compatibility or false? The user said "后台改成是否设置最小间隔，如果勾选则检查间隔"
+       const useMinInterval = (((await getSetting('use_min_interval')) as any)?.value || 'true') === 'true'; // Default true for backward compatibility or false? The user said "后台改成是否设置最小间隔，如果勾选则检查间隔"
        if (useMinInterval) {
          const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
          let lastRunMs = 0;

@@ -4,6 +4,7 @@ import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Tr
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import DOMPurify from 'dompurify';
 import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
 import { useAuth } from '../AuthContext';
 
@@ -22,6 +23,10 @@ export default function ArtworkDetail() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deleteMode, setDeleteMode] = useState<'single' | 'bulk' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+
+  const santizeHtml = (html: string) => {
+    return { __html: DOMPurify.sanitize(html) };
+  };
 
   const fetchComments = async () => {
     try {
@@ -278,7 +283,7 @@ export default function ArtworkDetail() {
 
               {/* Interpretation */}
               <div className="prose prose-slate prose-base md:prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
-                    dangerouslySetInnerHTML={{ __html: cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>' }} />
+                    dangerouslySetInnerHTML={santizeHtml(cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>')} />
 
               {/* Additional Info / Footer */}
               <div className="mt-4 pt-4 border-t border-slate-200/60 ">

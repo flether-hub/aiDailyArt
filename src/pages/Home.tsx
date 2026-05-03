@@ -238,8 +238,14 @@ export default function Home() {
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
-                                  e.currentTarget.src = "https://images.metmuseum.org/CRDImages/ep/original/DT156.jpg"; // Use a reliable fallback if possible or show an icon
-                                  e.currentTarget.className = "w-full h-full object-cover opacity-20 grayscale";
+                                  const parent = e.currentTarget.parentElement;
+                                  e.currentTarget.className = "hidden";
+                                  if (parent) {
+                                    const placeholder = document.createElement('div');
+                                    placeholder.className = "flex flex-col items-center justify-center h-full bg-slate-100 text-slate-300";
+                                    placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><p class="text-[8px] uppercase tracking-widest font-bold">画作暂无法显示</p>';
+                                    parent.appendChild(placeholder);
+                                  }
                                 }}
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>

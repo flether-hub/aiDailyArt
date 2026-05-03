@@ -1,7 +1,8 @@
 const API_BASE = '/api';
+const TOKEN_KEY = 'admin_token';
 
 export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(TOKEN_KEY);
   const headers: HeadersInit = {
     ...(options.headers || {}),
   };
@@ -29,7 +30,7 @@ export const uploadFileWithProgress = (endpoint: string, formData: FormData, onP
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE}${endpoint}`);
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(TOKEN_KEY);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
     if (signal) {
@@ -67,10 +68,12 @@ export const uploadFileWithProgress = (endpoint: string, formData: FormData, onP
 };
 
 export const downloadFileWithProgress = async (id: number, filename: string, onProgress: (loaded: number, total: number | null) => void) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(TOKEN_KEY);
   if (!token) throw new Error('Unauthorized');
   
-  const response = await fetch(`${API_BASE}/files/${id}/download?token=${token}`);
+  const response = await fetch(`${API_BASE}/files/${id}/download`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
   if (!response.ok) throw new Error('Download failed');
 
   const contentLength = response.headers.get('content-length');
