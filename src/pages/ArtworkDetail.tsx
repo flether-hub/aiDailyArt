@@ -81,14 +81,14 @@ export default function ArtworkDetail() {
                 {artwork.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-[11px] md:text-xs font-bold uppercase tracking-widest mb-8">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-amber-700 tracking-[0.2em]">艺术家:</span>
+                  <span className="text-amber-700 tracking-[0.2em]">艺术家:</span>
                   <span className="text-slate-900">{artwork.artist}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-amber-700 tracking-[0.2em]">年代:</span>
-                  <span className="text-slate-900">{artwork.year}</span>
+                  <span className="text-amber-700 tracking-[0.2em]">年代:</span>
+                  <span className="text-slate-900">{artwork.year ? artwork.year.toString().substring(0, 4) : '未知'}</span>
                 </div>
               </div>
 
