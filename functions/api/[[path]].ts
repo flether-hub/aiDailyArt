@@ -378,12 +378,38 @@ app.get('/auth/check', async (c) => {
 });
 
 // Comment Routes
+async function getIpLocation(ip: string): Promise<string> {
+  // Take only the first IP if multiple are present
+  const firstIp = ip.split(',')[0].trim();
+  if (firstIp === '::1' || firstIp === '127.0.0.1') return '局域网';
+  
+  try {
+    const response = await fetch(`http://ip-api.com/json/${firstIp}?lang=zh-CN`);
+    if (!response.ok) throw new Error('Network error');
+    const data = await response.json();
+    if (data.status === 'success') {
+      return `${data.regionName} ${data.city}`;
+    }
+  } catch (e) {
+    console.error('IP geocoding failed', e);
+  }
+  return '位置未知';
+}
+
 app.get('/comments/:artworkId', async (c) => {
   const db = await getDB();
   const artworkId = c.req.param('artworkId');
   const comments = await db.prepare('SELECT * FROM comments WHERE artwork_id = ? ORDER BY created_at DESC')
     .all(artworkId);
-  return c.json(comments || []);
+    
+  const commentsWithLocation = await Promise.all((comments as any[]).map(async (comment) => {
+    return {
+      ...comment,
+      location: await getIpLocation(comment.ip_address)
+    };
+  }));
+    
+  return c.json(commentsWithLocation || []);
 });
 
 app.post('/comments/:artworkId', async (c) => {

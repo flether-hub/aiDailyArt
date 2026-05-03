@@ -451,12 +451,12 @@ export default function ArtworkDetail() {
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
-                              <span className="text-[10px] font-bold text-slate-500">{comment.ip_address.split('.').slice(-1)[0]}</span>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-xs font-bold text-slate-900 tracking-wide">游客_{comment.id.substring(0, 4)}</span>
+                              <span className="text-xs font-bold text-slate-900 tracking-wide">{comment.ip_address.split(',')[0].trim()}</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-400 font-medium">{comment.ip_address}</span>
+                                <span className="text-[10px] text-slate-400 font-medium">{comment.location}</span>
                                 <span className="w-1 h-1 rounded-full bg-slate-200" />
                                 <span className="text-[10px] text-slate-400 font-medium">
                                   {formatDistanceToNow(new Date(comment.created_at.endsWith('Z') ? comment.created_at : `${comment.created_at}Z`), { addSuffix: true, locale: zhCN })}
