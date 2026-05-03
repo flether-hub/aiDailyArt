@@ -1,7 +1,7 @@
 let cloudEnv: any = null;
 
 export function getCloudEnv() {
-  return cloudEnv || process.env;
+  return { ...process.env, ...cloudEnv };
 }
 
 export function setCloudEnv(env: any) {

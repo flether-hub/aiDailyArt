@@ -458,42 +458,28 @@ export default function AdminDashboard() {
             </span>
           </h2>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+        <div className="w-full sm:w-auto">
           {fetchingProgress && (
-            <div
-              className={`text-xs px-3 py-1.5 rounded-md font-mono border w-full sm:max-w-sm flex items-center gap-2 ${fetchingProgress.error ? "bg-red-50 text-red-600 border-red-200" : "bg-emerald-50 text-emerald-600 border-emerald-200"}`}
-              title={
-                fetchingProgress.error
-                  ? `${fetchingProgress.message}: ${fetchingProgress.error}`
-                  : fetchingProgress.message
-              }
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`text-xs px-4 py-2 rounded-lg font-medium border flex items-center gap-3 shadow-sm ${fetchingProgress.error ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200 animate-pulse"}`}
             >
-              <span className="truncate flex-1">
-                {fetchingProgress.error
-                  ? `${fetchingProgress.message}: ${fetchingProgress.error}`
-                  : fetchingProgress.message}
+              <div className={`w-2 h-2 rounded-full ${fetchingProgress.error ? "bg-red-500" : "bg-amber-500 animate-ping"}`} />
+              <span className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] sm:max-w-md">
+                {fetchingProgress.message}
+                {fetchingProgress.error && <span className="ml-1 opacity-70">({fetchingProgress.error})</span>}
               </span>
               {fetchingProgress.error && (
                 <button
                   onClick={() => setFetchingProgress(null)}
-                  className="opacity-60 hover:opacity-100 flex-shrink-0"
-                  title="关闭"
+                  className="p-1 hover:bg-red-100 rounded-full transition-colors ml-1"
                 >
-                  &times;
+                  <Trash2 className="w-3 h-3" />
                 </button>
               )}
-            </div>
+            </motion.div>
           )}
-          <button
-            onClick={triggerFetch}
-            disabled={fetchingWorks}
-            className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2.5 rounded-full hover:bg-slate-100 disabled:opacity-50 shrink-0"
-            title="手动甄选单幅名画"
-          >
-            <RefreshCw
-              className={`w-6 h-6 ${fetchingWorks ? "animate-spin" : ""}`}
-            />
-          </button>
         </div>
       </header>
 
@@ -710,22 +696,34 @@ export default function AdminDashboard() {
               {artworks.length > 0 && (
                 <button
                   onClick={toggleSelectAll}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-slate-200/50"
                 >
                   {selectedIds.length === artworks.length
                     ? "取消全选"
-                    : "全选当前页"}
+                    : "全选"}
                 </button>
               )}
             </div>
-            {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+              {selectedIds.length > 0 && (
+                <button
+                  onClick={bulkDelete}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold transition-colors shadow-xl"
+                >
+                  <Trash2 className="w-3 h-3" /> 批量删除 ({selectedIds.length})
+                </button>
+              )}
               <button
-                onClick={bulkDelete}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold transition-colors w-full sm:w-auto justify-center"
+                onClick={triggerFetch}
+                disabled={fetchingWorks}
+                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
+                title="手动抓取新名画"
               >
-                <Trash2 className="w-3 h-3" /> 批量删除 ({selectedIds.length})
+                <RefreshCw
+                  className={`w-5 h-5 ${fetchingWorks ? "animate-spin" : ""}`}
+                />
               </button>
-            )}
+            </div>
           </div>
 
           <div className="flex flex-col divide-y divide-slate-100">

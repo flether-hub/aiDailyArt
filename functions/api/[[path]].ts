@@ -37,11 +37,10 @@ app.onError((err, c) => {
 // Protect all admin endpoints
 app.use('/admin/*', async (c, next) => {
   const env = getCloudEnv();
-  const expectedPassword = env.ADMIN_PASSWORD || '1234';
+  const expectedPassword = env.ADMIN_PASSWORD;
   
-  // Bypass completely in preview mode
-  if (env.CF_PAGES !== '1') {
-    return next();
+  if (!expectedPassword) {
+    return c.json({ error: 'System configuration error: ADMIN_PASSWORD not set' }, 500);
   }
   
   const authHeader = c.req.header('Authorization');
@@ -85,7 +84,9 @@ app.get('/cron', async (c) => {
   
   try {
     c.executionCtx.waitUntil(promise);
-  } catch(e) {}
+  } catch (e) {
+    // Non-Cloudflare environment, no waitUntil available
+  }
 
   return c.json({ success: true, message: 'Cron job initiated in the background.' });
 });
@@ -150,8 +151,15 @@ app.get('/artworks/:id', async (c) => {
     keywords: typeof artwork.keywords === 'string' ? artwork.keywords.split(/[，,]/).map((k: string) => k.trim()) : (Array.isArray(artwork.keywords) ? artwork.keywords : [])
   };
   
-  // Increment view count (async)
-  db.prepare('UPDATE artworks SET views = views + 1 WHERE id = ?').run(id).catch(console.error);
+  // Increment view count
+  const incrementPromise = db.prepare('UPDATE artworks SET views = views + 1 WHERE id = ?').run(id).catch(console.error);
+  
+  try {
+    c.executionCtx.waitUntil(incrementPromise);
+  } catch (e) {
+    // If not in Cloudflare, we can await or just let it finish in Node's background
+    await incrementPromise;
+  }
   
   return c.json(processedArtwork);
 });
@@ -226,10 +234,10 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
     
     const promise = task();
     try {
-      if (c.executionCtx && c.executionCtx.waitUntil) {
-        c.executionCtx.waitUntil(promise);
-      }
-    } catch(e) {}
+      c.executionCtx.waitUntil(promise);
+    } catch (e) {
+      // Non-Cloudflare environment
+    }
     await promise;
   });
 });
@@ -246,12 +254,43 @@ app.post('/admin/artworks/bulk-delete', async (c) => {
 
 app.get('/stats', async (c) => {
   const db = await getDB();
+  
+  // Get total artworks count
   const countResult = await db.prepare('SELECT count(*) as count FROM artworks').get();
-  const count = (countResult as any)?.count || 0;
-  return c.json({ artworks: count, visits: 1337 + count * 4 }); 
+  const artworksCount = (countResult as any)?.count || 0;
+  
+  // Get sum of all artwork views
+  const viewsResult = await db.prepare('SELECT sum(views) as total_views FROM artworks').get();
+  const totalArtworkViews = (viewsResult as any)?.total_views || 0;
+  
+  // Get site visits from settings
+  const visitResult = await db.prepare('SELECT value FROM settings WHERE key = ?').get('site_visits');
+  const siteVisits = parseInt((visitResult as any)?.value || '0', 10);
+  
+  return c.json({ 
+    artworks: artworksCount, 
+    visits: siteVisits + totalArtworkViews 
+  }); 
 });
 
 app.post('/stats/visit', async (c) => {
+  const db = await getDB();
+  const incrementPromise = (async () => {
+    try {
+      const current = await db.prepare('SELECT value FROM settings WHERE key = ?').get('site_visits');
+      const newValue = parseInt((current as any)?.value || '0', 10) + 1;
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('site_visits', String(newValue));
+    } catch (e) {
+      console.error('Failed to increment site visits:', e);
+    }
+  })();
+
+  try {
+    c.executionCtx.waitUntil(incrementPromise);
+  } catch (e) {
+    await incrementPromise;
+  }
+
   return c.json({ success: true });
 });
 
@@ -270,7 +309,7 @@ app.get('/keywords', async (c) => {
   });
   const sortedKeywords = Object.entries(keywordCounts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 50)
+    .slice(0, 20)
     .map(entry => entry[0]);
   return c.json(sortedKeywords);
 });
@@ -278,8 +317,12 @@ app.get('/keywords', async (c) => {
 app.post('/auth/login', async (c) => {
   const { password } = await c.req.json();
   const env = getCloudEnv();
-  const expectedPassword = env.ADMIN_PASSWORD || '1234';
+  const expectedPassword = env.ADMIN_PASSWORD;
   
+  if (!expectedPassword) {
+    return c.json({ success: false, error: '系统未配置管理员密码' }, 500);
+  }
+
   if (password === expectedPassword) {
     return c.json({ success: true, token: expectedPassword }); 
   }
@@ -288,15 +331,10 @@ app.post('/auth/login', async (c) => {
 
 app.get('/auth/check', async (c) => {
   const env = getCloudEnv();
-  const expectedPassword = env.ADMIN_PASSWORD || '1234';
-  
-  // Skip login if in preview mode (not running in Cloudflare Pages)
-  if (env.CF_PAGES !== '1') {
-    return c.json({ isAdmin: true, isPreview: true });
-  }
+  const expectedPassword = env.ADMIN_PASSWORD;
 
   const token = c.req.header('Authorization')?.split(' ')[1];
-  if (token && token === expectedPassword) {
+  if (expectedPassword && token && token === expectedPassword) {
     return c.json({ isAdmin: true });
   }
   return c.json({ isAdmin: false });
@@ -368,10 +406,10 @@ app.post('/admin/trigger-fetch', async (c) => {
     
     const promise = task();
     try {
-      if (c.executionCtx && c.executionCtx.waitUntil) {
-        c.executionCtx.waitUntil(promise);
-      }
-    } catch(e) {}
+      c.executionCtx.waitUntil(promise);
+    } catch (e) {
+      // Non-Cloudflare environment
+    }
     // we don't await promise here so if client disconnects stream is closed but waitUntil keeps promise alive.
     // wait, stream function expects us to await if we want to keep it open
     await promise;

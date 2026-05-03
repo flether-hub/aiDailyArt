@@ -11,128 +11,143 @@ import AdminDashboard from './pages/AdminDashboard';
 
 function GalleryLogo() {
   const [animating, setAnimating] = useState(false);
+  
+  const triggerAnimation = () => {
+    if (!animating) {
+      setAnimating(true);
+      setTimeout(() => setAnimating(false), 1500);
+    }
+  };
 
   return (
     <motion.div 
       className="w-16 h-16 flex items-center justify-center cursor-pointer relative group shrink-0"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={(e) => {
-        e.preventDefault();
-        if (animating) return;
-        setAnimating(true);
-        setTimeout(() => setAnimating(false), 1500);
-      }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
+      onMouseEnter={triggerAnimation}
+      onMouseDown={triggerAnimation}
     >
       <motion.svg 
         viewBox="0 0 200 200" 
-        className="w-full h-full drop-shadow-md z-10 relative" 
+        className="w-full h-full drop-shadow-xl z-10 relative filter saturate-120" 
       >
-        <g animate={animating ? { rotate: [0, -5, 5, 0], scale: [1, 1.05, 1] } : {}} transition={{ duration: 0.5 }}>
-          {/* Frame */}
-          <rect x="20" y="10" width="120" height="150" fill="#c2410c" rx="4" transform="rotate(-5, 80, 85)" stroke="#9a3412" strokeWidth="2" />
-          <rect x="25" y="15" width="110" height="140" fill="#ea580c" rx="2" transform="rotate(-5, 80, 85)" />
+        <g animate={animating ? { 
+          rotate: [0, -10, 10, -5, 5, 0],
+          scale: [1, 1.1, 1]
+        } : {}} transition={{ duration: 0.8, ease: "easeInOut" }}>
           
-          {/* Canvas */}
-          <g transform="rotate(-5, 80, 85)">
-            <rect x="30" y="20" width="100" height="130" fill="#bef264" />
-            <path d="M 30 60 Q 50 40 70 70 T 110 50 L 130 60 L 130 150 L 30 150 Z" fill="#a3e635" />
-            <path d="M 30 90 Q 60 70 90 90 T 130 70 L 130 150 L 30 150 Z" fill="#84cc16" />
-            
-            {/* Mona Lisa Silhouette */}
-            <path d="M 45 150 C 45 95, 55 70, 80 70 C 105 70, 115 95, 115 150 Z" fill="#171717" />
-            {/* Face */}
-            <path d="M 65 65 C 60 40, 100 40, 95 65 C 92 85, 68 85, 65 65 Z" fill="#fde047" /> 
-            {/* Neck */}
-            <path d="M 72 80 C 72 90, 88 90, 88 80 Z" fill="#fef08a" /> 
-            {/* Pink Sash */}
-            <path d="M 115 110 C 95 120, 70 140, 70 150 L 85 150 C 95 130, 115 120, 115 110 Z" fill="#db2777" />
-            <path d="M 115 110 C 95 120, 70 140, 70 150 L 80 150 C 90 135, 110 120, 115 120 Z" fill="#be185d" /> 
-            
-            {/* Hands */}
-            <path d="M 55 130 C 70 125, 90 135, 90 145 C 70 145, 55 135, 55 130 Z" fill="#fde047" /> 
-            <path d="M 60 142 C 70 138, 80 142, 80 150 L 60 150 Z" fill="#fef08a" /> 
-          </g>
-        </g>
-
-        {/* Palette */}
-        <g transform="translate(65, 80)" animate={animating ? { scale: [1, 1.1, 1], rotate: [0, -10, 0] } : {}} transition={{ duration: 0.6, delay: 0.1 }}>
-          {/* Main Palette Base */}
-          <path d="M 10 30 C -20 0, 40 -20, 80 10 C 120 40, 110 100, 60 100 C 40 100, 30 80, 10 30 Z" fill="#eab308" />
-          <path d="M 13 33 C -15 5, 43 -15, 80 13 C 115 40, 105 95, 60 95 C 43 95, 33 78, 13 33 Z" fill="#fde047" />
+          {/* Wooden Palette - Irregular Shape */}
+          <path 
+            d="M 170 100 C 170 150, 140 185, 80 185 C 20 185, 10 140, 10 90 C 10 40, 50 15, 100 15 C 130 15, 170 50, 170 100 Z" 
+            fill="#d29851" 
+            stroke="#92400e" 
+            strokeWidth="1.5"
+          />
+          <path 
+            d="M 165 100 C 165 145, 137 178, 80 178 C 25 178, 16 136, 16 90 C 16 45, 53 21, 100 21 C 127 21, 165 54, 165 100 Z" 
+            fill="#e2a65a" 
+          />
           
           {/* Thumb Hole */}
-          <ellipse cx="30" cy="70" rx="8" ry="12" fill="#a16207" transform="rotate(-30, 30, 70)" />
+          <circle cx="130" cy="140" r="14" fill="#78350f" opacity="0.9" />
           
-          {/* Paint Splotches Layer */}
-          {/* Pink */}
-          <path d="M 60 15 C 65 5, 80 10, 75 25 C 70 40, 55 30, 60 15 Z" fill="#ec4899" />
-          <path d="M 62 17 C 65 10, 75 14, 73 23 C 69 32, 59 26, 62 17 Z" fill="#f472b6" />
-          {/* Pink Drip */}
-          <path d="M 82 5 C 85 0, 95 10, 92 18 C 90 25, 80 15, 82 5 Z" fill="#ec4899" />
-
-          {/* Purple */}
-          <path d="M 85 45 C 95 35, 110 40, 105 55 C 100 70, 80 60, 85 45 Z" fill="#a855f7" />
-          <path d="M 87 47 C 95 40, 105 44, 102 53 C 98 62, 84 56, 87 47 Z" fill="#c084fc" />
-
-          {/* Cyan */}
-          <path d="M 70 70 C 80 60, 95 70, 90 85 C 85 100, 65 85, 70 70 Z" fill="#06b6d4" />
-          <path d="M 72 72 C 80 64, 90 72, 87 83 C 83 94, 69 83, 72 72 Z" fill="#22d3ee" />
-        </g>
-
-        {/* Brushes */}
-        <g transform="translate(75, 110)" animate={animating ? { x: [0, 8, 0], y: [0, -12, 0] } : {}} transition={{ duration: 0.5, delay: 0.2 }}>
-          {/* Brush 1 */}
-          <g transform="rotate(-40)">
-            {/* Wooden Handle */}
-            <rect x="-5" y="0" width="10" height="70" fill="#6b21a8" rx="2" />
-            <rect x="-3" y="0" width="4" height="70" fill="#9333ea" rx="1" />
-            {/* Ferrule (Metal part) */}
-            <rect x="-6" y="-18" width="12" height="18" fill="#d1d5db" rx="1" />
-            <rect x="-6" y="-14" width="12" height="2" fill="#9ca3af" />
-            <rect x="-6" y="-6" width="12" height="2" fill="#9ca3af" />
-            {/* Bristles */}
-            <path d="M -5 -18 C -5 -35, 0 -45, 0 -45 C 0 -45, 5 -35, 5 -18 Z" fill="#5f370e" />
-            {/* Paint */}
-            <path d="M -3 -30 C -2 -42, 0 -45, 0 -45 C 0 -45, 2 -42, 3 -30 Z" fill="#ec4899" />
+          {/* Mixed Color Area */}
+          <g>
+            <radialGradient id="mixedGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#92400e" stopOpacity="0.4" />
+              <stop offset="50%" stopColor="#78350f" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#78350f" stopOpacity="0" />
+            </radialGradient>
+            <path 
+              d="M 85 85 Q 115 75 135 105 Q 110 135 80 120 Q 70 100 85 85 Z" 
+              fill="url(#mixedGrad)" 
+              className="filter blur-[2px]"
+            />
+            {/* Some smaller subtle mixed spots */}
+            <circle cx="105" cy="100" r="10" fill="#92400e" opacity="0.2" />
+            <circle cx="115" cy="90" r="8" fill="#451a03" opacity="0.15" />
           </g>
-        </g>
-
-        <g transform="translate(100, 135)" animate={animating ? { x: [0, 12, 0], y: [0, -18, 0] } : {}} transition={{ duration: 0.6, delay: 0.3 }}>
-          {/* Brush 2 */}
-          <g transform="rotate(-30)">
-            <rect x="-4" y="0" width="8" height="60" fill="#4c1d95" rx="2" />
-            <rect x="-2" y="0" width="3" height="60" fill="#6d28d9" rx="1" />
-            <rect x="-5" y="-15" width="10" height="15" fill="#e5e7eb" rx="1" />
-            <rect x="-5" y="-10" width="10" height="2" fill="#9ca3af" />
-            <path d="M -4 -15 C -4 -30, 0 -40, 0 -40 C 0 -40, 4 -30, 4 -15 Z" fill="#451a03" />
-            <path d="M -2 -25 C -1 -35, 0 -40, 0 -40 C 0 -40, 1 -35, 2 -25 Z" fill="#a855f7" />
+          
+          {/* Paint Splotches - Thick and Glossy */}
+          <g>
+            {/* Red */}
+            <circle cx="45" cy="70" r="14" fill="#ef4444" />
+            <circle cx="41" cy="66" r="4" fill="white" opacity="0.4" />
+            {/* Green */}
+            <circle cx="65" cy="40" r="12" fill="#22c55e" />
+            <circle cx="62" cy="37" r="3" fill="white" opacity="0.4" />
+            {/* Black */}
+            <circle cx="105" cy="45" r="13" fill="#171717" />
+            <circle cx="102" cy="42" r="3" fill="white" opacity="0.4" />
+            {/* Yellow */}
+            <circle cx="42" cy="115" r="15" fill="#facc15" />
+            <circle cx="38" cy="111" r="5" fill="white" opacity="0.4" />
+            {/* Blue */}
+            <circle cx="75" cy="155" r="16" fill="#3b82f6" />
+            <circle cx="71" cy="151" r="6" fill="white" opacity="0.4" />
+          </g>
+          
+          {/* Paint Brush */}
+          <g transform="rotate(-25, 100, 110)" animate={animating ? { 
+            x: [0, 10, -10, 0],
+            rotate: [-25, -15, -35, -25]
+          } : {}} transition={{ duration: 1 }}>
+             {/* Handle */}
+             <rect x="155" y="0" width="10" height="150" fill="#f87171" rx="2" stroke="#b91c1c" strokeWidth="1" />
+             <rect x="157" y="10" width="2" height="130" fill="white" opacity="0.2" rx="1" />
+             {/* Metal Ferrule */}
+             <rect x="154" y="135" width="12" height="25" fill="#94a3b8" rx="1" />
+             <rect x="154" y="142" width="12" height="3" fill="#475569" opacity="0.5" />
+             {/* Bristles */}
+             <path d="M 154 160 Q 160 195 166 160 Z" fill="#451a03" />
+             {/* Paint on brush tip */}
+             <path d="M 157 175 Q 160 185 163 175 Z" fill="#3b82f6" fillOpacity="0.8" />
           </g>
         </g>
       </motion.svg>
+
       <AnimatePresence>
         {animating && (
-          <>
-            {Array.from({ length: 8 }).map((_, i) => {
-              const colors = ["#ec4899", "#a855f7", "#06b6d4", "#eab308"];
-              const color = colors[i % colors.length];
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+            {/* Many small colorful sparkles */}
+            {Array.from({ length: 16 }).map((_, i) => {
+              const angle = (i * Math.PI * 2) / 16;
+              const distance = 40 + Math.random() * 60;
+              const colors = ["#ef4444", "#22c55e", "#facc15", "#3b82f6", "#ec4899", "#a855f7"];
               return (
                 <motion.div
                   key={i}
-                  initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                  initial={{ x: 0, y: 0, scale: 0, opacity: 1, rotate: 0 }}
                   animate={{ 
-                    x: Math.cos((i * Math.PI * 2) / 8) * 55, 
-                    y: Math.sin((i * Math.PI * 2) / 8) * 55,
-                    scale: 0,
-                    opacity: 0
+                    x: Math.cos(angle) * distance, 
+                    y: Math.sin(angle) * distance,
+                    scale: [0, 1.2, 0],
+                    opacity: [1, 1, 0],
+                    rotate: 360
                   }}
-                  transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
-                  className="absolute w-3 h-3 rounded-full z-20"
-                  style={{ backgroundColor: color }}
+                  exit={{ opacity: 0 }}
+                  transition={{ 
+                    duration: 0.8 + Math.random() * 0.4, 
+                    ease: "easeOut",
+                    delay: Math.random() * 0.1
+                  }}
+                  className="absolute w-2 h-2 rounded-full blur-[1px]"
+                  style={{ 
+                    backgroundColor: colors[i % colors.length],
+                    boxShadow: `0 0 8px ${colors[i % colors.length]}`
+                  }}
                 />
-              )
+              );
             })}
-          </>
+            
+            {/* Radiant light flash */}
+            <motion.div 
+               initial={{ scale: 0, opacity: 0 }}
+               animate={{ scale: [0, 1.5, 2], opacity: [0, 0.4, 0] }}
+               transition={{ duration: 0.5 }}
+               className="absolute w-24 h-24 bg-white rounded-full blur-2xl"
+            />
+          </div>
         )}
       </AnimatePresence>
     </motion.div>
@@ -161,8 +176,8 @@ function Navbar() {
         <Link to="/" className="flex items-center gap-3 group shrink-0">
           <GalleryLogo />
           <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tighter text-slate-900 font-serif uppercase leading-tight">
-              AI <span className="text-amber-700">每日画廊</span>
+            <h1 className="text-xl font-black tracking-tighter font-serif uppercase leading-tight brush-header">
+              AI 每日画廊
             </h1>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">人工智能 策展赏析</span>
           </div>
@@ -292,14 +307,47 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full flex flex-col overflow-x-hidden p-0 sm:p-0 selection:bg-amber-100">
         {children}
       </main>
-      <footer className="py-12 border-t border-slate-200/60 text-center bg-white/30 backdrop-blur-sm">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.3em] px-4">
-          AI 每日画廊 &copy; {new Date().getFullYear()} — 永恒经典与人工智能的碰撞
-        </p>
-      </footer>
-    </div>
-  );
-}
+      <footer className="py-24 border-t border-slate-200/60 bg-white/30 backdrop-blur-md relative overflow-hidden">
+        {/* Artistic background element for footer */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"></div>
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-amber-100/20 rounded-full blur-3xl"></div>
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl"></div>
+        
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-10">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            className="flex items-center gap-4 group"
+          >
+             <div className="grayscale group-hover:grayscale-0 transition-all duration-700 scale-75">
+               <GalleryLogo />
+             </div>
+             <div className="h-10 w-px bg-slate-200"></div>
+             <span className="font-serif font-black text-xl tracking-[0.2em] text-slate-800 brush-header">AI ART DAILY</span>
+          </motion.div>
+
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-6">
+              <div className="h-px w-12 bg-slate-200"></div>
+              <p className="text-sm font-black text-slate-900 uppercase tracking-[0.5em] leading-relaxed">
+                AI 每日画廊 &copy; {new Date().getFullYear()} 
+              </p>
+              <div className="h-px w-12 bg-slate-200"></div>
+            </div>
+          </div>
+          
+          <div className="max-w-2xl text-center px-8">
+            <p className="text-[11px] text-slate-500 font-medium leading-loose opacity-80">
+              <span className="text-amber-800/80 font-bold mr-2">永恒经典与人工智能的碰撞 —</span>
+              本馆致力于通过尖端 AI 技术重新发现世界艺术遗产。每一幅作品的解读均融合了海量历史数据与当代审美洞察，为您呈现跨越时空的艺术盛宴。
+            </p>
+          </div>
+
+          </div>
+        </footer>
+      </div>
+    );
+  }
 
 export default function App() {
   return (

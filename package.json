@@ -11,6 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^1.51.0",
     "@google/generative-ai": "^0.24.1",
     "@hono/node-server": "^2.0.1",
     "@tailwindcss/typography": "^0.5.19",

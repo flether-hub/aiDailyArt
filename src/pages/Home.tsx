@@ -89,7 +89,7 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col pb-24 w-full">
       {/* Cinematic Hero Section */}
-      <header className="relative w-full py-24 md:py-32 flex flex-col items-center justify-center overflow-hidden">
+      <header className="relative w-full py-8 md:py-12 flex flex-col items-center justify-center overflow-hidden">
          {/* Artistic background blending */}
          <div className="absolute inset-0 z-0 pointer-events-none bg-slate-900">
             <div 
@@ -101,7 +101,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-[#0a192f]/50"></div>
             
             {/* Edge fade to seamlessly blend into the `#faf9f6` background */}
-            <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-[#faf9f6] via-[#faf9f6]/90 to-transparent"></div>
+            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#faf9f6] via-[#faf9f6]/90 to-transparent"></div>
          </div>
          
          <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
@@ -152,7 +152,7 @@ export default function Home() {
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-700/50"></div>
                         <div className="w-2.5 h-2.5 rounded-full bg-amber-700/20"></div>
                       </div>
-                      <h2 className="text-xl font-bold text-slate-800 tracking-[0.4em] uppercase">今日推荐</h2>
+                      <h2 className="text-xl font-bold tracking-[0.4em] uppercase brush-header">今日推荐</h2>
                       <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
                     </div>
                     
@@ -167,8 +167,7 @@ export default function Home() {
                            />
                         </div>
                         <div className="lg:w-2/5 p-12 lg:p-16 flex flex-col">
-                           <span className="text-xs font-bold text-amber-700 uppercase tracking-[0.3em] mb-6">展览焦点</span>
-                           <h3 className="text-3xl md:text-4xl font-serif font-black text-slate-950 mb-6 leading-tight group-hover:text-amber-900 transition-colors">
+                           <h3 className="text-xl md:text-2xl font-serif font-black text-slate-950 mb-6 leading-tight group-hover:text-amber-900 transition-colors">
                              {highlight.title}
                            </h3>
                            <div className="flex items-center gap-3 text-slate-500 mb-10">
@@ -304,14 +303,14 @@ export default function Home() {
                  <div className="w-2.5 h-2.5 rounded-full bg-amber-700/50"></div>
                  <div className="w-2.5 h-2.5 rounded-full bg-amber-700/20"></div>
                </div>
-               <h2 className="text-xl font-bold text-slate-800 tracking-[0.4em] uppercase">艺术焦点</h2>
+               <h2 className="text-xl font-bold tracking-[0.4em] uppercase brush-header">艺术焦点</h2>
                <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
              </div>
              
              <div className="bg-white border border-slate-100 p-8 shadow-sm rounded-none">
                 <div className="mb-8">
                    <div className="flex flex-wrap gap-2">
-                     {keywords.slice(0, 50).map(k => (
+                     {keywords.slice(0, 20).map(k => (
                        <button
                          key={k}
                          onClick={() => handleKeywordClick(k)}

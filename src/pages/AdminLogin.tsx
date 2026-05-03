@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { Shield, KeyRound, Loader2 } from 'lucide-react';
+import { KeyRound, Loader2 } from 'lucide-react';
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
@@ -51,9 +51,6 @@ export default function AdminLogin() {
   return (
     <div className="min-h-[70vh] flex flex-col justify-center items-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex bg-slate-100 p-4 rounded-xl mb-4 border border-slate-200">
-          <Shield className="w-8 h-8 text-slate-800" />
-        </div>
         <h2 className="text-3xl font-bold text-slate-900 tracking-tight">管理员登录</h2>
         <p className="mt-2 text-sm text-slate-500">
           请登录以管理您的 AI 聚合内容。
@@ -82,9 +79,6 @@ export default function AdminLogin() {
                   placeholder="••••••••••••"
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-400">
-                默认本预览应用测试密码为 1234
-              </p>
             </div>
 
             {error && (

@@ -76,62 +76,67 @@ export default function ArtworkDetail() {
             {/* Right Column: Details & Content */}
             <div className="lg:col-span-7 xl:col-span-6">
               {/* Title & Metadata */}
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black text-slate-950 mb-6 leading-tight tracking-tight">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-black text-slate-950 mb-6 leading-tight tracking-tight">
                 {artwork.title}
               </h1>
 
-              <div className="flex flex-col sm:flex-row flex-wrap sm:items-center gap-x-8 gap-y-6 text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest mb-10 pb-8 border-b border-slate-200/60">
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-amber-700 tracking-[0.3em] flex items-center gap-1">艺术家</span>
-                  <span className="text-slate-900 text-sm md:text-base">{artwork.artist}</span>
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-xs md:text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-amber-700 tracking-[0.2em]">艺术家:</span>
+                  <span className="text-slate-900">{artwork.artist}</span>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-amber-700 tracking-[0.3em] flex items-center gap-1">创作年代</span>
-                  <span className="text-slate-900 text-sm md:text-base">{artwork.year}</span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-amber-700 tracking-[0.3em] flex items-center gap-1">馆藏机构</span>
-                  <span className="text-slate-900 text-sm md:text-base">{artwork.museum}</span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-amber-700 tracking-[0.3em] flex items-center gap-1">连接</span>
-                  {artwork.source_url ? (
-                    <a href={artwork.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 transition-colors text-sm md:text-base underline tracking-wider uppercase font-bold flex items-center gap-1.5">
-                      <ExternalLink className="w-4 h-4" /> 来源网站
-                    </a>
-                  ) : (
-                    <span className="text-slate-400 text-sm md:text-base flex items-center gap-1.5"><ExternalLink className="w-4 h-4 opacity-50"/> 无档案来源</span>
-                  )}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-amber-700 tracking-[0.2em]">年代:</span>
+                  <span className="text-slate-900">{artwork.year}</span>
                 </div>
               </div>
 
               {/* Interpretation */}
-              <div className="prose prose-slate prose-lg md:prose-xl max-w-none font-serif text-slate-700 leading-relaxed prose-h3:mt-8 prose-h3:mb-4 prose-p:mb-6"
+              <div className="prose prose-slate prose-base md:prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
                     dangerouslySetInnerHTML={{ __html: artwork.ai_interpretation || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>' }} />
 
               {/* Additional Info / Footer */}
-              <div className="mt-16 pt-10 border-t border-slate-200/60 flex flex-col sm:flex-row gap-10">
-                {artwork.keywords && Array.isArray(artwork.keywords) && artwork.keywords.length > 0 && (
-                  <div className="flex-1">
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.3em] mb-4">艺术焦点</h3>
-                    <div className="flex flex-wrap gap-2 pb-4">
-                      {artwork.keywords.map((k: string) => (
-                        <span key={k} className="px-3 py-1.5 bg-slate-100/50 border border-slate-200/60 text-slate-600 text-xs font-bold uppercase tracking-widest rounded-sm hover:bg-amber-50 hover:text-amber-800 transition-colors cursor-default">
-                          #{k}
-                        </span>
-                      ))}
-                    </div>
+              <div className="mt-8 pt-8 border-t border-slate-200/60 ">
+                <div className="grid grid-cols-2 gap-8 mb-10">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">馆藏机构</span>
+                    <span className="text-slate-800 text-sm font-bold">{artwork.museum}</span>
                   </div>
-                )}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">连接</span>
+                    {artwork.source_url ? (
+                      <a href={artwork.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 transition-colors text-sm font-bold flex items-center gap-1">
+                        <ExternalLink className="w-3.5 h-3.5" /> 来源网站
+                      </a>
+                    ) : (
+                      <span className="text-slate-400 text-sm flex items-center gap-1"><ExternalLink className="w-3.5 h-3.5 opacity-50"/> 未提供</span>
+                    )}
+                  </div>
+                </div>
 
-                <div className="shrink-0 flex flex-col gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">浏览次数</span>
-                    <span className="text-sm font-serif italic text-slate-600 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5"/> {(artwork.views || 0).toLocaleString()} 次</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">收录时间</span>
-                    <span className="text-sm font-serif italic text-slate-600">{formatDistanceToNow(new Date((artwork.created_at ? (artwork.created_at + (artwork.created_at.endsWith('Z') ? '' : 'Z')) : Date.now())), { addSuffix: true, locale: zhCN })}</span>
+                <div className="flex flex-col sm:flex-row gap-10">
+                  {artwork.keywords && Array.isArray(artwork.keywords) && artwork.keywords.length > 0 && (
+                    <div className="flex-1">
+                      <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.3em] mb-4">艺术焦点</h3>
+                      <div className="flex flex-wrap gap-2 pb-4">
+                        {artwork.keywords.map((k: string) => (
+                          <span key={k} className="px-2.5 py-1 bg-slate-100/50 border border-slate-200/60 text-slate-500 text-[10px] font-bold uppercase tracking-widest rounded-sm hover:bg-amber-50 hover:text-amber-800 transition-colors cursor-default">
+                            #{k}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="shrink-0 flex flex-col gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">浏览次数</span>
+                      <span className="text-xs font-serif italic text-slate-500 flex items-center gap-1.5"><Eye className="w-3 h-3"/> {(artwork.views || 0).toLocaleString()} 次</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-1">收录时间</span>
+                      <span className="text-xs font-serif italic text-slate-500">{formatDistanceToNow(new Date((artwork.created_at ? (artwork.created_at + (artwork.created_at.endsWith('Z') ? '' : 'Z')) : Date.now())), { addSuffix: true, locale: zhCN })}</span>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -10,16 +10,41 @@
   .gallery-paper {
     background-color: #faf9f6;
     background-image: 
-      radial-gradient(#e5e7eb 0.5px, transparent 0.5px);
-    background-size: 10px 10px;
+      radial-gradient(#e5e7eb 0.5px, transparent 0.5px),
+      url("https://www.transparenttextures.com/patterns/natural-paper.png");
+    background-size: 10px 10px, 200px 200px;
+    background-blend-mode: multiply;
   }
   
   .art-frame {
-    @apply relative border-8 border-white shadow-2xl;
+    @apply relative border-[12px] border-white shadow-2xl;
     box-shadow: 
-      0 30px 60px -12px rgba(0,0,0,0.25),
-      0 18px 36px -18px rgba(0,0,0,0.3),
-      inset 0 0 0 1px rgba(0,0,0,0.05);
+      0 30px 60px -12px rgba(0,0,0,0.35),
+      0 18px 36px -18px rgba(0,0,0,0.4),
+      inset 0 0 40px rgba(0,0,0,0.05);
+    background: white;
+    padding: 1px;
+  }
+
+  /* Van Gogh Inspired Effects */
+  .brush-header {
+    background: linear-gradient(120deg, #b45309 0%, #d97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(180, 83, 9, 0.1));
+  }
+
+  .canvas-texture {
+    position: relative;
+  }
+  .canvas-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("https://www.transparenttextures.com/patterns/canvas-orange.png");
+    opacity: 0.05;
+    pointer-events: none;
+    z-index: 10;
   }
 
   .prose {
@@ -28,19 +53,20 @@
     color: #374151;
   }
   .prose p {
-    margin-top: 1.8em;
-    margin-bottom: 1.8em;
-    line-height: 2;
-    font-size: 1.125rem;
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+    line-height: 1.8;
+    font-size: 0.9375rem;
   }
   .prose h3 {
-    margin-top: 3em;
-    margin-bottom: 1.2em;
+    margin-top: 2.5em;
+    margin-bottom: 1em;
+    font-size: 1rem;
     font-weight: 800;
     color: #111827;
     font-family: inherit;
-    border-left: 4px solid #b45309;
-    padding-left: 1rem;
+    border-left: 3px solid #b45309;
+    padding-left: 0.75rem;
   }
   .prose strong {
     color: #111827;

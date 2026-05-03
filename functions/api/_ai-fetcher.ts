@@ -1,5 +1,5 @@
 import { getDB } from './_db';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
 async function uploadToR2(url: string, id: string): Promise<string> {
@@ -252,7 +252,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
      const isAli = provider === 'dashscope' || provider === 'bailian';
      const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-     const displayedModelId = isAli ? (modelId || '默认模型') : 'gemini-2.5-flash';
+     const displayedModelId = isAli ? (modelId || '默认模型') : '自动选择';
      if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId}) ...`);
      let text = "";
 
@@ -283,28 +283,29 @@ export async function generateDetailedInterpretation(title: string, artist: stri
             throw new Error(`Alibaba AI Error: [${data.code}] ${data.message}`);
         }
         text = data.choices?.[0]?.message?.content || "{}";
-     } else {
-        // Default: Gemini
-        const genAI = new GoogleGenerativeAI(aiKey);
-        let actualModelId = 'gemini-2.5-flash'; // We always try the best free model first
-        let model = genAI.getGenerativeModel({ model: actualModelId });
-        let result;
-        try {
-            result = await model.generateContent({
-               contents: [{ role: 'user', parts: [{ text: prompt }] }],
-               generationConfig: { responseMimeType: "application/json" }
-            });
-        } catch (e: any) {
-            console.log(`Fallback from ${actualModelId} to gemini-1.5-flash`, e.message);
-            model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-            result = await model.generateContent({
-               contents: [{ role: 'user', parts: [{ text: prompt }] }],
-               generationConfig: { responseMimeType: "application/json" }
-            });
-        }
-        const response = await result.response;
-        text = response.text() || "{}";
-     }
+      } else {
+        // Default: Gemini - Using new @google/genai SDK
+        const ai = new GoogleGenAI({ apiKey: aiKey });
+        // "让Gemini自己选择" - using recommended flash model for basic text tasks
+        const response = await ai.models.generateContent({
+           model: 'gemini-3-flash-preview',
+           contents: prompt,
+           config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  title_zh: { type: Type.STRING },
+                  artist_zh: { type: Type.STRING },
+                  keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  content: { type: Type.STRING }
+                },
+                required: ["title_zh", "artist_zh", "keywords", "content"]
+              }
+           }
+        });
+        text = response.text || "{}";
+      }
 
      let parsed: any = {};
      try {
