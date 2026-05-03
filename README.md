@@ -53,3 +53,44 @@
 2.  **僵死任务重置**: 后台任务如果因为各种原因（如 Worker 超时）中断，接口层会在 10 分钟后自动重置状态，防止前端进度条永久卡死。
 3.  **身份隔离**: 管理权限不直接比对明文密码，而是对比加盐后的 SHA-256 哈希值，防止传输泄露风险。
 4.  **CDN 缓存**: 通过 `/api/cdn/*` 代理 R2 图像，并配置了 1 年的持久缓存头部，极大提升了加载速度并降低了流量成本。
+
+## 🚀 部署至 Cloudflare Pages
+
+本项目专为 Cloudflare 生态（Pages + D1 + R2）设计。以下是部署步骤：
+
+### 前置条件
+- 已安装 Node.js (建议 v20+)
+- 已安装 [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
+- 拥有 Cloudflare 账号
+
+### 部署步骤
+
+1. **登录 Cloudflare**
+   在终端运行：
+   ```bash
+   wrangler login
+   ```
+
+2. **配置 Wrangler**
+   修改根目录下的 `wrangler.toml` 文件：
+   - 更新或创建 `d1_databases` 绑定 (`ART_GALLERY_DB`)。
+   - 更新或创建 `r2_buckets` 绑定 (`ART_GALLERY_IMAGES`)。
+
+3. **设置环境变量 (在 Cloudflare Dashboard)**
+   部署前或部署后，进入 Cloudflare 控制台 -> Workers & Pages -> 你的项目 -> 设置 -> 环境变量，配置：
+   - `ADMIN_PASSWORD_HASH`: (必须！设置一个 SHA-256 哈希后的管理密码)
+   - `GEMINI_API_KEY`: (如果使用 Gemini)
+   - `DASH_SCOPE_API_KEY`: (如果使用阿里云百炼)
+
+4. **部署应用**
+   在项目根目录运行：
+   ```bash
+   npm run build
+   wrangler pages deploy
+   ```
+
+5. **初始化与绑定**
+   - 在 Cloudflare 控制台创建 D1 数据库和 R2 存储桶，并分别在项目的 “Functions” -> “设置” -> “D1 数据库绑定” 和 “R2 存储桶绑定” 中进行绑定，确保 Binding 名称与 `wrangler.toml` 中的 `binding` 一致。
+
+---
+详情请参阅 [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)。
