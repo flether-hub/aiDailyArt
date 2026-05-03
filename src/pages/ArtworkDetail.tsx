@@ -349,7 +349,7 @@ export default function ArtworkDetail() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-20 border-t border-slate-200 pt-16 max-w-4xl"
+            className="mt-20 border-t border-slate-200 pt-16 w-full"
           >
             <div className="flex items-center justify-between mb-10">
               <div className="flex items-center gap-3">
