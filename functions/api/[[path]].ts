@@ -34,6 +34,15 @@ app.onError((err, c) => {
   }, 500);
 });
 
+// Helper to generate a secure hash of the password to use as token
+async function generateToken(password: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'art-gallery-v1'); // Internal salt
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // Protect all admin endpoints
 app.use('/admin/*', async (c, next) => {
   const env = getCloudEnv();
@@ -42,11 +51,13 @@ app.use('/admin/*', async (c, next) => {
   if (!expectedPassword) {
     return c.json({ error: 'System configuration error: ADMIN_PASSWORD not set' }, 500);
   }
+
+  const expectedToken = await generateToken(expectedPassword);
   
   const authHeader = c.req.header('Authorization');
   if (authHeader) {
     const token = authHeader.split(' ')[1];
-    if (token && token === expectedPassword) {
+    if (token && token === expectedToken) {
       return next();
     }
   }
@@ -198,10 +209,7 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
         const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
         const provider = (await getSetting('ai_provider'))?.value || 'gemini';
         const modelId = (await getSetting('model_id'))?.value;
-        let apiKey = (await getSetting('api_key'))?.value;
-        if (!apiKey && typeof process !== 'undefined' && process.env.GEMINI_API_KEY) {
-          apiKey = process.env.GEMINI_API_KEY;
-        }
+        const apiKey = (await getSetting('api_key'))?.value;
 
         const { generateDetailedInterpretation } = await import('./_ai-fetcher');
         
@@ -324,7 +332,8 @@ app.post('/auth/login', async (c) => {
   }
 
   if (password === expectedPassword) {
-    return c.json({ success: true, token: expectedPassword }); 
+    const token = await generateToken(expectedPassword);
+    return c.json({ success: true, token }); 
   }
   return c.json({ success: false, error: '密码错误' }, 401);
 });
@@ -333,8 +342,12 @@ app.get('/auth/check', async (c) => {
   const env = getCloudEnv();
   const expectedPassword = env.ADMIN_PASSWORD;
 
+  if (!expectedPassword) return c.json({ isAdmin: false });
+
+  const expectedToken = await generateToken(expectedPassword);
   const token = c.req.header('Authorization')?.split(' ')[1];
-  if (expectedPassword && token && token === expectedPassword) {
+  
+  if (token && token === expectedToken) {
     return c.json({ isAdmin: true });
   }
   return c.json({ isAdmin: false });

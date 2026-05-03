@@ -557,11 +557,10 @@ export default function AdminDashboard() {
                       handleSettingsChange("api_key", e.target.value)
                     }
                     className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20"
-                    placeholder="留空则使用部署环境默认 Key"
+                    placeholder="请输入您的 API 密钥"
                   />
                   <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                    <Info className="w-3 h-3" />{" "}
-                    若在此设置，将优先于环境变量加载
+                    <Info className="w-3 h-3" /> API 密钥必须在此设置才能使用 AI 解读功能
                   </p>
                 </div>
 

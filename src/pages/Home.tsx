@@ -92,7 +92,7 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col pb-24 w-full">
       {/* Cinematic Hero Section */}
-      <header className="relative w-full py-8 md:py-12 flex flex-col items-center justify-center overflow-hidden">
+      <header className="relative w-full min-h-[280px] md:min-h-[350px] flex flex-col items-center justify-center overflow-hidden">
          {/* Artistic background blending */}
          <div className="absolute inset-0 z-0 pointer-events-none bg-slate-900">
             <div 
@@ -104,10 +104,10 @@ export default function Home() {
             <div className="absolute inset-0 bg-[#0a192f]/50"></div>
             
             {/* Edge fade to seamlessly blend into the `#faf9f6` background */}
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#faf9f6] via-[#faf9f6]/90 to-transparent"></div>
+            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#faf9f6] via-[#faf9f6]/95 to-transparent"></div>
          </div>
          
-         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto">
+         <div className="relative z-10 text-center px-6 max-w-4xl mx-auto py-12 -translate-y-4 md:-translate-y-8">
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
