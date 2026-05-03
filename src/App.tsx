@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import { Palette, LogOut, Activity, LayoutGrid } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import confetti from 'canvas-confetti';
 
 import Home from './pages/Home';
 import ArtworkDetail from './pages/ArtworkDetail';
@@ -11,145 +12,193 @@ import AdminDashboard from './pages/AdminDashboard';
 
 function GalleryLogo() {
   const [animating, setAnimating] = useState(false);
+  const [splashParticles, setSplashParticles] = useState<{ id: number; x: number; y: number; color: string; scale: number }[]>([]);
   
-  const triggerAnimation = () => {
+  const triggerAnimation = (e: React.MouseEvent) => {
     if (!animating) {
       setAnimating(true);
-      setTimeout(() => setAnimating(false), 1500);
+      
+      // Create custom paint splash "fireworks"
+      const colors = ["#fbbf24", "#ef4444", "#22c55e", "#1d4ed8", "#a855f7"];
+      const newParticles = Array.from({ length: 14 }).map((_, i) => ({
+        id: Date.now() + i,
+        x: (Math.random() - 0.5) * 80,
+        y: (Math.random() - 0.5) * 80,
+        scale: Math.random() * 0.7 + 0.3,
+        color: colors[i % colors.length]
+      }));
+      setSplashParticles(newParticles);
+
+      setTimeout(() => {
+        setAnimating(false);
+        setSplashParticles([]);
+      }, 1200);
+      
+      // Keep confetti for extra flair
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (rect.left + rect.width / 2) / window.innerWidth;
+      const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+      confetti({
+        particleCount: 60,
+        spread: 80,
+        origin: { x, y },
+        colors: colors,
+        gravity: 0.8,
+        ticks: 200,
+        scalar: 0.8,
+        shapes: ['circle'],
+        disableForced3d: true
+      });
     }
   };
 
   return (
     <motion.div 
       className="w-16 h-16 flex items-center justify-center cursor-pointer relative group shrink-0"
-      whileHover={{ scale: 1.1 }}
+      whileHover={{ scale: 1.1, rotate: 5 }}
       whileTap={{ scale: 0.9 }}
-      onMouseEnter={triggerAnimation}
       onMouseDown={triggerAnimation}
     >
+      {/* Animated Paint Splashes (Firework Effect) */}
+      <AnimatePresence>
+        {splashParticles.map((p) => (
+          <motion.div
+            key={p.id}
+            className="absolute rounded-full pointer-events-none z-20"
+            initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+            animate={{ 
+              scale: [0, p.scale * 4, 0],
+              x: p.x * 2.8,
+              y: p.y * 2.8,
+              opacity: [1, 1, 0],
+              filter: ["blur(0px)", "blur(1.5px)", "blur(4px)"]
+            }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            style={{ 
+              backgroundColor: p.color, 
+              width: `${Math.random() * 6 + 4}px`, 
+              height: `${Math.random() * 6 + 4}px`,
+              boxShadow: `0 0 15px ${p.color}, 0 0 5px white` 
+            }}
+          />
+        ))}
+      </AnimatePresence>
+
       <motion.svg 
         viewBox="0 0 200 200" 
-        className="w-full h-full drop-shadow-xl z-10 relative filter saturate-120" 
+        className="w-full h-full drop-shadow-xl z-10 relative filter saturate-150" 
       >
-        <g animate={animating ? { 
-          rotate: [0, -10, 10, -5, 5, 0],
-          scale: [1, 1.1, 1]
-        } : {}} transition={{ duration: 0.8, ease: "easeInOut" }}>
+        <motion.g animate={animating ? { 
+          rotate: [0, -12, 12, -8, 8, 0],
+          scale: [1, 1.2, 0.9, 1.1, 1]
+        } : {}} transition={{ duration: 0.9, ease: "backOut" }}>
           
-          {/* Wooden Palette - Irregular Shape */}
-          <path 
-            d="M 170 100 C 170 150, 140 185, 80 185 C 20 185, 10 140, 10 90 C 10 40, 50 15, 100 15 C 130 15, 170 50, 170 100 Z" 
-            fill="#d29851" 
-            stroke="#92400e" 
-            strokeWidth="1.5"
-          />
-          <path 
-            d="M 165 100 C 165 145, 137 178, 80 178 C 25 178, 16 136, 16 90 C 16 45, 53 21, 100 21 C 127 21, 165 54, 165 100 Z" 
-            fill="#e2a65a" 
-          />
-          
-          {/* Thumb Hole */}
-          <circle cx="130" cy="140" r="14" fill="#78350f" opacity="0.9" />
-          
-          {/* Mixed Color Area */}
-          <g>
-            <radialGradient id="mixedGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#92400e" stopOpacity="0.4" />
-              <stop offset="50%" stopColor="#78350f" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#78350f" stopOpacity="0" />
+          <defs>
+            <radialGradient id="paletteGrad" cx="35%" cy="35%" r="85%">
+              <stop offset="0%" stopColor="#fef3c7" />
+              <stop offset="60%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#92400e" />
             </radialGradient>
-            <path 
-              d="M 85 85 Q 115 75 135 105 Q 110 135 80 120 Q 70 100 85 85 Z" 
-              fill="url(#mixedGrad)" 
-              className="filter blur-[2px]"
-            />
-            {/* Some smaller subtle mixed spots */}
-            <circle cx="105" cy="100" r="10" fill="#92400e" opacity="0.2" />
-            <circle cx="115" cy="90" r="8" fill="#451a03" opacity="0.15" />
-          </g>
-          
-          {/* Paint Splotches - Thick and Glossy */}
-          <g>
-            {/* Red */}
-            <circle cx="45" cy="70" r="14" fill="#ef4444" />
-            <circle cx="41" cy="66" r="4" fill="white" opacity="0.4" />
-            {/* Green */}
-            <circle cx="65" cy="40" r="12" fill="#22c55e" />
-            <circle cx="62" cy="37" r="3" fill="white" opacity="0.4" />
-            {/* Black */}
-            <circle cx="105" cy="45" r="13" fill="#171717" />
-            <circle cx="102" cy="42" r="3" fill="white" opacity="0.4" />
-            {/* Yellow */}
-            <circle cx="42" cy="115" r="15" fill="#facc15" />
-            <circle cx="38" cy="111" r="5" fill="white" opacity="0.4" />
-            {/* Blue */}
-            <circle cx="75" cy="155" r="16" fill="#3b82f6" />
-            <circle cx="71" cy="151" r="6" fill="white" opacity="0.4" />
-          </g>
-          
-          {/* Paint Brush */}
-          <g transform="rotate(-25, 100, 110)" animate={animating ? { 
-            x: [0, 10, -10, 0],
-            rotate: [-25, -15, -35, -25]
-          } : {}} transition={{ duration: 1 }}>
-             {/* Handle */}
-             <rect x="155" y="0" width="10" height="150" fill="#f87171" rx="2" stroke="#b91c1c" strokeWidth="1" />
-             <rect x="157" y="10" width="2" height="130" fill="white" opacity="0.2" rx="1" />
-             {/* Metal Ferrule */}
-             <rect x="154" y="135" width="12" height="25" fill="#94a3b8" rx="1" />
-             <rect x="154" y="142" width="12" height="3" fill="#475569" opacity="0.5" />
-             {/* Bristles */}
-             <path d="M 154 160 Q 160 195 166 160 Z" fill="#451a03" />
-             {/* Paint on brush tip */}
-             <path d="M 157 175 Q 160 185 163 175 Z" fill="#3b82f6" fillOpacity="0.8" />
-          </g>
-        </g>
-      </motion.svg>
-
-      <AnimatePresence>
-        {animating && (
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            {/* Many small colorful sparkles */}
-            {Array.from({ length: 16 }).map((_, i) => {
-              const angle = (i * Math.PI * 2) / 16;
-              const distance = 40 + Math.random() * 60;
-              const colors = ["#ef4444", "#22c55e", "#facc15", "#3b82f6", "#ec4899", "#a855f7"];
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ x: 0, y: 0, scale: 0, opacity: 1, rotate: 0 }}
-                  animate={{ 
-                    x: Math.cos(angle) * distance, 
-                    y: Math.sin(angle) * distance,
-                    scale: [0, 1.2, 0],
-                    opacity: [1, 1, 0],
-                    rotate: 360
-                  }}
-                  exit={{ opacity: 0 }}
-                  transition={{ 
-                    duration: 0.8 + Math.random() * 0.4, 
-                    ease: "easeOut",
-                    delay: Math.random() * 0.1
-                  }}
-                  className="absolute w-2 h-2 rounded-full blur-[1px]"
-                  style={{ 
-                    backgroundColor: colors[i % colors.length],
-                    boxShadow: `0 0 8px ${colors[i % colors.length]}`
-                  }}
-                />
-              );
-            })}
             
-            {/* Radiant light flash */}
-            <motion.div 
-               initial={{ scale: 0, opacity: 0 }}
-               animate={{ scale: [0, 1.5, 2], opacity: [0, 0.4, 0] }}
-               transition={{ duration: 0.5 }}
-               className="absolute w-24 h-24 bg-white rounded-full blur-2xl"
+            <filter id="blobShadow" x="-20%" y="-20%" width="140%" height="140%">
+               <feGaussianBlur in="SourceAlpha" stdDeviation="3.5" />
+               <feOffset dx="2" dy="4" />
+               <feComponentTransfer>
+                 <feFuncA type="linear" slope="0.5" />
+               </feComponentTransfer>
+               <feMerge>
+                 <feMergeNode />
+                 <feMergeNode in="SourceGraphic" />
+               </feMerge>
+            </filter>
+
+            {/* Glossy Paint Gradients */}
+            <radialGradient id="paintRed" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#fca5a5" />
+                <stop offset="100%" stopColor="#b91c1c" />
+            </radialGradient>
+            <radialGradient id="paintGreen" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#86efac" />
+                <stop offset="100%" stopColor="#15803d" />
+            </radialGradient>
+            <radialGradient id="paintBlue" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#93c5fd" />
+                <stop offset="100%" stopColor="#1d4ed8" />
+            </radialGradient>
+            <radialGradient id="paintYellow" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stopColor="#fde68a" />
+                <stop offset="100%" stopColor="#b45309" />
+            </radialGradient>
+          </defs>
+
+          {/* Wooden Palette Base - Smoother, more organic rounded kidney shape */}
+          <g transform="rotate(-5, 100, 100)">
+            <path 
+              d="M 180,110 C 180,165 140,190 90,190 C 40,190 15,150 15,100 C 15,50 55,15 110,15 C 140,15 160,50 140,80 C 120,110 145,145 180,110 Z" 
+              fill="url(#paletteGrad)" 
+              stroke="#78350f" 
+              strokeWidth="1"
             />
-          </div>
-        )}
-      </AnimatePresence>
+            
+            {/* Soft Wood Grain Lines */}
+            <path d="M 45,75 Q 85,55 145,70" stroke="#78350f" strokeWidth="0.8" opacity="0.15" fill="none" />
+            <path d="M 55,135 Q 105,155 165,125" stroke="#78350f" strokeWidth="0.8" opacity="0.15" fill="none" />
+            
+            {/* Thumb Hole */}
+            <ellipse cx="120" cy="140" rx="14" ry="11" fill="#451a03" opacity="0.4" transform="rotate(25, 120, 140)" />
+            <ellipse cx="120" cy="140" rx="12" ry="9" fill="#fafaf9" />
+            
+            {/* Paint Blobs */}
+            <g filter="url(#blobShadow)">
+               {/* Yellow (Top Left) */}
+               <ellipse cx="78" cy="65" rx="17" ry="15" fill="url(#paintYellow)" transform="rotate(-10, 78, 65)" />
+               <circle cx="72" cy="58" r="3.5" fill="white" opacity="0.6" filter="blur(1.5px)" />
+               
+               {/* Red (Top Right) */}
+               <ellipse cx="128" cy="78" rx="16" ry="14" fill="url(#paintRed)" transform="rotate(15, 128, 78)" />
+               <circle cx="122" cy="72" r="3" fill="white" opacity="0.6" filter="blur(1.5px)" />
+               
+               {/* Green (Lower Left) */}
+               <ellipse cx="62" cy="115" rx="18" ry="16" fill="url(#paintGreen)" transform="rotate(0, 62, 115)" />
+               <circle cx="55" cy="108" r="4" fill="white" opacity="0.5" filter="blur(1.5px)" />
+               
+               {/* Blue (Bottom Center) */}
+               <ellipse cx="90" cy="150" rx="17" ry="14" fill="url(#paintBlue)" transform="rotate(-5, 90, 150)" />
+               <circle cx="84" cy="144" r="3.5" fill="white" opacity="0.6" filter="blur(1.5px)" />
+            </g>
+          </g>
+          
+          {/* Main Paint Brush */}
+          <motion.g 
+            transform="translate(100, 100) rotate(140) translate(-100, -100)"
+            animate={animating ? { 
+              rotate: [140, 150, 130, 140],
+              scale: [1, 1.15, 1]
+            } : {}}
+            transition={{ duration: 0.9 }}
+          >
+             {/* Vibrant Red Handle */}
+             <path d="M 96,15 L 104,15 L 104,125 Q 100,130 96,125 Z" fill="#b91c1c" />
+             <rect x="95" y="12" width="10" height="105" rx="4" fill="url(#handleHighlight)" opacity="0.4" />
+             <defs>
+               <linearGradient id="handleHighlight" x1="0" y1="0" x2="1" y2="0">
+                 <stop offset="0%" stopColor="white" />
+                 <stop offset="100%" stopColor="transparent" />
+               </linearGradient>
+             </defs>
+             
+             {/* Polished Metal Ferrule */}
+             <rect x="93" y="110" width="14" height="28" fill="#64748b" rx="2.5" />
+             <rect x="93" y="116" width="14" height="3" fill="#cbd5e1" opacity="0.9" />
+             <rect x="93" y="125" width="14" height="3" fill="#cbd5e1" opacity="0.9" />
+             
+             {/* Tapered Bristles */}
+             <path d="M 93,138 C 88,180 112,180 107,138 Z" fill="#0f172a" />
+             <path d="M 96,165 Q 100,180 104,165 Z" fill="#fbbf24" opacity="0.9" /> {/* Paint on tip */}
+          </motion.g>
+        </motion.g>
+      </motion.svg>
     </motion.div>
   );
 }
@@ -307,13 +356,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full flex flex-col overflow-x-hidden p-0 sm:p-0 selection:bg-amber-100">
         {children}
       </main>
-      <footer className="py-24 border-t border-slate-200/60 bg-white/30 backdrop-blur-md relative overflow-hidden">
+      <footer className="py-16 border-t border-slate-200/60 bg-white/30 backdrop-blur-md relative overflow-hidden">
         {/* Artistic background element for footer */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"></div>
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-amber-100/20 rounded-full blur-3xl"></div>
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-100/20 rounded-full blur-3xl"></div>
         
-        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-10">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center gap-6">
           <motion.div 
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -329,16 +378,16 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-col items-center gap-4 w-full px-4 overflow-hidden">
             <div className="flex items-center gap-2 sm:gap-6 w-full max-w-lg">
               <div className="h-px flex-1 bg-slate-200"></div>
-              <p className="text-[10px] sm:text-sm font-black text-slate-900 uppercase tracking-[0.2em] sm:tracking-[0.5em] leading-relaxed whitespace-nowrap">
+              <p className="text-[10px] sm:text-xs font-black text-slate-900 uppercase tracking-[0.2em] sm:tracking-[0.5em] leading-relaxed whitespace-nowrap">
                 AI 每日画廊 &copy; {new Date().getFullYear()} 
               </p>
               <div className="h-px flex-1 bg-slate-200"></div>
             </div>
           </div>
           
-          <div className="max-w-2xl text-center px-8">
-            <p className="text-[11px] text-slate-500 font-medium leading-loose opacity-80">
-              <span className="text-amber-800/80 font-bold mr-2">永恒经典与人工智能的碰撞 —</span>
+          <div className="max-w-2xl text-center px-4 sm:px-8">
+            <p className="text-[12px] sm:text-[13px] md:text-sm text-slate-500 font-medium leading-relaxed sm:leading-loose opacity-90">
+              <span className="text-amber-800 font-bold mr-2">永恒经典与人工智能的碰撞 —</span>
               本馆致力于通过尖端 AI 技术重新发现世界艺术遗产。每一幅作品的解读均融合了海量历史数据与当代审美洞察，为您呈现跨越时空的艺术盛宴。
             </p>
           </div>

@@ -190,14 +190,14 @@ export default function Home() {
                              );
                            })()}
                            
-                           <div className="mt-auto pt-10 border-t border-slate-100 flex items-center gap-8">
+                           <div className="mt-auto pt-10 border-t border-slate-100 flex items-start gap-8">
                              <div className="flex flex-col gap-1">
-                               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">馆藏机构</span>
-                               <span className="text-sm font-bold text-slate-700">{highlight.museum}</span>
+                               <span className="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">馆藏机构</span>
+                               <span className="text-slate-700 text-[11px] md:text-xs font-bold leading-relaxed">{highlight.museum}</span>
                              </div>
-                             <div className="flex flex-col gap-1">
-                               <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">浏览量</span>
-                               <span className="text-sm font-bold text-slate-700">{highlight.views}</span>
+                             <div className="flex flex-col gap-1 shrink-0 ml-auto">
+                               <span className="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed whitespace-nowrap">浏览次数</span>
+                               <span className="text-slate-700 text-[11px] md:text-xs font-bold leading-relaxed">{highlight.views}</span>
                              </div>
                            </div>
                         </div>
@@ -230,12 +230,17 @@ export default function Home() {
                          transition={{ delay: idx % 3 * 0.1 }}
                        >
                          <Link to={`/artwork/${item.id}`} className="group flex flex-col">
-                            <div className="art-frame aspect-[3/4] mb-8 overflow-hidden bg-slate-50">
+                            <div className="art-frame aspect-[3/4] mb-8 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
                                 className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" 
                                 referrerPolicy="no-referrer" 
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = "https://images.metmuseum.org/CRDImages/ep/original/DT156.jpg"; // Use a reliable fallback if possible or show an icon
+                                  e.currentTarget.className = "w-full h-full object-cover opacity-20 grayscale";
+                                }}
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
                             </div>

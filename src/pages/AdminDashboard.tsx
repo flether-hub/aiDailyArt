@@ -5,7 +5,8 @@ import { useAuth } from "../AuthContext";
 import {
   Settings2,
   RefreshCw,
-  ShieldCheck,
+  BarChart3,
+  Library,
   Eye,
   Palette,
   Save,
@@ -504,8 +505,8 @@ export default function AdminDashboard() {
       )}
       <header className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h2 className="text-slate-700 mt-1 text-base sm:text-lg flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 shrink-0" />
+          <h2 className="text-slate-500 mt-1 text-sm font-medium uppercase tracking-wider flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
             <span>
               目前馆藏：
               <span>
@@ -749,15 +750,15 @@ export default function AdminDashboard() {
 
         {/* Content Management */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit order-1 lg:order-2">
-          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center bg-slate-50/50 gap-4 sm:gap-0">
-            <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Palette className="w-5 h-5 text-amber-500" /> 藏品库管理
+          <div className="p-4 border-b border-slate-100 flex flex-row justify-between items-center bg-slate-50/50 gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <h2 className="text-sm sm:text-lg font-bold text-slate-800 flex items-center gap-1.5 sm:gap-2">
+                <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 藏品库管理
               </h2>
               {artworks.length > 0 && (
                 <button
                   onClick={toggleSelectAll}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-2 py-1 rounded hover:bg-slate-200/50"
+                  className="text-[10px] sm:text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/50"
                 >
                   {selectedIds.length === artworks.length
                     ? "取消全选"
@@ -765,23 +766,23 @@ export default function AdminDashboard() {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {selectedIds.length > 0 && (
                 <button
                   onClick={bulkDelete}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-bold transition-colors shadow-xl"
+                  className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[10px] font-bold transition-colors shadow-xl"
                 >
-                  <Trash2 className="w-3 h-3" /> 批量删除 ({selectedIds.length})
+                  <Trash2 className="w-3 h-3" /> 删除 ({selectedIds.length})
                 </button>
               )}
               <button
                 onClick={triggerFetch}
                 disabled={fetchingWorks}
-                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
+                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-1.5 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
                 title="手动抓取新名画"
               >
                 <RefreshCw
-                  className={`w-5 h-5 ${fetchingWorks ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${fetchingWorks ? "animate-spin" : ""}`}
                 />
               </button>
             </div>

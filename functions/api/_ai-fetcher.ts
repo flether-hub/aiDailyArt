@@ -29,7 +29,10 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 
 async function uploadToR2(url: string, id: string): Promise<string> {
   const env = getCloudEnv();
-  if (!env || !env.ART_GALLERY_IMAGES) return url; 
+  // Check if R2 is actually a binding (object with put method)
+  if (!env || !env.ART_GALLERY_IMAGES || typeof env.ART_GALLERY_IMAGES.put !== 'function') {
+    return url; 
+  }
 
   try {
     const response = await fetchWithRetry(url);
@@ -43,8 +46,7 @@ async function uploadToR2(url: string, id: string): Promise<string> {
       httpMetadata: { contentType }
     });
     
-    const baseUrl = env.APP_URL || '';
-    return `${baseUrl}/api/cdn/${fileName}`;
+    return `/api/cdn/${fileName}`;
   } catch (e) {
     console.error('R2 Upload failed:', e);
     return url;

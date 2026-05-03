@@ -458,7 +458,10 @@ app.get('/cdn/*', async (c) => {
   const env = getCloudEnv();
   const path = c.req.path.replace('/api/cdn/', '');
   
-  if (!env || !env.ART_GALLERY_IMAGES) return c.status(404);
+  // Check if R2 is actually a binding (object with get method)
+  if (!env || !env.ART_GALLERY_IMAGES || typeof env.ART_GALLERY_IMAGES.get !== 'function') {
+    return c.status(404);
+  }
   
   try {
     const object = await env.ART_GALLERY_IMAGES.get(path);
@@ -468,6 +471,9 @@ app.get('/cdn/*', async (c) => {
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
     headers.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache for static assets
+    
+    // In dev environment, we might want to ensure CORS is handled if needed
+    headers.set('Access-Control-Allow-Origin', '*');
     
     return new Response(object.body, { headers });
   } catch (e) {
