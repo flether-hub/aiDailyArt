@@ -465,16 +465,6 @@ app.get('/admin/comments', async (c) => {
   return c.json(comments || []);
 });
 
-app.post('/admin/comments/bulk-delete', async (c) => {
-  const db = await getDB();
-  const { ids } = await c.req.json();
-  if (!Array.isArray(ids) || ids.length === 0) return c.json({ error: 'No IDs provided' }, 400);
-  
-  const placeholders = ids.map(() => '?').join(',');
-  await db.prepare(`DELETE FROM comments WHERE id IN (${placeholders})`).run(...ids);
-  return c.json({ success: true });
-});
-
 app.post('/admin/settings', async (c) => {
   const db = await getDB();
   const body = await c.req.json();
@@ -502,17 +492,15 @@ app.post('/admin/trigger-fetch', async (c) => {
     
     const task = async () => {
       try {
-        await runAIAggregation(true, async (msg, isError) => {
+        const { success, count } = await runAIAggregation(true, async (msg, isError) => {
            if (!isStreamClosed) {
              try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } 
              catch(e) { isStreamClosed = true; }
            }
-        });
-        const db = await getDB();
-        const result = await db.prepare("SELECT count(*) as c FROM artworks WHERE date(created_at) = date('now')").get();
-        const newlyAdded = (result as any)?.c || 0;
+        }) as any;
+
         if (!isStreamClosed) {
-          try { await stream.write(JSON.stringify({ type: 'complete', data: { success: true, message: `分析任务已圆满完成。`, count: newlyAdded } }) + '\n'); } 
+          try { await stream.write(JSON.stringify({ type: 'complete', data: { success, message: success ? `分析任务已圆满完成。` : `分析任务未能完成。`, count: count || 0 } }) + '\n'); } 
           catch(e) {}
         }
       } catch (err: any) {

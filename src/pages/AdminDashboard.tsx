@@ -1031,7 +1031,7 @@ export default function AdminDashboard() {
                              来自馆藏: <Link to={`/artwork/${comment.artwork_id}`} className="text-amber-600 hover:underline">《{comment.artwork_title || '未知作品'}》</Link>
                            </p>
                            <span className="text-[10px] sm:text-xs font-mono text-slate-400">
-                             {new Date(comment.created_at).toLocaleString('zh-CN')}
+                             {new Date(comment.created_at.endsWith('Z') ? comment.created_at : `${comment.created_at}Z`).toLocaleString('zh-CN')}
                            </span>
                         </div>
                         <div className="bg-white/50 p-3 rounded-lg border border-slate-100 text-slate-700 text-sm leading-relaxed mb-2">
@@ -1057,7 +1057,7 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {totalArtworks > 0 && (
+          {activeTab === 'artworks' && totalArtworks > 0 && (
             <div className="px-4 py-4 border-t border-slate-100 flex justify-end items-center bg-slate-50/50">
               <div className="flex items-center gap-1">
                 <button
