@@ -151,7 +151,32 @@ async function fetchFromMet(notify) {
 
 export async function runAIAggregation(isManual: boolean = false, onProgress?: (msg: string, isError?: boolean) => void | Promise<void>) {
   const db = await getDB();
-  const notify = async (msg: string, isError = false) => { if (onProgress) await onProgress(msg, isError); };
+  
+  const updateJobInDB = async (msg: string, status: string, isError = false) => {
+    try {
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', msg);
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
+      if (isError) {
+        await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', 'true');
+      } else {
+        await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', 'false');
+      }
+    } catch (e) {
+      console.error('Failed to update job status in DB:', e);
+    }
+  };
+
+  const notify = async (msg: string, isError = false) => { 
+    if (onProgress) await onProgress(msg, isError); 
+    if (isManual) {
+       await updateJobInDB(msg, 'running', isError);
+    }
+  };
+
+  if (isManual) {
+    await updateJobInDB('正在启动名画寻脉任务...', 'running');
+  }
 
   const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   const provider = (await getSetting('ai_provider'))?.value || 'gemini';
@@ -240,6 +265,11 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
         newlyAdded++;
      }
   }
+  
+  if (isManual) {
+     await updateJobInDB(`分析任务已圆满完成。本次新增 ${newlyAdded} 幅名作。`, 'idle');
+  }
+
   return { success: true, count: newlyAdded };
 }
 

@@ -35,6 +35,49 @@ export default function AdminDashboard() {
   const [totalArtworks, setTotalArtworks] = useState(0);
   const limit = 12;
 
+  const fetchJobStatus = async () => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const res = await fetch("/api/admin/job-status", { headers });
+      const data = await res.json();
+      if (data.status === "running") {
+        setFetchingWorks(true);
+        setFetchingProgress({
+          message: data.message,
+          error: data.error ? "预警" : undefined,
+        });
+      } else if (fetchingWorks && data.status === "idle") {
+        // Job just finished while we were polling or just loaded
+        setFetchingWorks(false);
+        setFetchingProgress({ message: data.message, error: data.error ? "已中止" : undefined });
+        fetchAdminArtworks(page);
+        setTimeout(() => setFetchingProgress(null), 5000);
+      } else if (!fetchingWorks && data.status === "idle" && data.message && data.message.includes('圆满完成')) {
+          // If we just loaded and there's a recent completion message, maybe show it?
+          // But usually we don't want to show old completion messages forever.
+          // For now, let's only set if it's an error or we were previously fetching.
+      }
+      return data.status;
+    } catch (e) {
+      return "idle";
+    }
+  };
+
+  useEffect(() => {
+    let interval: any;
+    if (isAdmin && token) {
+      fetchJobStatus();
+      interval = setInterval(async () => {
+        const status = await fetchJobStatus();
+        if (status !== "running" && !fetchingWorks) {
+          // stop interval if not running and we are not in a manual fetch state
+          // but actually we want to poll if it IS running
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isAdmin, token, fetchingWorks]);
+
   const fetchAdminArtworks = async (currentPage: number) => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;

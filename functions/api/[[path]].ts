@@ -250,6 +250,30 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
   });
 });
 
+app.get('/admin/job-status', async (c) => {
+  const db = await getDB();
+  const statusRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_status');
+  const messageRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_message');
+  const errorRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_error');
+  const updatedRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_updated_at');
+
+  let status = (statusRes as any)?.value || 'idle';
+  const updatedAtStr = (updatedRes as any)?.value;
+  
+  if (status === 'running' && updatedAtStr) {
+    const updatedAt = new Date(updatedAtStr).getTime();
+    if (Date.now() - updatedAt > 10 * 60 * 1000) { // 10 minutes timeout
+      status = 'idle';
+    }
+  }
+
+  return c.json({
+    status,
+    message: (messageRes as any)?.value || '',
+    error: (errorRes as any)?.value === 'true'
+  });
+});
+
 app.post('/admin/artworks/bulk-delete', async (c) => {
   const db = await getDB();
   const { ids } = await c.req.json();

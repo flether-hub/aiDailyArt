@@ -326,13 +326,13 @@ function MainLayout({ children }: { children: React.ReactNode }) {
              <span className="font-serif font-black text-xl tracking-[0.2em] text-slate-800 brush-header">AI ART DAILY</span>
           </motion.div>
 
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-6">
-              <div className="h-px w-12 bg-slate-200"></div>
-              <p className="text-sm font-black text-slate-900 uppercase tracking-[0.5em] leading-relaxed">
+          <div className="flex flex-col items-center gap-4 w-full px-4 overflow-hidden">
+            <div className="flex items-center gap-2 sm:gap-6 w-full max-w-lg">
+              <div className="h-px flex-1 bg-slate-200"></div>
+              <p className="text-[10px] sm:text-sm font-black text-slate-900 uppercase tracking-[0.2em] sm:tracking-[0.5em] leading-relaxed whitespace-nowrap">
                 AI 每日画廊 &copy; {new Date().getFullYear()} 
               </p>
-              <div className="h-px w-12 bg-slate-200"></div>
+              <div className="h-px flex-1 bg-slate-200"></div>
             </div>
           </div>
           
