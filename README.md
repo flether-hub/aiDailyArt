@@ -71,26 +71,33 @@
    wrangler login
    ```
 
-2. **配置 Wrangler**
-   修改根目录下的 `wrangler.toml` 文件：
-   - 更新或创建 `d1_databases` 绑定 (`ART_GALLERY_DB`)。
-   - 更新或创建 `r2_buckets` 绑定 (`ART_GALLERY_IMAGES`)。
+2. **准备 D1 数据库与 R2 存储**
+   - 在 Cloudflare 控制台创建 D1 数据库和 R2 存储桶。
+   - 修改 `wrangler.toml` 文件中的以下绑定，确保与控制台创建的名称一致：
+     - `d1_databases`: 配置绑定的数据库 binding 名称 (例如 `ART_GALLERY_DB`).
+     - `r2_buckets`: 配置绑定的 R2 存储桶 binding 名称 (例如 `ART_GALLERY_IMAGES`).
 
-3. **设置环境变量 (在 Cloudflare Dashboard)**
-   部署前或部署后，进入 Cloudflare 控制台 -> Workers & Pages -> 你的项目 -> 设置 -> 环境变量，配置：
-   - `ADMIN_PASSWORD_HASH`: (必须！设置一个 SHA-256 哈希后的管理密码)
-   - `GEMINI_API_KEY`: (如果使用 Gemini)
-   - `DASH_SCOPE_API_KEY`: (如果使用阿里云百炼)
+### 3. 设置环境变量 (在 Cloudflare Dashboard)
+   进入 Cloudflare 控制台 -> Workers & Pages -> 你的项目 -> 设置 -> 环境变量，配置：
+   - `ADMIN_PASSWORD_HASH`: (必须！设置一个 SHA-256 哈希后的管理密码，用于保护后台)。
+   *(注意：其余模型 API Key (如 Gemini, 通义千问等) 无需在此配置，请在应用部署成功后，从后台管理界面通过“设置”进行统一管理。)*
 
-4. **部署应用**
+4. **初始化数据库表结构 (迁移)**
+   在项目根目录下运行以下命令，将生产环境的 D1 数据库表结构初始化：
+   ```bash
+   # 请将 <YOUR_DATABASE_BINDING_NAME> 替换为 wrangler.toml 中配置的 binding 名称
+   wrangler d1 migrations apply <YOUR_DATABASE_BINDING_NAME>
+   ```
+
+5. **部署应用**
    在项目根目录运行：
    ```bash
    npm run build
    wrangler pages deploy
    ```
 
-5. **初始化与绑定**
-   - 在 Cloudflare 控制台创建 D1 数据库和 R2 存储桶，并分别在项目的 “Functions” -> “设置” -> “D1 数据库绑定” 和 “R2 存储桶绑定” 中进行绑定，确保 Binding 名称与 `wrangler.toml` 中的 `binding` 一致。
+6. **最后检查**
+   确保 Cloudflare 控制台中项目的 “Functions” -> “设置” 中，D1 数据库和 R2 存储桶已成功绑定。
 
 ---
 详情请参阅 [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)。
