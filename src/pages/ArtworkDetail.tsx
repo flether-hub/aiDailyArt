@@ -4,6 +4,7 @@ import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown } from 'lucide-rea
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
+import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
 
 export default function ArtworkDetail() {
   const { id } = useParams();
@@ -91,9 +92,21 @@ export default function ArtworkDetail() {
                 </div>
               </div>
 
+              {(() => {
+                const subheading = extractFirstSubheading(artwork.ai_interpretation);
+                if (!subheading) return null;
+                return (
+                  <div className="mb-10 p-6 bg-slate-50 border-l-4 border-amber-800/20 rounded-r-lg animate-fade-in shadow-sm">
+                    <h2 className="text-xl md:text-2xl font-serif italic text-slate-800 leading-tight">
+                      “{subheading}”
+                    </h2>
+                  </div>
+                );
+              })()}
+
               {/* Interpretation */}
               <div className="prose prose-slate prose-base md:prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
-                    dangerouslySetInnerHTML={{ __html: artwork.ai_interpretation || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>' }} />
+                    dangerouslySetInnerHTML={{ __html: cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>' }} />
 
               {/* Additional Info / Footer */}
               <div className="mt-8 pt-8 border-t border-slate-200/60 ">

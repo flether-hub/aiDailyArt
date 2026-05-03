@@ -56,27 +56,46 @@ let dbInstance: DBClient | null = null;
 export async function getDB(): Promise<DBClient> {
   if (!dbInstance) {
     const env = getCloudEnv();
+    
+    // Check for Cloudflare D1
     if (env && env.ART_GALLERY_DB) {
+      console.log('Using Cloudflare D1 Database');
       dbInstance = new D1Client(env.ART_GALLERY_DB);
       return dbInstance;
     }
     
-    if (typeof process !== 'undefined' && process.env) {
-      // Dynamic require to avoid Cloudflare/esbuild bundling node built-ins and native modules
-      let req = typeof require !== 'undefined' ? require : undefined;
-      if (!req) {
-         const moduleName = 'mo' + 'dule';
-         const mod = await import(moduleName /* webpackIgnore: true */ as any);
-         req = mod.createRequire(import.meta.url);
+    // Check for Node.js environment (Local / AI Studio Preview)
+    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+      console.log('Detected Node.js environment, using local SQLite');
+      try {
+        // Dynamic require to avoid Cloudflare/esbuild bundling node built-ins and native modules
+        let req: any;
+        if (typeof require !== 'undefined') {
+          req = require;
+        } else {
+          const { createRequire } = await import('module');
+          req = createRequire(import.meta.url);
+        }
+        
+        const Database = req('better-sqlite3');
+        const path = req('path');
+        const dbPath = path.resolve(process.cwd(), 'database.sqlite');
+        const db = new Database(dbPath);
+        dbInstance = new SQLiteClient(db);
+        return dbInstance;
+      } catch (e) {
+        console.error('Failed to load local SQLite (better-sqlite3):', e);
+        // Fall through to error if we can't find a DB
       }
-      const Database = req('better-' + 'sqlite3');
-      const path = req('pa' + 'th');
-      const dbPath = path.resolve(process.cwd(), 'database.sqlite');
-      const db = new Database(dbPath);
-      dbInstance = new SQLiteClient(db);
-    } else {
-      throw new Error('No database found. Configure D1 binding ART_GALLERY_DB.');
     }
+    
+    const isCloudflare = typeof (globalThis as any).caches !== 'undefined';
+    if (isCloudflare) {
+       console.error('DATABASE ERROR: No D1 binding found. Configure a D1 binding named ART_GALLERY_DB in Cloudflare dashboard.');
+       throw new Error('Cloudflare D1 数据库未绑定。请在 Cloudflare Pages 设置中添加名为 ART_GALLERY_DB 的 D1 绑定。');
+    }
+
+    throw new Error('无法连接到数据库。如果是在本地运行，请确保已安装 better-sqlite3。如果是在 Cloudflare，请检查 D1 绑定。');
   }
   return dbInstance;
 }

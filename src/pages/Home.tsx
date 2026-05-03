@@ -5,6 +5,8 @@ import { Eye, Brush, MapPin, Hash, ChevronDown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
+import { extractFirstSubheading } from '../lib/artUtils';
+
 type Artwork = {
   id: string;
   title: string;
@@ -16,6 +18,7 @@ type Artwork = {
   views: number;
   keywords?: string[];
   image_url?: string;
+  ai_interpretation?: string;
 };
 
 export default function Home() {
@@ -170,10 +173,22 @@ export default function Home() {
                            <h3 className="text-xl md:text-2xl font-serif font-black text-slate-950 mb-6 leading-tight group-hover:text-amber-900 transition-colors">
                              {highlight.title}
                            </h3>
-                           <div className="flex items-center gap-3 text-slate-500 mb-10">
+                           <div className="flex items-center gap-3 text-slate-500 mb-6">
                              <div className="w-10 h-px bg-slate-300"></div>
                              <span className="text-sm font-medium">{highlight.artist}</span>
                            </div>
+                           
+                           {(() => {
+                             const subheading = extractFirstSubheading(highlight.ai_interpretation);
+                             if (!subheading) return null;
+                             return (
+                               <div className="mb-10 animate-fade-in">
+                                 <p className="text-lg md:text-xl font-serif italic text-slate-700 leading-snug">
+                                   “{subheading}”
+                                 </p>
+                               </div>
+                             );
+                           })()}
                            
                            <div className="mt-auto pt-10 border-t border-slate-100 flex items-center gap-8">
                              <div className="flex flex-col gap-1">
