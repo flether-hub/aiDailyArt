@@ -429,21 +429,27 @@ app.post('/admin/trigger-fetch', async (c) => {
   });
 });
 
-// Proxy for R2 images
+// Proxy for R2 images with caching
 app.get('/cdn/*', async (c) => {
   const env = getCloudEnv();
   const path = c.req.path.replace('/api/cdn/', '');
   
   if (!env || !env.ART_GALLERY_IMAGES) return c.status(404);
   
-  const object = await env.ART_GALLERY_IMAGES.get(path);
-  if (!object) return c.status(404);
-  
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set('etag', object.httpEtag);
-  
-  return new Response(object.body, { headers });
+  try {
+    const object = await env.ART_GALLERY_IMAGES.get(path);
+    if (!object) return c.status(404);
+    
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set('etag', object.httpEtag);
+    headers.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache for static assets
+    
+    return new Response(object.body, { headers });
+  } catch (e) {
+    console.error('CDN Error:', e);
+    return c.status(500);
+  }
 });
 
 export const onRequest = handle(app);

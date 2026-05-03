@@ -75,7 +75,21 @@ export default function AdminDashboard() {
   }, [page, isAdmin, token]);
 
   const handleSettingsChange = (key: string, value: string) => {
-    setSettings({ ...settings, [key]: value, [`${key}Masked`]: value });
+    let newSettings = { ...settings, [key]: value, [`${key}Masked`]: value };
+    
+    // Automatically handle logical defaults when provider changes
+    if (key === "ai_provider") {
+      if (value === "gemini") {
+        newSettings.model_id = "";
+      } else if (value === "dashscope") {
+        // If it was empty or looking like a gemini model, reset to dashscope default
+        if (!settings.model_id || settings.model_id.toLowerCase().includes("gemini")) {
+          newSettings.model_id = "qwen3.6-max-preview";
+        }
+      }
+    }
+    
+    setSettings(newSettings);
   };
 
   const [toastMessage, setToastMessage] = useState<{
@@ -532,7 +546,7 @@ export default function AdminDashboard() {
                     value={
                       settings.ai_provider === "gemini"
                         ? ""
-                        : settings.model_id || ""
+                        : settings.model_id || "qwen3.6-max-preview"
                     }
                     onChange={(e) =>
                       handleSettingsChange("model_id", e.target.value)
@@ -540,10 +554,15 @@ export default function AdminDashboard() {
                     className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 font-mono outline-none focus:ring-2 focus:ring-amber-500/20 disabled:text-slate-400 disabled:bg-slate-100"
                     placeholder={
                       settings.ai_provider === "gemini"
-                        ? "自动选择最优免费模型"
-                        : "qwen-plus"
+                        ? "Gemini 将由系统自动选择最优模型"
+                        : "qwen3.6-max-preview"
                     }
                   />
+                  {settings.ai_provider === "gemini" && (
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Gemini 引擎目前已配置为由系统自动选择最稳定版本。
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">

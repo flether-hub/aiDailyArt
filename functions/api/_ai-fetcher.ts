@@ -2,12 +2,37 @@ import { getDB } from './_db';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          ...(options.headers || {})
+        }
+      });
+      if (response.ok) return response;
+      if (response.status === 429 || response.status >= 500) {
+        // Rate limit or server error - wait and retry
+        await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+        continue;
+      }
+      return response;
+    } catch (e) {
+      if (i === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
+    }
+  }
+  throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
+}
+
 async function uploadToR2(url: string, id: string): Promise<string> {
   const env = getCloudEnv();
   if (!env || !env.ART_GALLERY_IMAGES) return url; 
 
   try {
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     if (!response.ok) return url;
     
     const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -72,7 +97,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
     LIMIT 200
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
-  const response = await fetch(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } });
+  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } });
   if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
   const data = await response.json();
   const bindings = data.results?.bindings || [];
@@ -98,7 +123,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
 async function fetchFromMet(notify) {
   const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-  const searchRes = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`);
+  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`);
   const searchData = await searchRes.json();
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
@@ -106,7 +131,7 @@ async function fetchFromMet(notify) {
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
      try {
-       const objRes = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`);
+       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`);
        if (!objRes.ok) continue;
        const objData = await objRes.json();
        if (!objData.primaryImage || !objData.title || !objData.artistDisplayName) continue;
@@ -243,90 +268,109 @@ export async function generateDetailedInterpretation(title: string, artist: stri
   let title_zh = title;
   let artist_zh = artist;
 
-  try {
-     const aiKey = userApiKey;
-     if (!aiKey) {
-       if (notify) await notify("⚠️ 尚未配置 API 密钥", true);
-       return { keywords, content: "<p>尚未配置 API 密钥。请在管理员控制台设置 API 密钥以生成艺术解读。</p>" };
-     }
+  const maxRetries = 3;
+  let lastError = null;
 
-     const isAli = provider === 'dashscope' || provider === 'bailian';
-     const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-     const displayedModelId = isAli ? (modelId || '默认模型') : '自动选择';
-     if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId}) ...`);
-     let text = "";
-
-     if (provider === 'dashscope' || provider === 'bailian') {
-        const res = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${aiKey}`
-          },
-          body: JSON.stringify({
-            model: modelId || 'qwen-plus',
-            messages: [
-              { role: 'system', content: 'You are a professional art curator. Always output strictly valid JSON.' },
-              { role: 'user', content: prompt }
-            ],
-            response_format: { type: "json_object" }
-          })
-        });
-        
-        if (!res.ok) {
-          const err = await res.text();
-          throw new Error(`Alibaba AI Error: ${err}`);
-        }
-        
-        const data: any = await res.json();
-        if (data.code && data.message && !data.choices) {
-            throw new Error(`Alibaba AI Error: [${data.code}] ${data.message}`);
-        }
-        text = data.choices?.[0]?.message?.content || "{}";
-      } else {
-        // Default: Gemini - Using new @google/genai SDK
-        const ai = new GoogleGenAI({ apiKey: aiKey });
-        // "让Gemini自己选择" - using recommended flash model for basic text tasks
-        const response = await ai.models.generateContent({
-           model: 'gemini-3-flash-preview',
-           contents: prompt,
-           config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  title_zh: { type: Type.STRING },
-                  artist_zh: { type: Type.STRING },
-                  keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  content: { type: Type.STRING }
-                },
-                required: ["title_zh", "artist_zh", "keywords", "content"]
-              }
-           }
-        });
-        text = response.text || "{}";
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const aiKey = userApiKey;
+      if (!aiKey) {
+        if (notify) await notify("⚠️ 尚未配置 API 密钥", true);
+        return { keywords, content: "<p>尚未配置 API 密钥。请在管理员控制台设置 API 密钥以生成艺术解读。</p>" };
       }
 
-     let parsed: any = {};
-     try {
-       parsed = JSON.parse(text);
-     } catch (e) {
-       const jsonMatch = text.match(/\{[\s\S]*\}/);
-       if (jsonMatch) {
-         try { parsed = JSON.parse(jsonMatch[0]); } catch (e2) { }
-       }
-     }
+      const isAli = provider === 'dashscope' || provider === 'bailian';
+      const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
+      const displayedModelId = isAli ? (modelId || '默认模型') : '自动选择';
+      
+      if (notify) {
+        const attemptMsg = attempt > 1 ? ` (重试第 ${attempt-1} 次)` : '';
+        await notify(`🤖 正在调用 ${providerName} (${displayedModelId})${attemptMsg} ...`);
+      }
 
-     aiInterpretation = parsed.content || `<p>暂无解读内容。</p>`;
-     keywords = parsed.keywords || keywords;
-     if (parsed.title_zh) title_zh = parsed.title_zh;
-     if (parsed.artist_zh) artist_zh = parsed.artist_zh;
-     
-     if (notify) await notify("✅ AI 深度解读完成并提取结果。");
-  } catch (e: any) {
-     console.error('AI error:', e);
-     if (notify) await notify(`❌ AI 调用失败: ${e.message}`, true);
-     aiInterpretation = `<p>解读生成失败：${e.message || '未知错误'}</p>`;
+      let text = "";
+
+      if (provider === 'dashscope' || provider === 'bailian') {
+         const res = await fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${aiKey}`
+           },
+           body: JSON.stringify({
+             model: modelId || 'qwen3.6-max-preview',
+             messages: [
+               { role: 'system', content: 'You are a professional art curator. Always output strictly valid JSON.' },
+               { role: 'user', content: prompt }
+             ],
+             response_format: { type: "json_object" }
+           })
+         });
+         
+         if (!res.ok) {
+           const err = await res.text();
+           throw new Error(`Alibaba AI Error: ${err}`);
+         }
+         
+         const data: any = await res.json();
+         if (data.code && data.message && !data.choices) {
+             throw new Error(`Alibaba AI Error: [${data.code}] ${data.message}`);
+         }
+         text = data.choices?.[0]?.message?.content || "{}";
+       } else {
+         // Default: Gemini - Using new @google/genai SDK
+         const ai = new GoogleGenAI({ apiKey: aiKey });
+         // Using the latest modern alias for text tasks as per requirements to "let gemini decide"
+         const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: {
+               responseMimeType: "application/json",
+               responseSchema: {
+                 type: Type.OBJECT,
+                 properties: {
+                   title_zh: { type: Type.STRING },
+                   artist_zh: { type: Type.STRING },
+                   keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+                   content: { type: Type.STRING }
+                 },
+                 required: ["title_zh", "artist_zh", "keywords", "content"]
+               }
+            }
+         });
+         text = response.text || "{}";
+       }
+
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          try { parsed = JSON.parse(jsonMatch[0]); } catch (e2) { }
+        }
+      }
+
+      const content = parsed.content || `<p>暂无解读内容。</p>`;
+      const finalKeywords = parsed.keywords || keywords;
+      const finalTitle_zh = parsed.title_zh || title_zh;
+      const finalArtist_zh = parsed.artist_zh || artist_zh;
+      
+      if (notify) await notify("✅ AI 深度解读完成并提取结果。");
+      return { keywords: finalKeywords, content, title_zh: finalTitle_zh, artist_zh: finalArtist_zh };
+
+    } catch (e: any) {
+      lastError = e;
+      console.error(`AI error (attempt ${attempt}):`, e);
+      if (attempt < maxRetries) {
+        // Wait before retry (exponential backoff)
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+      } else {
+        if (notify) await notify(`❌ AI 调用最终失败: ${e.message}`, true);
+        aiInterpretation = `<p>解读生成失败：${e.message || '未知错误'}</p>`;
+      }
+    }
   }
+
   return { keywords, content: aiInterpretation, title_zh, artist_zh };
 }
