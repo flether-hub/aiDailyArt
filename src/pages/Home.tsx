@@ -42,7 +42,7 @@ export default function Home() {
     }
   };
 
-  const fetchArtworks = async (currentPage: number, currentKeyword: string | null) => {
+  const fetchArtworks = async (currentPage: number, currentKeyword: string | null, signal?: AbortSignal) => {
     try {
       setLoading(true);
       
@@ -52,7 +52,7 @@ export default function Home() {
         url += `&keyword=${encodeURIComponent(currentKeyword)}`;
       }
       
-      const res = await fetch(url);
+      const res = await fetch(url, { signal });
       const data = await res.json();
       const fetchedArtworks = Array.isArray(data) ? data : (data.data || []);
       
@@ -61,8 +61,8 @@ export default function Home() {
       }
 
       setArtworks(fetchedArtworks);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      if (e.name !== 'AbortError') console.error(e);
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    fetchArtworks(page, selectedKeyword);
+    const ac = new AbortController();
+    fetchArtworks(page, selectedKeyword, ac.signal);
+    return () => ac.abort();
   }, [page, selectedKeyword]);
 
   const handleKeywordClick = (k: string) => {

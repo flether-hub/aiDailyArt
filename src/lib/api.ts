@@ -1,15 +1,23 @@
 const API_BASE = '/api';
 const TOKEN_KEY = 'admin_token';
 
+const safeGetToken = () => {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch (e) {
+    return null;
+  }
+};
+
 export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = safeGetToken();
   const headers: HeadersInit = {
     ...(options.headers || {}),
   };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  if (!(options.body instanceof FormData)) {
+  if (!('Content-Type' in headers) && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -27,17 +35,21 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const uploadFileWithProgress = (endpoint: string, formData: FormData, onProgress: (loaded: number, total: number) => void, signal?: AbortSignal): Promise<any> => {
+  if (signal?.aborted) return Promise.reject(new Error('Upload cancelled'));
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE}${endpoint}`);
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = safeGetToken();
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
+    const onAbort = () => {
+      xhr.abort();
+      reject(new Error('Upload cancelled'));
+    };
+
     if (signal) {
-      signal.addEventListener('abort', () => {
-        xhr.abort();
-        reject(new Error('Upload cancelled'));
-      });
+      signal.addEventListener('abort', onAbort);
     }
 
     xhr.upload.onprogress = (e) => {
@@ -47,6 +59,7 @@ export const uploadFileWithProgress = (endpoint: string, formData: FormData, onP
     };
 
     xhr.onload = () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           resolve(JSON.parse(xhr.responseText));
@@ -55,20 +68,29 @@ export const uploadFileWithProgress = (endpoint: string, formData: FormData, onP
         }
       } else {
         try {
-          reject(new Error(JSON.parse(xhr.responseText).error || 'Upload failed'));
+          const errMsg = JSON.parse(xhr.responseText).error || `Upload failed with status ${xhr.status}`;
+          reject(new Error(errMsg));
         } catch (e) {
-          reject(new Error('Upload failed'));
+          reject(new Error(`Upload failed with status ${xhr.status}`));
         }
       }
     };
 
-    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onerror = () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      reject(new Error('Network error'));
+    };
+    xhr.ontimeout = () => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      reject(new Error('Upload timeout'));
+    };
+    
     xhr.send(formData);
   });
 };
 
 export const downloadFileWithProgress = async (id: number, filename: string, onProgress: (loaded: number, total: number | null) => void) => {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = safeGetToken();
   if (!token) throw new Error('Unauthorized');
   
   const response = await fetch(`${API_BASE}/files/${id}/download`, {
@@ -82,12 +104,16 @@ export const downloadFileWithProgress = async (id: number, filename: string, onP
 
   const reader = response.body?.getReader();
   if (!reader) {
+    // Robust fallback for missing stream support
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = `${API_BASE}/files/${id}/download?token=${token}`;
+    a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
+    window.URL.revokeObjectURL(url);
     return;
   }
 

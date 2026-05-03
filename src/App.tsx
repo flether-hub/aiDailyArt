@@ -1,7 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import { Palette, LogOut, Activity, LayoutGrid } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 
@@ -16,7 +16,7 @@ function GalleryLogo() {
   const [animating, setAnimating] = useState(false);
   const [splashParticles, setSplashParticles] = useState<{ id: number; x: number; y: number; color: string; scale: number }[]>([]);
   
-  const triggerAnimation = (e: React.MouseEvent) => {
+  const triggerAnimation = useCallback((e: React.MouseEvent | React.KeyboardEvent | React.TouchEvent) => {
     if (!animating) {
       setAnimating(true);
       
@@ -37,7 +37,8 @@ function GalleryLogo() {
       }, 1200);
       
       // Keep confetti for extra flair
-      const rect = e.currentTarget.getBoundingClientRect();
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
       const x = (rect.left + rect.width / 2) / window.innerWidth;
       const y = (rect.top + rect.height / 2) / window.innerHeight;
 
@@ -53,14 +54,23 @@ function GalleryLogo() {
         disableForced3d: true
       });
     }
-  };
+  }, [animating]);
 
   return (
     <motion.div 
+      role="button"
+      tabIndex={0}
+      aria-label="激活动画效果"
       className="w-16 h-16 flex items-center justify-center cursor-pointer relative group shrink-0"
       whileHover={{ scale: 1.1, rotate: 5 }}
       whileTap={{ scale: 0.9 }}
       onMouseDown={triggerAnimation}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          triggerAnimation(e);
+        }
+      }}
     >
       {/* Animated Paint Splashes (Firework Effect) */}
       <AnimatePresence>
@@ -212,15 +222,21 @@ function Navbar() {
   const [visits, setVisits] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('/api/stats/visit', { method: 'POST' })
-      .then(() => fetch('/api/stats'))
+    const ac = new AbortController();
+    
+    fetch('/api/stats/visit', { method: 'POST', signal: ac.signal })
+      .then(() => fetch('/api/stats', { signal: ac.signal }))
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.visits === 'number') {
            setVisits(data.visits);
         }
       })
-      .catch(console.error);
+      .catch(err => {
+        if (err.name !== 'AbortError') console.error(err);
+      });
+
+    return () => ac.abort();
   }, []);
   
   return (
@@ -322,23 +338,10 @@ function Navbar() {
   );
 }
 
-function AnimatedRoutes() {
-  const location = useLocation();
-  
-  return (
-    <ErrorBoundary>
-      <AnimatePresence mode="wait">
-        <div key={location.pathname}>
-          <Routes location={location}>
-            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-            <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
-            <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
-            <Route path="/admin/dashboard" element={<PageWrapper><AdminDashboard /></PageWrapper>} />
-          </Routes>
-        </div>
-      </AnimatePresence>
-    </ErrorBoundary>
-  );
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAdmin, isLoadingAuth } = useAuth();
+  if (isLoadingAuth) return <div className="p-8 text-center text-slate-400">正在验证身份...</div>;
+  return isAdmin ? <>{children}</> : <Navigate to="/admin/login" replace />;
 }
 
 function PageWrapper({ children }: { children: React.ReactNode }) {
@@ -352,6 +355,25 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
     >
       {children}
     </motion.div>
+  );
+}
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  
+  return (
+    <ErrorBoundary>
+      <AnimatePresence mode="wait">
+        <div key={location.pathname}>
+          <Routes location={location}>
+            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+            <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
+            <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
+            <Route path="/admin/dashboard" element={<ProtectedRoute><PageWrapper><AdminDashboard /></PageWrapper></ProtectedRoute>} />
+          </Routes>
+        </div>
+      </AnimatePresence>
+    </ErrorBoundary>
   );
 }
 
