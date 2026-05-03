@@ -154,6 +154,17 @@ async function fetchFromMet(notify) {
 export async function runAIAggregation(isManual: boolean = false, onProgress?: (msg: string, isError?: boolean) => void | Promise<void>) {
   const db = await getDB();
   
+  // Concurrency Lock
+  const lastTaskStatus = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_status');
+  if (lastTaskStatus?.value === 'running') {
+    const lastUpdate = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_updated_at'))?.value;
+    // If it's been running for less than 10 minutes, skip
+    if (lastUpdate && Date.now() - new Date(lastUpdate).getTime() < 10 * 60 * 1000) {
+      if (onProgress) await onProgress('已经有一个任务正在运行中，请稍后再试。');
+      return { success: false, message: 'Task already running' };
+    }
+  }
+
   const updateJobInDB = async (msg: string, status: string, isError = false) => {
     try {
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
@@ -176,12 +187,14 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
     }
   };
 
+  let newlyAdded = 0;
   if (isManual) {
     await updateJobInDB('正在启动名画寻脉任务...', 'running');
   }
 
-  const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-  const provider = (await getSetting('ai_provider'))?.value || 'gemini';
+  try {
+    const getSetting = (key: string) => db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+    const provider = (await getSetting('ai_provider'))?.value || 'gemini';
   const modelId = (await getSetting('model_id'))?.value;
   const apiKey = (await getSetting('api_key'))?.value;
   
@@ -225,8 +238,6 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
      shuffledSources = [...cSources, ...wSources];
   }
 
-  let newlyAdded = 0;
-
   for (const source of shuffledSources) {
      if (newlyAdded >= targetCount) break;
      await notify(`正在连接 ${source.name} 的数据源...`);
@@ -268,11 +279,21 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
      }
   }
   
-  if (isManual) {
-     await updateJobInDB(`分析任务已圆满完成。本次新增 ${newlyAdded} 幅名作。`, 'idle');
-  }
-
   return { success: true, count: newlyAdded };
+  } catch (err: any) {
+    console.error('runAIAggregation failed:', err);
+    if (isManual) {
+      await updateJobInDB(`分析任务出错了: ${err.message}`, 'idle', true);
+    }
+    return { success: false, message: err.message };
+  } finally {
+    if (isManual) {
+      // status has already been set in catch or at the end of try
+      // but let's make sure it's idle
+      const statusMsg = newlyAdded >= 0 ? `分析任务已圆满完成。本次新增 ${newlyAdded} 幅名作。` : `任务已结束。`;
+      await updateJobInDB(statusMsg, 'idle');
+    }
+  }
 }
 
 export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>) {

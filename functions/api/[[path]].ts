@@ -309,9 +309,9 @@ app.post('/stats/visit', async (c) => {
   const db = await getDB();
   const incrementPromise = (async () => {
     try {
-      const current = await db.prepare('SELECT value FROM settings WHERE key = ?').get('site_visits');
-      const newValue = parseInt((current as any)?.value || '0', 10) + 1;
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('site_visits', String(newValue));
+      // Use atomic update to prevent race conditions
+      await db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('site_visits', '0')").run();
+      await db.prepare("UPDATE settings SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'site_visits'").run();
     } catch (e) {
       console.error('Failed to increment site visits:', e);
     }
@@ -402,14 +402,7 @@ app.get('/comments/:artworkId', async (c) => {
   const comments = await db.prepare('SELECT * FROM comments WHERE artwork_id = ? ORDER BY created_at DESC')
     .all(artworkId);
     
-  const commentsWithLocation = await Promise.all((comments as any[]).map(async (comment) => {
-    return {
-      ...comment,
-      location: await getIpLocation(comment.ip_address)
-    };
-  }));
-    
-  return c.json(commentsWithLocation || []);
+  return c.json(comments || []);
 });
 
 app.post('/comments/:artworkId', async (c) => {
@@ -424,9 +417,12 @@ app.post('/comments/:artworkId', async (c) => {
   const id = crypto.randomUUID();
   const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || 'Unknown';
   const now = new Date().toISOString();
+  
+  // Resolve location immediately on post to avoid hitting rate limits on every view
+  const location = await getIpLocation(ip);
 
-  await db.prepare('INSERT INTO comments (id, artwork_id, content, ip_address, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, artworkId, content.trim(), ip, now);
+  await db.prepare('INSERT INTO comments (id, artwork_id, content, ip_address, location, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, artworkId, content.trim(), ip, location, now);
 
   return c.json({ success: true, id });
 });
@@ -461,6 +457,22 @@ app.get('/admin/settings', async (c) => {
     }
   });
   return c.json(result);
+});
+
+app.get('/admin/comments', async (c) => {
+  const db = await getDB();
+  const comments = await db.prepare('SELECT c.*, a.title as artwork_title FROM comments c LEFT JOIN artworks a ON c.artwork_id = a.id ORDER BY created_at DESC').all();
+  return c.json(comments || []);
+});
+
+app.post('/admin/comments/bulk-delete', async (c) => {
+  const db = await getDB();
+  const { ids } = await c.req.json();
+  if (!Array.isArray(ids) || ids.length === 0) return c.json({ error: 'No IDs provided' }, 400);
+  
+  const placeholders = ids.map(() => '?').join(',');
+  await db.prepare(`DELETE FROM comments WHERE id IN (${placeholders})`).run(...ids);
+  return c.json({ success: true });
 });
 
 app.post('/admin/settings', async (c) => {

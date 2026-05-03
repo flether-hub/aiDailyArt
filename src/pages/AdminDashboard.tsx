@@ -12,6 +12,8 @@ import {
   Save,
   Info,
   Trash2,
+  MessageSquare,
+  CheckSquare,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -34,6 +36,9 @@ export default function AdminDashboard() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [totalArtworks, setTotalArtworks] = useState(0);
+  const [activeTab, setActiveTab] = useState<'artworks' | 'comments'>('artworks');
+  const [allComments, setAllComments] = useState<any[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
   const limit = 12;
 
   const fetchJobStatus = async () => {
@@ -92,6 +97,48 @@ export default function AdminDashboard() {
     } catch (e) {}
   };
 
+  const fetchAdminComments = async () => {
+    setLoadingComments(true);
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const res = await fetch("/api/admin/comments", { headers });
+      const data = await res.json();
+      setAllComments(data);
+    } catch (e) {}
+    setLoadingComments(false);
+  };
+
+  const deleteComment = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/admin/comments/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setAllComments((prev) => prev.filter((c) => c.id !== id));
+      }
+    } catch (e) {}
+  };
+
+  const bulkDeleteComments = async () => {
+    if (!token || selectedIds.length === 0) return;
+    try {
+      const res = await fetch("/api/admin/comments/bulk-delete", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      if (res.ok) {
+        setAllComments((prev) => prev.filter((c) => !selectedIds.includes(c.id)));
+        setSelectedIds([]);
+      }
+    } catch (e) {}
+  };
+
   useEffect(() => {
     if (isLoadingAuth) return;
 
@@ -100,23 +147,28 @@ export default function AdminDashboard() {
       return;
     }
 
-    const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-
-    Promise.all([
-      fetch("/api/admin/settings", { headers }).then((r) => r.json()),
-      fetch("/api/keywords").then((r) => r.json()),
-    ]).then(([settingsData, keywordsData]) => {
-      setSettings(settingsData);
-      setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
-      setLoading(false);
-    });
+    if (token) {
+      const headers = { Authorization: `Bearer ${token}` };
+      Promise.all([
+        fetch("/api/admin/settings", { headers }).then((r) => r.json()),
+        fetch("/api/keywords").then((r) => r.json()),
+      ]).then(([settingsData, keywordsData]) => {
+        setSettings(settingsData);
+        setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }
   }, [isAdmin, isLoadingAuth, navigate, token]);
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchAdminArtworks(page);
+    if (isAdmin && token) {
+      if (activeTab === 'artworks') {
+        fetchAdminArtworks(page);
+      } else {
+        fetchAdminComments();
+      }
     }
-  }, [page, isAdmin, token]);
+  }, [page, isAdmin, token, activeTab]);
 
   const handleSettingsChange = (key: string, value: string) => {
     let newSettings = { ...settings, [key]: value, [`${key}Masked`]: value };
@@ -750,17 +802,38 @@ export default function AdminDashboard() {
 
         {/* Content Management */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit order-1 lg:order-2">
+          <div className="flex border-b border-slate-200 bg-slate-50/50">
+            <button
+              onClick={() => { setActiveTab('artworks'); setSelectedIds([]); }}
+              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'artworks' ? 'bg-white text-amber-600 border-b-2 border-amber-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+            >
+              <Library className="w-4 h-4" /> 藏品库
+            </button>
+            <button
+              onClick={() => { setActiveTab('comments'); setSelectedIds([]); }}
+              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'comments' ? 'bg-white text-amber-600 border-b-2 border-amber-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+            >
+              <MessageSquare className="w-4 h-4" /> 评论管理
+            </button>
+          </div>
           <div className="p-4 border-b border-slate-100 flex flex-row justify-between items-center bg-slate-50/50 gap-2">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <h2 className="text-sm sm:text-lg font-bold text-slate-800 flex items-center gap-1.5 sm:gap-2">
-                <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 藏品库管理
+                {activeTab === 'artworks' ? (
+                  <><Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 藏品库管理</>
+                ) : (
+                  <><MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 评论审查</>
+                )}
               </h2>
-              {artworks.length > 0 && (
+              {(activeTab === 'artworks' ? artworks.length : allComments.length) > 0 && (
                 <button
-                  onClick={toggleSelectAll}
+                  onClick={activeTab === 'artworks' ? toggleSelectAll : () => {
+                    if (selectedIds.length === allComments.length) setSelectedIds([]);
+                    else setSelectedIds(allComments.map(c => c.id));
+                  }}
                   className="text-[10px] sm:text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/50"
                 >
-                  {selectedIds.length === artworks.length
+                  {selectedIds.length === (activeTab === 'artworks' ? artworks.length : allComments.length)
                     ? "取消全选"
                     : "全选"}
                 </button>
@@ -769,152 +842,218 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {selectedIds.length > 0 && (
                 <button
-                  onClick={bulkDelete}
+                  onClick={activeTab === 'artworks' ? bulkDelete : bulkDeleteComments}
                   className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[10px] font-bold transition-colors shadow-xl"
                 >
                   <Trash2 className="w-3 h-3" /> 删除 ({selectedIds.length})
                 </button>
               )}
-              <button
-                onClick={triggerFetch}
-                disabled={fetchingWorks}
-                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-1.5 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
-                title="手动抓取新名画"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 sm:w-5 sm:h-5 ${fetchingWorks ? "animate-spin" : ""}`}
-                />
-              </button>
+              {activeTab === 'artworks' && (
+                <button
+                  onClick={triggerFetch}
+                  disabled={fetchingWorks}
+                  className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-1.5 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
+                  title="手动抓取新名画"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 sm:w-5 sm:h-5 ${fetchingWorks ? "animate-spin" : ""}`}
+                  />
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="flex flex-col divide-y divide-slate-100">
-            {artworks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
-                <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
-                  <Palette className="w-8 h-8 text-slate-300" />
+          <div className="flex flex-col divide-y divide-slate-100 min-h-[400px] overflow-y-auto">
+            {activeTab === 'artworks' ? (
+              artworks.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
+                  <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
+                    <Palette className="w-8 h-8 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-bold text-slate-500">暂无馆藏名画</p>
+                  <p className="text-xs mt-2 opacity-70">
+                    系统目前尚未抓取到名画内容，您可以等待后台任务或手动触发获取。
+                  </p>
                 </div>
-                <p className="text-sm font-bold text-slate-500">暂无馆藏名画</p>
-                <p className="text-xs mt-2 opacity-70">
-                  系统目前尚未抓取到名画内容，您可以等待后台任务或手动触发获取。
-                </p>
-              </div>
-            ) : (
-              artworks.map((item, index) => (
-                <div
-                  key={item.id}
-                  className={`flex flex-col sm:flex-row sm:items-center p-4 sm:p-4 gap-3 sm:gap-4 transition-colors ${index % 2 === 1 ? "bg-slate-50/30" : "bg-white"} hover:bg-slate-50`}
-                >
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className="flex items-center justify-center shrink-0 w-5 sm:w-6">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(item.id)}
-                        onChange={() => toggleSelect(item.id)}
-                        className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
-                      />
-                    </div>
-                    <div className="text-slate-400 font-mono text-xs sm:text-sm w-6 sm:w-8 shrink-0">
-                      {String(page * limit + index + 1).padStart(2, "0")}
-                    </div>
-                    <Link
-                      to={`/artwork/${item.id}`}
-                      className="shrink-0 w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-lg overflow-hidden hover:opacity-80 transition-opacity shadow-sm"
-                    >
-                      {item.image_url ? (
-                        <img
-                          src={item.image_url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
+              ) : (
+                artworks.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={`flex flex-col sm:flex-row sm:items-center p-4 sm:p-4 gap-3 sm:gap-4 transition-colors ${index % 2 === 1 ? "bg-slate-50/30" : "bg-white"} hover:bg-slate-50`}
+                  >
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="flex items-center justify-center shrink-0 w-5 sm:w-6">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(item.id)}
+                          onChange={() => toggleSelect(item.id)}
+                          className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-slate-200"></div>
+                      </div>
+                      <div className="text-slate-400 font-mono text-xs sm:text-sm w-6 sm:w-8 shrink-0">
+                        {String(page * limit + index + 1).padStart(2, "0")}
+                      </div>
+                      <Link
+                        to={`/artwork/${item.id}`}
+                        className="shrink-0 w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 rounded-lg overflow-hidden hover:opacity-80 transition-opacity shadow-sm"
+                      >
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-slate-200"></div>
+                        )}
+                      </Link>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center ml-1 sm:ml-0">
+                        <p className="font-bold text-sm sm:text-base text-slate-800 truncate">
+                          <Link
+                            to={`/artwork/${item.id}`}
+                            className="hover:text-amber-600 transition-colors"
+                          >
+                            {item.title}
+                          </Link>
+                          <span className="text-slate-500 font-medium">
+                            {" "}
+                            - {item.artist}
+                          </span>
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm font-mono text-slate-400 mt-1 sm:mt-1.5">
+                          <span className="text-slate-600 flex items-center gap-1.5 shrink-0">
+                            <Eye className="w-4 h-4" /> {item.views}
+                          </span>
+                          <span
+                            className="shrink-0 text-slate-500"
+                            title="收录时间"
+                          >
+                            收录:{" "}
+                            {new Date(
+                              item.created_at
+                                ? item.created_at +
+                                    (item.created_at.endsWith("Z") ? "" : "Z")
+                                : Date.now(),
+                            ).toLocaleString("zh-CN", {
+                              timeZone: "Asia/Shanghai",
+                              hour12: false,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end sm:w-auto">
+                      {reinterpretMessages[item.id] && (
+                        <div
+                          className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith("❌") ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200"}`}
+                        >
+                          <motion.span
+                            className="truncate"
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            key={reinterpretMessages[item.id]}
+                            title={reinterpretMessages[item.id]}
+                          >
+                            {reinterpretMessages[item.id]}
+                          </motion.span>
+                          {reinterpretMessages[item.id].startsWith("❌") && (
+                            <button
+                              onClick={() =>
+                                setReinterpretMessages((prev) => ({
+                                  ...prev,
+                                  [item.id]: "",
+                                }))
+                              }
+                              className="opacity-60 hover:opacity-100 flex-shrink-0"
+                              title="关闭"
+                            >
+                              &times;
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </Link>
-                    <div className="flex-1 min-w-0 flex flex-col justify-center ml-1 sm:ml-0">
-                      <p className="font-bold text-sm sm:text-base text-slate-800 truncate">
-                        <Link
-                          to={`/artwork/${item.id}`}
-                          className="hover:text-amber-600 transition-colors"
-                        >
-                          {item.title}
-                        </Link>
-                        <span className="text-slate-500 font-medium">
-                          {" "}
-                          - {item.artist}
-                        </span>
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm font-mono text-slate-400 mt-1 sm:mt-1.5">
-                        <span className="text-slate-600 flex items-center gap-1.5 shrink-0">
-                          <Eye className="w-4 h-4" /> {item.views}
-                        </span>
-                        <span
-                          className="shrink-0 text-slate-500"
-                          title="收录时间"
-                        >
-                          收录:{" "}
-                          {new Date(
-                            item.created_at
-                              ? item.created_at +
-                                  (item.created_at.endsWith("Z") ? "" : "Z")
-                              : Date.now(),
-                          ).toLocaleString("zh-CN", {
-                            timeZone: "Asia/Shanghai",
-                            hour12: false,
-                          })}
-                        </span>
+                      <button
+                        onClick={() => reinterpretArtwork(item.id)}
+                        disabled={reinterpretingId === item.id}
+                        className="text-[13px] sm:text-sm font-bold text-amber-600 hover:text-amber-800 transition-colors px-4 py-2 sm:py-1.5 rounded-lg hover:bg-amber-50 disabled:opacity-50 break-keep border border-amber-200 sm:border-none shadow-sm sm:shadow-none bg-amber-50/50 sm:bg-transparent"
+                      >
+                        {reinterpretingId === item.id
+                          ? "正在解读..."
+                          : "重新解读"}
+                      </button>
+                      <button
+                        onClick={() => deleteArtwork(item.id)}
+                        className="text-[13px] sm:text-sm font-bold text-red-500 hover:text-red-700 transition-colors px-4 py-2 sm:py-1.5 rounded-lg hover:bg-red-50 break-keep border border-red-200 sm:border-none shadow-sm sm:shadow-none bg-red-50/50 sm:bg-transparent ml-2"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : (
+              loadingComments ? (
+                 <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <RefreshCw className="w-10 h-10 text-amber-500 animate-spin opacity-20" />
+                  <p className="text-slate-400 font-serif italic">
+                    正在核审评论...
+                  </p>
+                </div>
+              ) : allComments.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4 grayscale opacity-40">
+                  <MessageSquare className="w-16 h-16 text-slate-300" />
+                  <p className="text-slate-400 font-serif italic">
+                    目前尚无评论，世界安宁
+                  </p>
+                </div>
+              ) : (
+                allComments.map((comment, index) => (
+                  <div
+                    key={comment.id}
+                    className={`flex flex-col p-4 gap-3 transition-colors ${index % 2 === 1 ? "bg-slate-50/30" : "bg-white"} hover:bg-slate-50`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex items-center justify-center shrink-0 w-6 mt-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(comment.id)}
+                          onChange={() => {
+                            if (selectedIds.includes(comment.id)) setSelectedIds(selectedIds.filter(id => id !== comment.id));
+                            else setSelectedIds([...selectedIds, comment.id]);
+                          }}
+                          className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                           <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                             来自馆藏: <Link to={`/artwork/${comment.artwork_id}`} className="text-amber-600 hover:underline">《{comment.artwork_title || '未知作品'}》</Link>
+                           </p>
+                           <span className="text-[10px] sm:text-xs font-mono text-slate-400">
+                             {new Date(comment.created_at).toLocaleString('zh-CN')}
+                           </span>
+                        </div>
+                        <div className="bg-white/50 p-3 rounded-lg border border-slate-100 text-slate-700 text-sm leading-relaxed mb-2">
+                          {comment.content}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-center gap-x-4 text-[10px] sm:text-xs text-slate-400 font-mono">
+                            <span>IP: {comment.ip_address}</span>
+                            <span>位置: {comment.location || '未知'}</span>
+                          </div>
+                          <button
+                            onClick={() => deleteComment(comment.id)}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                          >
+                            移除评论
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end sm:w-auto">
-                    {reinterpretMessages[item.id] && (
-                      <div
-                        className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith("❌") ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200"}`}
-                      >
-                        <motion.span
-                          className="truncate"
-                          initial={{ opacity: 0, x: 10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          key={reinterpretMessages[item.id]}
-                          title={reinterpretMessages[item.id]}
-                        >
-                          {reinterpretMessages[item.id]}
-                        </motion.span>
-                        {reinterpretMessages[item.id].startsWith("❌") && (
-                          <button
-                            onClick={() =>
-                              setReinterpretMessages((prev) => ({
-                                ...prev,
-                                [item.id]: "",
-                              }))
-                            }
-                            className="opacity-60 hover:opacity-100 flex-shrink-0"
-                            title="关闭"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => reinterpretArtwork(item.id)}
-                      disabled={reinterpretingId === item.id}
-                      className="text-[13px] sm:text-sm font-bold text-amber-600 hover:text-amber-800 transition-colors px-4 py-2 sm:py-1.5 rounded-lg hover:bg-amber-50 disabled:opacity-50 break-keep border border-amber-200 sm:border-none shadow-sm sm:shadow-none bg-amber-50/50 sm:bg-transparent"
-                    >
-                      {reinterpretingId === item.id
-                        ? "正在解读..."
-                        : "重新解读"}
-                    </button>
-                    <button
-                      onClick={() => deleteArtwork(item.id)}
-                      className="text-[13px] sm:text-sm font-bold text-red-500 hover:text-red-700 transition-colors px-4 py-2 sm:py-1.5 rounded-lg hover:bg-red-50 break-keep border border-red-200 sm:border-none shadow-sm sm:shadow-none bg-red-50/50 sm:bg-transparent ml-2"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))
+              )
             )}
           </div>
 

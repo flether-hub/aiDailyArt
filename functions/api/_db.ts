@@ -132,14 +132,26 @@ export async function initDB(db: DBClient) {
       artwork_id TEXT,
       content TEXT,
       ip_address TEXT,
+      location TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(artwork_id) REFERENCES artworks(id)
     )
   `).run();
   
+  try {
+    const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
+    const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
+    if (!hasLocation) {
+      await db.prepare("ALTER TABLE comments ADD COLUMN location TEXT").run();
+      console.log('Migrated comments: added location column');
+    }
+  } catch (e) {
+    // Standard ALTER TABLE might fail if column exists or PRAGMA not supported (D1 has limitations)
+  }
+  
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');
-  await insertSetting.run('model_id', 'gemini-1.5-flash');
+  await insertSetting.run('model_id', 'gemini-3-flash-preview');
   await insertSetting.run('interval_hours', '0');
   await insertSetting.run('interval_minutes', '30');
 }
