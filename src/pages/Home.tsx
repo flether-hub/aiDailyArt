@@ -29,7 +29,11 @@ export default function Home() {
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [totalArtworks, setTotalArtworks] = useState(0);
-  const limit = 13;
+  
+  const getPageInfo = (p: number) => {
+    if (p === 0) return { limit: 13, offset: 0 };
+    return { limit: 12, offset: 13 + (p - 1) * 12 };
+  };
 
   const fetchKeywords = async () => {
     try {
@@ -46,7 +50,7 @@ export default function Home() {
     try {
       setLoading(true);
       
-      const offset = currentPage * limit;
+      const { limit, offset } = getPageInfo(currentPage);
       let url = `/api/artworks?limit=${limit}&offset=${offset}`;
       if (currentKeyword) {
         url += `&keyword=${encodeURIComponent(currentKeyword)}`;
@@ -233,11 +237,11 @@ export default function Home() {
                          transition={{ delay: idx % 3 * 0.1 }}
                        >
                          <Link to={`/artwork/${item.id}`} className="group flex flex-col min-w-0">
-                             <div className="art-frame mb-8 overflow-hidden bg-slate-50 relative flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] md:aspect-[4/5]">
+                             <div className="art-frame mb-8 overflow-hidden bg-white relative flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] aspect-square md:aspect-[5/6]">
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
-                                className="block w-full max-w-full h-auto md:h-full object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
+                                className="block w-full max-w-[90%] max-h-[90%] object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
@@ -251,7 +255,7 @@ export default function Home() {
                                   }
                                 }}
                               />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none"></div>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/[0.02] transition-colors pointer-events-none"></div>
                             </div>
                             <div className="flex flex-col px-1">
                                <h3 className="text-xl font-serif font-bold text-slate-900 mb-2 group-hover:text-amber-800 transition-colors leading-snug line-clamp-2 h-14 flex items-start">
@@ -283,7 +287,7 @@ export default function Home() {
                         
                         <div className="flex items-center gap-1 px-4">
                           {(() => {
-                            const pageCount = Math.ceil(totalArtworks / limit);
+                            const pageCount = totalArtworks <= 13 ? 1 : 1 + Math.ceil((totalArtworks - 13) / 12);
                             if (pageCount === 0) return null;
                             let startPage = Math.max(0, page - 2);
                             let endPage = Math.min(pageCount - 1, page + 2);
@@ -311,7 +315,10 @@ export default function Home() {
 
                         <button 
                           onClick={() => setPage(page + 1)} 
-                          disabled={(page + 1) * limit >= totalArtworks}
+                          disabled={(() => {
+                            const { limit, offset } = getPageInfo(page);
+                            return offset + limit >= totalArtworks;
+                          })()}
                           className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                         >
                           ›
