@@ -92,7 +92,7 @@ export default function Home() {
   const gridItems = showHighlight ? artworks.slice(1) : artworks;
 
   return (
-    <div className="flex-1 flex flex-col pb-24 w-full">
+    <div className="flex-1 flex flex-col pb-24 w-full overflow-x-hidden">
       {/* Cinematic Hero Section */}
       <header className="relative w-full min-h-[280px] md:min-h-[350px] flex flex-col items-center justify-center overflow-hidden">
          {/* Artistic background blending */}
@@ -134,9 +134,9 @@ export default function Home() {
       </header>
 
       <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 md:px-12">
-        <div className="flex flex-col lg:flex-row gap-16 items-start">
+        <div className="flex flex-col lg:flex-row gap-6 md:gap-16 items-start min-w-0 w-full">
           {/* Main Content Area */}
-          <div className="flex-1 order-1 lg:order-1">
+          <div className="flex-1 min-w-0 w-full order-1 lg:order-1">
             {loading && artworks.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-40 gap-4">
                 <div className="w-12 h-12 border-2 border-amber-800 border-t-transparent rounded-full animate-spin"></div>
@@ -237,7 +237,7 @@ export default function Home() {
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
-                                className="block w-full h-auto grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
+                                className="block w-full max-w-full h-auto object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
