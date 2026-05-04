@@ -39,6 +39,43 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'artworks' | 'comments'>('artworks');
   const [allComments, setAllComments] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [bannedIps, setBannedIps] = useState<string[]>([]);
+
+  const fetchBannedIps = async () => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const res = await fetch("/api/admin/banned-ips", { headers });
+      const data = await res.json();
+      setBannedIps(Array.isArray(data) ? data : []);
+    } catch (e) {}
+  };
+
+  const toggleBanIp = async (ip: string) => {
+    if (!token) return;
+    try {
+      const isBanned = bannedIps.includes(ip);
+      const url = `/api/admin/banned-ips${isBanned ? `/${ip}` : ''}`;
+      const method = isBanned ? 'DELETE' : 'POST';
+      const body = isBanned ? undefined : JSON.stringify({ ip_address: ip });
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body
+      });
+      
+      if (res.ok) {
+        if (isBanned) {
+          setBannedIps(prev => prev.filter(i => i !== ip));
+        } else {
+          setBannedIps(prev => [...prev, ip]);
+        }
+      }
+    } catch (e) {}
+  };
   const limit = 12;
 
   const fetchJobStatus = async () => {
@@ -166,6 +203,7 @@ export default function AdminDashboard() {
         fetchAdminArtworks(page);
       } else {
         fetchAdminComments();
+        fetchBannedIps();
       }
     }
   }, [page, isAdmin, token, activeTab]);
@@ -1047,10 +1085,18 @@ export default function AdminDashboard() {
                         <div className="bg-white/50 p-3 rounded-lg border border-slate-100 text-slate-700 text-sm leading-relaxed mb-2">
                           {comment.content}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-wrap items-center gap-x-4 text-[10px] sm:text-xs text-slate-400 font-mono">
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs text-slate-400 font-mono">
                             <span>IP: {comment.ip_address}</span>
                             <span>位置: {comment.location || '未知'}</span>
+                            {comment.ip_address && comment.ip_address !== 'Unknown' && (
+                              <button
+                                onClick={() => toggleBanIp(comment.ip_address)}
+                                className={`px-2 py-0.5 rounded border transition-colors ${bannedIps.includes(comment.ip_address) ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white text-slate-500 hover:bg-slate-50 border-slate-200'}`}
+                              >
+                                {bannedIps.includes(comment.ip_address) ? '已禁止 (点击解除)' : '封禁IP'}
+                              </button>
+                            )}
                           </div>
                           <button
                             onClick={() => deleteComment(comment.id)}

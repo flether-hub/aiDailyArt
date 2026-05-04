@@ -127,6 +127,13 @@ export async function initDB(db: DBClient) {
   `).run();
 
   await db.prepare(`
+    CREATE TABLE IF NOT EXISTS banned_ips (
+      ip_address TEXT PRIMARY KEY,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS comments (
       id TEXT PRIMARY KEY,
       artwork_id TEXT,

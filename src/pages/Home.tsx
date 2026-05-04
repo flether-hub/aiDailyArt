@@ -232,11 +232,11 @@ export default function Home() {
                          transition={{ delay: idx % 3 * 0.1 }}
                        >
                          <Link to={`/artwork/${item.id}`} className="group flex flex-col">
-                            <div className="art-frame aspect-[3/4] mb-8 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
+                            <div className="art-frame sm:aspect-[3/4] mb-8 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
-                                className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" 
+                                className="w-full h-auto sm:h-full object-contain sm:object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" 
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;

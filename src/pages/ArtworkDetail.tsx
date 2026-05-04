@@ -18,6 +18,7 @@ export default function ArtworkDetail() {
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedComments, setSelectedComments] = useState<Set<string>>(new Set());
+  const [errorModalMsg, setErrorModalMsg] = useState('');
   
   // Custom Delete Confirmation State
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -73,6 +74,13 @@ export default function ArtworkDetail() {
       if (res.ok) {
         setNewComment('');
         await fetchComments();
+      } else {
+        const errorData = await res.json().catch(() => null);
+        if (errorData?.error) {
+          setErrorModalMsg(errorData.error);
+        } else {
+          setErrorModalMsg("发布评论失败，请稍后再试。");
+        }
       }
     } catch (e) {
       console.error('Failed to post comment', e);
@@ -165,6 +173,43 @@ export default function ArtworkDetail() {
 
   return (
     <>
+      {/* Error Modal */}
+      <AnimatePresence>
+        {!!errorModalMsg && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setErrorModalMsg('')}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
+            >
+              <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                <X className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">发布未能成功</h3>
+              <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
+                {errorModalMsg}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setErrorModalMsg('')}
+                  className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                >
+                  我知道了
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Confirmation Modal */}
       <AnimatePresence>
         {showConfirmModal && (

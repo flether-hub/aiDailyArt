@@ -438,7 +438,29 @@ app.post('/comments/:artworkId', async (c) => {
   }
 
   const id = crypto.randomUUID();
-  const ip = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || 'Unknown';
+  const rawIp = c.req.header('CF-Connecting-IP') || c.req.header('x-forwarded-for') || 'Unknown';
+  const ip = rawIp.split(',')[0].trim();
+  
+  if (ip !== 'Unknown') {
+    // Check if banned
+    const banned = await db.prepare('SELECT 1 FROM banned_ips WHERE ip_address = ?').get(ip);
+    if (banned) {
+      return c.json({ error: '您的IP已被禁止评论。', errorCode: 'IP_BANNED' }, 403);
+    }
+
+    // Check artwork limit
+    const artworkLimit = await db.prepare('SELECT COUNT(*) as count FROM comments WHERE artwork_id = ? AND ip_address = ?').get(artworkId, ip);
+    if (artworkLimit && (artworkLimit as any).count >= 2) {
+      return c.json({ error: '您在此画作下的评论次数已达上限 (最多2次)', errorCode: 'ARTWORK_LIMIT_EXCEEDED' }, 429);
+    }
+    
+    // Check daily limit
+    const dayLimit = await db.prepare("SELECT COUNT(*) as count FROM comments WHERE ip_address = ? AND created_at >= date('now')").get(ip);
+    if (dayLimit && (dayLimit as any).count >= 10) {
+      return c.json({ error: '您今日的评论次数已达上限 (每天最多10次)', errorCode: 'DAILY_LIMIT_EXCEEDED' }, 429);
+    }
+  }
+
   const now = new Date().toISOString();
   
   // Resolve location immediately on post to avoid hitting rate limits on every view
@@ -448,6 +470,28 @@ app.post('/comments/:artworkId', async (c) => {
     .run(id, artworkId, content.trim(), ip, location, now);
 
   return c.json({ success: true, id });
+});
+
+app.get('/admin/banned-ips', async (c) => {
+  const db = await getDB();
+  const banned = await db.prepare('SELECT ip_address FROM banned_ips').all();
+  const ips = Array.isArray(banned) ? banned.map((b: any) => b.ip_address) : [];
+  return c.json(ips);
+});
+
+app.post('/admin/banned-ips', async (c) => {
+  const db = await getDB();
+  const { ip_address } = await c.req.json();
+  if (!ip_address) return c.json({ error: 'IP is required' }, 400);
+  await db.prepare('INSERT OR IGNORE INTO banned_ips (ip_address) VALUES (?)').run(ip_address);
+  return c.json({ success: true });
+});
+
+app.delete('/admin/banned-ips/:ip', async (c) => {
+  const db = await getDB();
+  const ip = c.req.param('ip');
+  await db.prepare('DELETE FROM banned_ips WHERE ip_address = ?').run(ip);
+  return c.json({ success: true });
 });
 
 app.delete('/admin/comments/:id', async (c) => {
