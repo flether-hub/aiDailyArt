@@ -233,11 +233,11 @@ export default function Home() {
                          transition={{ delay: idx % 3 * 0.1 }}
                        >
                          <Link to={`/artwork/${item.id}`} className="group flex flex-col min-w-0">
-                             <div className="art-frame mb-8 overflow-hidden bg-slate-50 relative block transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
+                             <div className="art-frame mb-8 overflow-hidden bg-slate-50 relative flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)] md:aspect-[4/5]">
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
-                                className="block w-full max-w-full h-auto object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
+                                className="block w-full max-w-full h-auto md:h-full object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
