@@ -162,12 +162,12 @@ export default function Home() {
                     </div>
                     
                     <Link to={`/artwork/${highlight.id}`} className="group block relative">
-                      <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500">
-                        <div className="lg:w-3/5 relative overflow-hidden bg-slate-100 flex items-center justify-center p-8">
+                      <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500 min-w-0">
+                        <div className="lg:w-3/5 min-w-0 relative overflow-hidden bg-slate-100 flex items-center justify-center p-4 md:p-8">
                            <img 
                              src={highlight.image_url} 
                              alt={highlight.title} 
-                             className="relative z-10 max-h-[500px] object-contain shadow-2xl transition-transform duration-700 group-hover:scale-105" 
+                             className="relative z-10 w-full max-h-[400px] md:max-h-[500px] object-contain shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]" 
                              referrerPolicy="no-referrer" 
                            />
                         </div>
@@ -226,17 +226,18 @@ export default function Home() {
                     {gridItems.map((item, idx) => (
                        <motion.div
                          key={item.id}
+                         className="min-w-0"
                          initial={{ opacity: 0, y: 20 }}
                          whileInView={{ opacity: 1, y: 0 }}
                          viewport={{ once: true }}
                          transition={{ delay: idx % 3 * 0.1 }}
                        >
-                         <Link to={`/artwork/${item.id}`} className="group flex flex-col">
-                            <div className="art-frame sm:aspect-[3/4] mb-8 overflow-hidden bg-slate-50 flex items-center justify-center relative group">
+                         <Link to={`/artwork/${item.id}`} className="group flex flex-col min-w-0">
+                             <div className="art-frame mb-8 overflow-hidden bg-slate-50 relative block transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
                               <img 
                                 src={item.image_url} 
                                 alt={item.title} 
-                                className="w-full h-auto sm:h-full object-contain sm:object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-110" 
+                                className="block w-full h-auto grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700" 
                                 referrerPolicy="no-referrer" 
                                 onError={(e) => {
                                   e.currentTarget.onerror = null;
