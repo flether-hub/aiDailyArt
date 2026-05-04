@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import { Palette, LogOut, Activity, LayoutGrid } from 'lucide-react';
+import { Palette, LogOut, Activity, Settings } from 'lucide-react';
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -313,7 +313,7 @@ function Navbar() {
                 className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
                 title="管理"
               >
-                <LayoutGrid className="w-5 h-5" />
+                <Settings className="w-5 h-5" />
               </Link>
               <button 
                 onClick={logout}
@@ -329,7 +329,7 @@ function Navbar() {
               className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
               title="管理"
             >
-              <LayoutGrid className="w-5 h-5" />
+              <Settings className="w-5 h-5" />
             </Link>
           )}
         </div>

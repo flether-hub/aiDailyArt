@@ -6,7 +6,7 @@ pages_build_output_dir = "dist"
 [vars]
 # Add these in Cloudflare Dashboard -> Workers & Pages -> Functions -> Variables
 # ADMIN_PASSWORD = "..."
-# APP_URL = "https://aidailyart.pages.dev"
+# APP_URL = "https://art.fanso.site"
 
 [[d1_databases]]
 binding = "ART_GALLERY_DB"
