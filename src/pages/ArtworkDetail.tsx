@@ -269,7 +269,7 @@ export default function ArtworkDetail() {
             {/* Left Column: Image (Sticky) */}
             <div className="lg:col-span-5 xl:col-span-6 min-w-0">
               <div className="sticky top-28 cursor-zoom-in group relative" onClick={() => setIsZoomed(true)}>
-                <div className="art-frame bg-white overflow-hidden p-3 shadow-md border border-slate-200/60 relative block group-hover:shadow-xl transition-shadow duration-300 min-h-[300px]">
+                <div className="art-frame bg-white overflow-hidden p-3 shadow-md border border-slate-200/60 relative block group-hover:shadow-xl transition-shadow duration-300 sm:min-h-[300px] flex items-center justify-center">
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
