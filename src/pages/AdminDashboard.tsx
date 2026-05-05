@@ -779,8 +779,8 @@ export default function AdminDashboard() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">D</div>
-                      <span className="text-sm font-bold text-slate-700">DashScope / 通义</span>
+                      <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">B</div>
+                      <span className="text-sm font-bold text-slate-700">阿里云百炼</span>
                     </div>
                     <button 
                       onClick={() => handleSettingsChange("ai_provider", "dashscope")}
@@ -812,7 +812,7 @@ export default function AdminDashboard() {
                           value={settings.dashscope_api_key || ""}
                           onChange={(e) => handleSettingsChange("dashscope_api_key", e.target.value)}
                           className="w-full bg-white border border-slate-200 text-xs rounded pl-2 pr-8 py-1.5 outline-none focus:ring-1 focus:ring-amber-500/30"
-                          placeholder="请输入 DashScope API 密钥"
+                          placeholder="请输入阿里云百炼 API 密钥"
                         />
                         <button 
                           onClick={() => setShowKeys(prev => ({ ...prev, dashscope: !prev.dashscope }))}

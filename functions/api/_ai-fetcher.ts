@@ -336,7 +336,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       const env = getCloudEnv();
       let aiKey = userApiKey;
       const isAli = provider === 'dashscope' || provider === 'bailian';
-      const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
+      const providerName = isAli ? '阿里云百炼' : 'Google Gemini';
 
       // Use environment key as fallback for Gemini in AI Studio
       if (!isAli && (!aiKey || aiKey.includes('***'))) {
