@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
-import { Palette, LogOut, Activity, Settings } from 'lucide-react';
+import { Palette, LogOut, Activity, Settings, Heart, X } from 'lucide-react';
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
@@ -217,9 +217,12 @@ function GalleryLogo() {
   );
 }
 
+import { createPortal } from 'react-dom';
+
 function Navbar() {
   const { isAdmin, logout } = useAuth();
   const [visits, setVisits] = useState<number | null>(null);
+  const [showDonation, setShowDonation] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -245,10 +248,12 @@ function Navbar() {
         <Link to="/" className="flex items-center gap-3 group shrink-0">
           <GalleryLogo />
           <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-tighter font-serif uppercase leading-tight brush-header">
-              AI 每日画廊
+            <h1 className="text-xl font-black tracking-widest font-serif uppercase leading-tight brush-header">
+              每日艺术画廊
             </h1>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-0.5">人工智能 策展赏析</span>
+            <div className="flex justify-between w-full text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+              <span>人</span><span>工</span><span>智</span><span>能</span><span>·</span><span>策</span><span>展</span><span>赏</span><span>析</span>
+            </div>
           </div>
         </Link>
         
@@ -296,44 +301,120 @@ function Navbar() {
           </svg>
         </div>
 
-        <div className="flex items-center gap-6 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           {visits !== null && (
-            <div className="hidden md:flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-slate-500">
+            <div className="hidden md:flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-slate-500 mr-2">
               <Activity className="w-4 h-4 text-emerald-500 animate-pulse" />
               累计访客: {visits.toLocaleString()}
             </div>
           )}
           
-          <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
+          {visits !== null && <div className="h-4 w-px bg-slate-200 hidden md:block mx-1"></div>}
 
-          {isAdmin ? (
-            <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button 
+              onClick={() => setShowDonation(true)}
+              className="text-red-500 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
+              title="支持我们"
+            >
+              <Heart className="w-5 h-5 fill-current" />
+            </button>
+
+            {isAdmin ? (
+              <div className="flex items-center gap-1 sm:gap-2">
+                <Link 
+                  to="/admin/dashboard" 
+                  className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+                  title="管理"
+                >
+                  <Settings className="w-5 h-5" />
+                </Link>
+                <button 
+                  onClick={logout}
+                  className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
+                  title="退出登录"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            ) : (
               <Link 
-                to="/admin/dashboard" 
-                className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
+                to="/admin/login" 
+                className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
                 title="管理"
               >
                 <Settings className="w-5 h-5" />
               </Link>
-              <button 
-                onClick={logout}
-                className="text-red-400 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"
-                title="退出登录"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          ) : (
-            <Link 
-              to="/admin/login" 
-              className="text-slate-400 hover:text-slate-900 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-slate-100"
-              title="管理"
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Donation Modal */}
+      {createPortal(
+        <AnimatePresence>
+          {showDonation && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                className="relative w-full max-w-sm bg-[#f1f2f6] rounded-2xl p-6 sm:p-8 flex flex-col items-center overflow-hidden"
+                style={{ boxShadow: '0 20px 40px -10px rgba(0,0,0,0.2)' }}
+              >
+                <button
+                  onClick={() => setShowDonation(false)}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/50 transition-colors"
+                  title="关闭"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6 shrink-0">
+                  <Heart className="w-8 h-8 text-red-500 fill-current" strokeWidth={2.5} />
+                </div>
+
+                <h2 className="text-2xl font-serif font-black text-slate-800 mb-3 tracking-wide">支持我们的发展</h2>
+                
+                <p className="text-sm text-slate-500 text-center mb-8 leading-relaxed px-2 border-b border-slate-200 pb-8">
+                  感谢您使用 <strong>每日艺术画廊</strong>。本站算力与存储均自费承担。打赏将全额用于抵扣成本，助力项目长存。愿您平安喜乐！
+                </p>
+
+                <div className="bg-white rounded-xl p-4 w-full flex flex-col items-center shadow-sm">
+                  <p className="text-xs text-slate-500 mb-4 tracking-widest uppercase">微信扫码赞助</p>
+                  <div className="w-48 h-48 bg-slate-100 rounded-lg flex items-center justify-center mb-4 overflow-hidden border border-slate-100">
+                    <img src="/payment.jpg" alt="微信收款码" className="w-full h-full object-cover" />
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = '/payment.jpg';
+                      link.download = 'payment.jpg';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="w-full py-2.5 bg-[#1e293b] hover:bg-[#0f172a] text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    保存收款码为图片
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-slate-400 mt-6 tracking-wide text-center">
+                  您的每一分心意，都是我们继续前行的动力
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </header>
   );
 }
@@ -407,7 +488,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2 sm:gap-6 w-full max-w-lg">
               <div className="h-px flex-1 bg-slate-200"></div>
               <p className="text-[10px] sm:text-xs font-black text-slate-900 uppercase tracking-[0.2em] sm:tracking-[0.5em] leading-relaxed whitespace-nowrap">
-                AI 每日画廊 &copy; {new Date().getFullYear()} 
+                每日艺术画廊 &copy; {new Date().getFullYear()} 
               </p>
               <div className="h-px flex-1 bg-slate-200"></div>
             </div>

@@ -49,6 +49,14 @@ export default function ArtworkDetail() {
         const item = await resArt.json();
         setArtwork(item);
         
+        // Update SEO metadata
+        document.title = `${item.title_zh || item.title} - 每日艺术画廊`;
+        const metaDescription = document.querySelector('meta[name="description"]');
+        if (metaDescription) {
+          const intro = item.summary || item.title_zh || item.title;
+          metaDescription.setAttribute("content", intro.length > 150 ? intro.substring(0, 150) + "..." : intro);
+        }
+
         // Fetch comments in parallel
         fetchComments();
       } catch (e) {
@@ -58,6 +66,11 @@ export default function ArtworkDetail() {
       }
     };
     fetchAll();
+    
+    // Cleanup to default
+    return () => {
+      document.title = "每日艺术画廊 - 人工智能策展赏析";
+    };
   }, [id]);
 
   const handleCommentSubmit = async (e: React.FormEvent) => {

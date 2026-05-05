@@ -73,6 +73,12 @@ export default function Home() {
   };
 
   useEffect(() => {
+    document.title = "每日艺术画廊 - 人工智能策展赏析";
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute("content", "探索永恒经典与人工智能的碰撞，本馆致力于通过尖端 AI 技术重新发现世界艺术遗产，每日为您呈现跨越时空的艺术盛宴。");
+    }
+    
     fetchKeywords();
   }, []);
 
