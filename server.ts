@@ -1,3 +1,4 @@
+console.log('Starting server in', process.env.NODE_ENV, 'mode...');
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { getRequestListener } from "@hono/node-server";

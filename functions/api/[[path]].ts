@@ -211,6 +211,10 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
         const modelId = (await getSetting(`${provider}_model_id`))?.value || (await getSetting('model_id'))?.value;
         const apiKey = (await getSetting(`${provider}_api_key`))?.value || (await getSetting('api_key'))?.value;
 
+        // Log for debugging (masked)
+        const maskedKey = apiKey ? (apiKey.length > 8 ? apiKey.slice(0, 4) + '...' + apiKey.slice(-4) : '***') : 'NONE';
+        console.log(`[Reinterpret] Using provider: ${provider}, model: ${modelId}, key: ${maskedKey}`);
+
         const { generateDetailedInterpretation } = await import('./_ai-fetcher');
         
         const notify = async (msg: string, isError: boolean = false) => {
@@ -516,11 +520,10 @@ app.get('/admin/settings', async (c) => {
   const settings = await db.prepare('SELECT * FROM settings').all();
   const result: any = {};
   (settings || []).forEach((s: any) => {
-    if ((s.key === 'api_key' || s.key.endsWith('_api_key')) && s.value) {
+    if ((s.key === 'api_key' || s.key.endsWith('_api_key')) && s.value && s.value.length >= 8) {
       // Mask the actual API key to prevent it from leaking in preview mode
-      const maskedValue = '********' + s.value.slice(-4);
+      const maskedValue = '*'.repeat(s.value.length - 4) + s.value.slice(-4);
       result[s.key] = maskedValue;
-      result[s.key + 'Masked'] = maskedValue;
     } else {
       result[s.key] = s.value;
     }
@@ -536,18 +539,29 @@ app.get('/admin/comments', async (c) => {
 
 app.post('/admin/settings', async (c) => {
   const db = await getDB();
-  const body = await c.req.json();
-  for (const [key, value] of Object.entries(body)) {
-    // Skip helper keys for UI
-    if (key.endsWith('Masked')) continue;
-    
-    // Prevent overriding with the masked value
-    if ((key === 'api_key' || key.endsWith('_api_key')) && typeof value === 'string' && value.startsWith('********')) {
-      continue;
+  try {
+    const body = await c.req.json();
+    for (const [key, value] of Object.entries(body)) {
+      // Skip helper keys for UI
+      if (key.endsWith('Masked')) continue;
+      
+      // Prevent overriding with the masked value
+      if ((key === 'api_key' || key.endsWith('_api_key')) && typeof value === 'string' && value.includes('***')) {
+        console.log(`[Admin] Skipping masked API key for: ${key}`);
+        continue;
+      }
+      
+      if (key.includes('api_key')) {
+        console.log(`[Admin] Saving new API key for: ${key} (length: ${String(value).length})`);
+      }
+      
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value === null ? null : String(value));
     }
-    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
+    return c.json({ success: true });
+  } catch (err: any) {
+    console.error('Settings save error:', err);
+    return c.json({ success: false, message: err.message }, 500);
   }
-  return c.json({ success: true });
 });
 
 app.post('/admin/trigger-fetch', async (c) => {

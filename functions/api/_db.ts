@@ -158,9 +158,11 @@ export async function initDB(db: DBClient) {
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
   await insertSetting.run('ai_provider', 'gemini');
-  await insertSetting.run('model_id', 'gemini-3-flash-preview');
+  await insertSetting.run('gemini_model_id', 'gemini-1.5-flash');
+  await insertSetting.run('dashscope_model_id', 'qwen-max');
   await insertSetting.run('interval_hours', '0');
   await insertSetting.run('interval_minutes', '30');
+  await insertSetting.run('enabled_auto_fetch', 'true');
 }
 
 export default {

@@ -30,6 +30,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<any>({});
   const [artworks, setArtworks] = useState<any[]>([]);
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [keywords, setKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -211,22 +212,24 @@ export default function AdminDashboard() {
   const handleSettingsChange = (key: string, value: string) => {
     let newSettings = { ...settings };
     
-    // If updating model_id/api_key, save them with provider prefix
-    if (key === "model_id" || key === "api_key") {
-       newSettings[`${settings.ai_provider || 'gemini'}_${key}`] = value;
-       newSettings[`${settings.ai_provider || 'gemini'}_${key}Masked`] = value; // Also update masked for UI
+    // Support direct updates for provider-specific keys
+    if (key.includes("_api_key") || key.includes("_model_id")) {
+      newSettings[key] = value;
+      // Also update masked version if it's an API key
+      if (key.includes("_api_key")) {
+        newSettings[`${key}Masked`] = value;
+      }
     } else {
-       newSettings[key] = value;
+      newSettings[key] = value;
     }
     
-    // Automatically handle logical defaults when provider changes
+    // Special handling for provider switch defaults if needed
     if (key === "ai_provider") {
       newSettings.ai_provider = value;
-      // When switching providers, ensure we have defaults for them if not set
       if (value === "gemini" && !newSettings.gemini_model_id) {
-        newSettings.gemini_model_id = "gemini-2.0-flash";
+        newSettings.gemini_model_id = "gemini-1.5-flash";
       } else if (value === "dashscope" && !newSettings.dashscope_model_id) {
-        newSettings.dashscope_model_id = "qwen3.6-max-preview";
+        newSettings.dashscope_model_id = "qwen-max";
       }
     }
     
@@ -248,22 +251,44 @@ export default function AdminDashboard() {
   const saveSettings = async () => {
     const hours = parseInt(settings.interval_hours || "0", 10);
     const mins = parseInt(settings.interval_minutes || "0", 10);
-    if (isNaN(hours) || isNaN(mins) || hours * 60 + mins < 30) {
+    if (isNaN(hours) || isNaN(mins) || (hours * 60 + mins < 30 && settings.enabled_auto_fetch !== "false")) {
       showToast("自动抓取间隔不能小于30分钟", true);
       return;
     }
 
     setSavingSettings(true);
-    await fetch("/api/admin/settings", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(settings),
-    });
-    setSavingSettings(false);
-    showToast("配置已成功保存");
+    try {
+      // Ensure we send the provider even if it was just using the default
+      const settingsToSave = {
+        ...settings,
+        ai_provider: settings.ai_provider || "gemini"
+      };
+
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(settingsToSave),
+      });
+
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || "保存失败");
+      }
+
+      setSavingSettings(false);
+      showToast("配置已成功保存");
+      
+      // Refresh settings from server to get masked keys correctly
+      const headers = { Authorization: `Bearer ${token}` };
+      const updatedSettings = await fetch("/api/admin/settings", { headers }).then(r => r.json());
+      setSettings(updatedSettings);
+    } catch (e: any) {
+      setSavingSettings(false);
+      showToast(`保存失败: ${e.message}`, true);
+    }
   };
 
   const triggerFetch = async () => {
@@ -272,7 +297,12 @@ export default function AdminDashboard() {
     try {
       const provider = settings.ai_provider || 'gemini';
       const modelId = settings[`${provider}_model_id`] || "";
-      const apiKey = settings[`${provider}_api_key`] || "";
+      let apiKey = settings[`${provider}_api_key`] || "";
+      
+      // Don't send masked keys to the server
+      if (apiKey.startsWith('********')) {
+        apiKey = "";
+      }
 
       const res = await fetch("/api/admin/trigger-fetch", {
         method: "POST",
@@ -681,59 +711,119 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    解读引擎 (AI Provider)
-                  </label>
-                  <select
-                    value={settings.ai_provider || "gemini"}
-                    onChange={(e) =>
-                      handleSettingsChange("ai_provider", e.target.value)
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20"
-                  >
-                    <option value="gemini">Google Gemini (推荐)</option>
-                    <option value="dashscope">
-                      阿里百炼 / 通义千问 (DashScope)
-                    </option>
-                  </select>
+              <div className="p-4 space-y-6">
+                {/* Gemini Config Section */}
+                <div 
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    (settings.ai_provider || "gemini") === "gemini" 
+                    ? "border-amber-400 bg-amber-50/10 shadow-sm" 
+                    : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">G</div>
+                      <span className="text-sm font-bold text-slate-700">Google Gemini</span>
+                    </div>
+                    <button 
+                      onClick={() => handleSettingsChange("ai_provider", "gemini")}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
+                        (settings.ai_provider || "gemini") === "gemini"
+                        ? "bg-amber-500 text-white"
+                        : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                      }`}
+                    >
+                      {(settings.ai_provider || "gemini") === "gemini" ? "当前激活" : "选中此引擎"}
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Model ID</label>
+                      <input
+                        value={settings.gemini_model_id || ""}
+                        onChange={(e) => handleSettingsChange("gemini_model_id", e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-xs rounded px-2 py-1.5 font-mono outline-none focus:ring-1 focus:ring-amber-500/30"
+                        placeholder="gemini-1.5-flash"
+                      />
+                    </div>
+                    <div className="space-y-1 relative">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">API Key</label>
+                      <div className="relative">
+                        <input
+                          type={showKeys["gemini"] ? "text" : "password"}
+                          value={settings.gemini_api_key || ""}
+                          onChange={(e) => handleSettingsChange("gemini_api_key", e.target.value)}
+                          className="w-full bg-white border border-slate-200 text-xs rounded pl-2 pr-8 py-1.5 outline-none focus:ring-1 focus:ring-amber-500/30"
+                          placeholder="请输入 Gemini API 密钥"
+                        />
+                        <button 
+                          onClick={() => setShowKeys(prev => ({ ...prev, gemini: !prev.gemini }))}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                          title={showKeys["gemini"] ? "隐藏密钥" : "显示密钥"}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    模型标识 (Model ID)
-                  </label>
-                  <input
-                    value={settings[`${settings.ai_provider || 'gemini'}_model_id`] || ""}
-                    onChange={(e) =>
-                      handleSettingsChange("model_id", e.target.value)
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 font-mono outline-none focus:ring-2 focus:ring-amber-500/20"
-                    placeholder={
-                      settings.ai_provider === "gemini"
-                        ? "gemini-2.0-flash"
-                        : "qwen3.6-max-preview"
-                    }
-                  />
-                </div>
- 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase">
-                    API 密钥 (加密存储)
-                  </label>
-                  <input
-                    type="password"
-                    value={settings[`${settings.ai_provider || 'gemini'}_api_keyMasked`] || ""}
-                    onChange={(e) =>
-                      handleSettingsChange("api_key", e.target.value)
-                    }
-                    className="w-full bg-slate-50 border border-slate-200 text-sm rounded px-3 py-2 outline-none focus:ring-2 focus:ring-amber-500/20"
-                    placeholder="请输入您的 API 密钥"
-                  />
-                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> API 密钥必须在此设置才能使用 AI 解读功能
-                  </p>
+                {/* DashScope Config Section */}
+                <div 
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    settings.ai_provider === "dashscope" 
+                    ? "border-amber-400 bg-amber-50/10 shadow-sm" 
+                    : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">D</div>
+                      <span className="text-sm font-bold text-slate-700">DashScope / 通义</span>
+                    </div>
+                    <button 
+                      onClick={() => handleSettingsChange("ai_provider", "dashscope")}
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
+                        settings.ai_provider === "dashscope"
+                        ? "bg-amber-500 text-white"
+                        : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                      }`}
+                    >
+                      {settings.ai_provider === "dashscope" ? "当前激活" : "选中此引擎"}
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Model ID</label>
+                      <input
+                        value={settings.dashscope_model_id || ""}
+                        onChange={(e) => handleSettingsChange("dashscope_model_id", e.target.value)}
+                        className="w-full bg-white border border-slate-200 text-xs rounded px-2 py-1.5 font-mono outline-none focus:ring-1 focus:ring-amber-500/30"
+                        placeholder="qwen-max"
+                      />
+                    </div>
+                    <div className="space-y-1 relative">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">API Key</label>
+                      <div className="relative">
+                        <input
+                          type={showKeys["dashscope"] ? "text" : "password"}
+                          value={settings.dashscope_api_key || ""}
+                          onChange={(e) => handleSettingsChange("dashscope_api_key", e.target.value)}
+                          className="w-full bg-white border border-slate-200 text-xs rounded pl-2 pr-8 py-1.5 outline-none focus:ring-1 focus:ring-amber-500/30"
+                          placeholder="请输入 DashScope API 密钥"
+                        />
+                        <button 
+                          onClick={() => setShowKeys(prev => ({ ...prev, dashscope: !prev.dashscope }))}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                          title={showKeys["dashscope"] ? "隐藏密钥" : "显示密钥"}
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="pt-2 space-y-2 border-t border-slate-100">
@@ -741,10 +831,10 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={settings.use_min_interval !== "false"}
+                        checked={settings.enabled_auto_fetch !== "false"}
                         onChange={(e) =>
                           handleSettingsChange(
-                            "use_min_interval",
+                            "enabled_auto_fetch",
                             e.target.checked ? "true" : "false",
                           )
                         }
@@ -762,7 +852,7 @@ export default function AdminDashboard() {
                           <input
                             type="number"
                             min="0"
-                            disabled={settings.use_min_interval === "false"}
+                            disabled={settings.enabled_auto_fetch === "false"}
                             value={settings.interval_hours ?? "0"}
                             onChange={(e) =>
                               handleSettingsChange(
@@ -781,7 +871,7 @@ export default function AdminDashboard() {
                             type="number"
                             min="0"
                             max="59"
-                            disabled={settings.use_min_interval === "false"}
+                            disabled={settings.enabled_auto_fetch === "false"}
                             value={settings.interval_minutes ?? "30"}
                             onChange={(e) =>
                               handleSettingsChange(
@@ -978,58 +1068,59 @@ export default function AdminDashboard() {
                             - {item.artist}
                           </span>
                         </p>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm font-mono text-slate-400 mt-1 sm:mt-1.5">
-                          <span className="text-slate-600 flex items-center gap-1.5 shrink-0">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-slate-400 mt-1 sm:mt-1.5">
+                          <span className="text-slate-600 flex items-center gap-1.5 shrink-0" title="访问次数">
                             <Eye className="w-4 h-4" /> {item.views}
                           </span>
-                          <span
-                            className="shrink-0 text-slate-500"
-                            title="收录时间"
-                          >
-                            收录:{" "}
-                            {new Date(
-                              item.created_at
-                                ? item.created_at +
-                                    (item.created_at.endsWith("Z") ? "" : "Z")
-                                : Date.now(),
-                            ).toLocaleString("zh-CN", {
-                              timeZone: "Asia/Shanghai",
-                              hour12: false,
-                            })}
+                          <span className="shrink-0 text-slate-500" title="收录时间">
+                            收录: {new Date(item.created_at ? item.created_at + (item.created_at.endsWith("Z") ? "" : "Z") : Date.now()).toLocaleString("zh-CN", { hour12: false })}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 uppercase tracking-tighter border border-slate-200/50">
+                            {settings.ai_provider || "gemini"} / {settings[`${settings.ai_provider || 'gemini'}_model_id`] || "default"}
                           </span>
                         </div>
+                        {reinterpretMessages[item.id] && (
+                          <div
+                            className={`mt-3 text-[11px] font-mono p-3 rounded-lg w-full border flex items-start justify-between gap-3 shadow-sm ${
+                              reinterpretMessages[item.id].startsWith("❌")
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : "bg-amber-50 text-amber-700 border-amber-200"
+                            }`}
+                          >
+                            <div className="flex-1 space-y-1">
+                              <div className="font-bold flex items-center gap-1">
+                                {reinterpretMessages[item.id].startsWith("❌") ? "⚠️ 分析失败" : "⚙️ 处理器状态"}
+                              </div>
+                              <motion.div
+                                className="break-all whitespace-pre-wrap opacity-90 leading-relaxed"
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                key={reinterpretMessages[item.id]}
+                              >
+                                {reinterpretMessages[item.id]}
+                              </motion.div>
+                            </div>
+                            {reinterpretMessages[item.id].startsWith("❌") && (
+                              <button
+                                onClick={() =>
+                                  setReinterpretMessages((prev) => ({
+                                    ...prev,
+                                    [item.id]: "",
+                                  }))
+                                }
+                                className="hover:bg-red-100 p-1.5 rounded-full flex-shrink-0 transition-colors"
+                                title="关闭"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 justify-end sm:w-auto">
-                      {reinterpretMessages[item.id] && (
-                        <div
-                          className={`text-xs font-mono px-2 py-1 rounded max-w-[200px] border flex items-center gap-2 ${reinterpretMessages[item.id].startsWith("❌") ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200"}`}
-                        >
-                          <motion.span
-                            className="truncate"
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            key={reinterpretMessages[item.id]}
-                            title={reinterpretMessages[item.id]}
-                          >
-                            {reinterpretMessages[item.id]}
-                          </motion.span>
-                          {reinterpretMessages[item.id].startsWith("❌") && (
-                            <button
-                              onClick={() =>
-                                setReinterpretMessages((prev) => ({
-                                  ...prev,
-                                  [item.id]: "",
-                                }))
-                              }
-                              className="opacity-60 hover:opacity-100 flex-shrink-0"
-                              title="关闭"
-                            >
-                              &times;
-                            </button>
-                          )}
-                        </div>
-                      )}
+                    <div className="flex items-center gap-3 pt-3 sm:pt-4 border-t sm:border-t-0 border-slate-100 justify-end sm:w-auto shrink-0">
                       <button
                         onClick={() => reinterpretArtwork(item.id)}
                         disabled={reinterpretingId === item.id}

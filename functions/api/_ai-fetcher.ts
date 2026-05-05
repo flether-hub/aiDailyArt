@@ -209,8 +209,8 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   if (!isManual) {
      try {
-       const useMinInterval = (((await getSetting('use_min_interval')) as any)?.value || 'true') === 'true'; // Default true for backward compatibility or false? The user said "后台改成是否设置最小间隔，如果勾选则检查间隔"
-       if (useMinInterval) {
+       const enabledAutoFetch = (((await getSetting('enabled_auto_fetch')) as any)?.value || 'true') === 'true';
+       if (enabledAutoFetch) {
          const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
          let lastRunMs = 0;
          if (result?.last_run) {
@@ -333,17 +333,34 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const aiKey = userApiKey;
-      if (!aiKey) {
-        if (notify) await notify("⚠️ 尚未配置 API 密钥", true);
-        return { keywords, content: "<p>尚未配置 API 密钥。请在管理员控制台设置 API 密钥以生成艺术解读。</p>" };
-      }
-
+      const env = getCloudEnv();
+      let aiKey = userApiKey;
       const isAli = provider === 'dashscope' || provider === 'bailian';
       const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-      const defaultModelId = isAli ? 'qwen-max' : 'gemini-2.0-flash';
+
+      // Use environment key as fallback for Gemini in AI Studio
+      if (!isAli && (!aiKey || aiKey.includes('***'))) {
+        const envKey = env.GEMINI_API_KEY;
+        if (envKey) {
+          aiKey = envKey;
+        }
+      }
+
+      const maskedForLog = aiKey ? (aiKey.length > 8 ? aiKey.substring(0, 4) + '...' + aiKey.substring(aiKey.length-4) : '***') : 'NONE';
+      console.log(`AI Fetcher using key: ${maskedForLog} for provider: ${provider} (length: ${aiKey?.length || 0})`);
+
+      if (!aiKey || aiKey.includes('***')) {
+        if (notify) await notify(`⚠️ 尚未配置 ${providerName} API 密钥`, true);
+        return { 
+          keywords, 
+          content: `<p>尚未配置 ${providerName} API 密钥或密钥无效。请在管理员控制台设置有效的 API 密钥以生成艺术解读。</p>`,
+          title_zh,
+          artist_zh
+        };
+      }
+
+      const defaultModelId = isAli ? 'qwen-max' : 'gemini-1.5-flash';
       const displayedModelId = modelId || defaultModelId;
-      console.log(`AI Fetcher: provider=${provider}, modelIdFromDB=${modelId}, displayedModelId=${displayedModelId}`);
       
       if (notify) {
         const attemptMsg = attempt > 1 ? ` (重试第 ${attempt-1} 次)` : '';
