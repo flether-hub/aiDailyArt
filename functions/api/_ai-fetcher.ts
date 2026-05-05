@@ -266,6 +266,11 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
         const r2Url = await uploadToR2(objData.primaryImage, artworkId);
         const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
 
+        if (aiData.content.includes('解读生成失败') || aiData.content.includes('未能生成详细解读')) {
+          await notify(`❌ 《${objData.title}》 AI 解读失败，跳过添加。`, true);
+          continue;
+        }
+
         const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
         const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
         const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
@@ -334,7 +339,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
       const isAli = provider === 'dashscope' || provider === 'bailian';
       const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-      const displayedModelId = isAli ? (modelId || '默认模型') : (modelId || '自动选择');
+      const displayedModelId = modelId || (isAli ? 'qwen3.6-max-preview' : 'gemini-2.0-flash');
       
       if (notify) {
         const attemptMsg = attempt > 1 ? ` (重试第 ${attempt-1} 次)` : '';
