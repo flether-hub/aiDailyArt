@@ -339,7 +339,9 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
       const isAli = provider === 'dashscope' || provider === 'bailian';
       const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-      const displayedModelId = modelId || (isAli ? 'qwen3.6-max-preview' : 'gemini-2.0-flash');
+      const defaultModelId = isAli ? 'qwen-max' : 'gemini-2.0-flash';
+      const displayedModelId = modelId || defaultModelId;
+      console.log(`AI Fetcher: provider=${provider}, modelIdFromDB=${modelId}, displayedModelId=${displayedModelId}`);
       
       if (notify) {
         const attemptMsg = attempt > 1 ? ` (重试第 ${attempt-1} 次)` : '';
@@ -348,7 +350,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
       let text = "";
 
-      if (provider === 'dashscope' || provider === 'bailian') {
+      if (isAli) {
          const res = await fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
            method: 'POST',
            headers: {
@@ -356,7 +358,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
              'Authorization': `Bearer ${aiKey}`
            },
            body: JSON.stringify({
-             model: modelId || 'qwen3.6-max-preview',
+             model: displayedModelId,
              messages: [
                { role: 'system', content: 'You are a professional art curator. Always output strictly valid JSON.' },
                { role: 'user', content: prompt }
@@ -367,7 +369,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
          
          if (!res.ok) {
            const err = await res.text();
-           throw new Error(`Alibaba AI Error: ${err}`);
+           throw new Error(`Alibaba AI Error [${res.status}]: ${err}`);
          }
          
          const data: any = await res.json();
@@ -380,7 +382,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
          const ai = new GoogleGenAI({ apiKey: aiKey });
          // Using the latest modern alias for text tasks as per requirements to "let gemini decide"
          const response = await ai.models.generateContent({
-            model: modelId || 'gemini-2.0-flash',
+            model: displayedModelId, // Use the selected model
             contents: prompt,
             config: {
                responseMimeType: "application/json",
