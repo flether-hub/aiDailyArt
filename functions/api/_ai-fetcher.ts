@@ -371,8 +371,8 @@ export async function generateDetailedInterpretation(title: string, artist: stri
          }
          
          const data: any = await res.json();
-         if (data.code && data.message && !data.choices) {
-             throw new Error(`Alibaba AI Error: [${data.code}] ${data.message}`);
+         if (data.code || (data.message && !data.choices)) {
+             throw new Error(`Alibaba AI Error: [${data.code || 'Unknown'}] ${data.message || 'No response'}`);
          }
          text = data.choices?.[0]?.message?.content || "{}";
        } else {
@@ -425,10 +425,10 @@ export async function generateDetailedInterpretation(title: string, artist: stri
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
       } else {
         if (notify) await notify(`❌ AI 调用最终失败: ${e.message}`, true);
-        aiInterpretation = `<p>解读生成失败：${e.message || '未知错误'}</p>`;
+        throw e; // 重新抛出错误，中断流程
       }
     }
   }
-
-  return { keywords, content: aiInterpretation, title_zh, artist_zh };
+  
+  throw new Error("AI 解读调用最终失败");
 }

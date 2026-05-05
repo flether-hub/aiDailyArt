@@ -208,8 +208,8 @@ app.post('/admin/artworks/:id/reinterpret', async (c) => {
 
         const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as any;
         const provider = (await getSetting('ai_provider'))?.value || 'gemini';
-        const modelId = (await getSetting('model_id'))?.value;
-        const apiKey = (await getSetting('api_key'))?.value;
+        const modelId = (await getSetting(`${provider}_model_id`))?.value || (await getSetting('model_id'))?.value;
+        const apiKey = (await getSetting(`${provider}_api_key`))?.value || (await getSetting('api_key'))?.value;
 
         const { generateDetailedInterpretation } = await import('./_ai-fetcher');
         

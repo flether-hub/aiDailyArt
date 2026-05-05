@@ -209,19 +209,24 @@ export default function AdminDashboard() {
   }, [page, isAdmin, token, activeTab]);
 
   const handleSettingsChange = (key: string, value: string) => {
-    let newSettings = { ...settings, [key]: value, [`${key}Masked`]: value };
+    let newSettings = { ...settings };
+    
+    // If updating model_id/api_key, save them with provider prefix
+    if (key === "model_id" || key === "api_key") {
+       newSettings[`${settings.ai_provider || 'gemini'}_${key}`] = value;
+       newSettings[`${settings.ai_provider || 'gemini'}_${key}Masked`] = value; // Also update masked for UI
+    } else {
+       newSettings[key] = value;
+    }
     
     // Automatically handle logical defaults when provider changes
     if (key === "ai_provider") {
-      if (value === "gemini") {
-        if (!newSettings.model_id) {
-          newSettings.model_id = "gemini-2.0-flash";
-        }
-      } else if (value === "dashscope") {
-        // If it was empty or looking like a gemini model, reset to dashscope default
-        if (!settings.model_id || settings.model_id.toLowerCase().includes("gemini")) {
-          newSettings.model_id = "qwen3.6-max-preview";
-        }
+      newSettings.ai_provider = value;
+      // When switching providers, ensure we have defaults for them if not set
+      if (value === "gemini" && !newSettings.gemini_model_id) {
+        newSettings.gemini_model_id = "gemini-2.0-flash";
+      } else if (value === "dashscope" && !newSettings.dashscope_model_id) {
+        newSettings.dashscope_model_id = "qwen3.6-max-preview";
       }
     }
     
@@ -688,7 +693,7 @@ export default function AdminDashboard() {
                     模型标识 (Model ID)
                   </label>
                   <input
-                    value={settings.model_id || ""}
+                    value={settings[`${settings.ai_provider || 'gemini'}_model_id`] || ""}
                     onChange={(e) =>
                       handleSettingsChange("model_id", e.target.value)
                     }
@@ -700,14 +705,14 @@ export default function AdminDashboard() {
                     }
                   />
                 </div>
-
+ 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-500 uppercase">
                     API 密钥 (加密存储)
                   </label>
                   <input
                     type="password"
-                    value={settings.api_keyMasked || ""}
+                    value={settings[`${settings.ai_provider || 'gemini'}_api_keyMasked`] || ""}
                     onChange={(e) =>
                       handleSettingsChange("api_key", e.target.value)
                     }
