@@ -151,7 +151,7 @@ async function fetchFromMet(notify) {
   return results;
 }
 
-export async function runAIAggregation(isManual: boolean = false, onProgress?: (msg: string, isError?: boolean) => void | Promise<void>) {
+export async function runAIAggregation(isManual: boolean = false, onProgress?: (msg: string, isError?: boolean) => void | Promise<void>, overrides?: { provider?: string, modelId?: string, apiKey?: string }) {
   const db = await getDB();
   
   // Concurrency Lock
@@ -194,9 +194,11 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   try {
     const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
-    const provider = ((await getSetting('ai_provider')) as any)?.value || 'gemini';
-  const modelId = ((await getSetting('model_id')) as any)?.value;
-  const apiKey = ((await getSetting('api_key')) as any)?.value;
+    
+    // Use overrides OR database settings
+    const provider = overrides?.provider || ((await getSetting('ai_provider')) as any)?.value || 'gemini';
+    const modelId = overrides?.modelId || ((await getSetting(`${provider}_model_id`)) as any)?.value || ((await getSetting('model_id')) as any)?.value;
+    const apiKey = overrides?.apiKey || ((await getSetting(`${provider}_api_key`)) as any)?.value || ((await getSetting('api_key')) as any)?.value;
   
   const intervalHours = parseInt(((await getSetting('interval_hours')) as any)?.value || '0', 10);
   const intervalMinutes = parseInt(((await getSetting('interval_minutes')) as any)?.value || '30', 10);

@@ -270,9 +270,21 @@ export default function AdminDashboard() {
     setFetchingWorks(true);
     setFetchingProgress({ message: "正在启动名画寻脉任务..." });
     try {
+      const provider = settings.ai_provider || 'gemini';
+      const modelId = settings[`${provider}_model_id`] || "";
+      const apiKey = settings[`${provider}_api_key`] || "";
+
       const res = await fetch("/api/admin/trigger-fetch", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+           provider,
+           modelId,
+           apiKey
+        })
       });
 
       if (!res.ok) {

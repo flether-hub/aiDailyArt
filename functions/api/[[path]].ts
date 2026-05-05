@@ -516,9 +516,11 @@ app.get('/admin/settings', async (c) => {
   const settings = await db.prepare('SELECT * FROM settings').all();
   const result: any = {};
   (settings || []).forEach((s: any) => {
-    if (s.key === 'api_key' && s.value) {
+    if ((s.key === 'api_key' || s.key.endsWith('_api_key')) && s.value) {
       // Mask the actual API key to prevent it from leaking in preview mode
-      result[s.key] = '********' + s.value.slice(-4);
+      const maskedValue = '********' + s.value.slice(-4);
+      result[s.key] = maskedValue;
+      result[s.key + 'Masked'] = maskedValue;
     } else {
       result[s.key] = s.value;
     }
@@ -536,17 +538,35 @@ app.post('/admin/settings', async (c) => {
   const db = await getDB();
   const body = await c.req.json();
   for (const [key, value] of Object.entries(body)) {
+    // Skip helper keys for UI
+    if (key.endsWith('Masked')) continue;
+    
     // Prevent overriding with the masked value
-    if (key === 'api_key' && typeof value === 'string' && value.startsWith('********')) {
+    if ((key === 'api_key' || key.endsWith('_api_key')) && typeof value === 'string' && value.startsWith('********')) {
       continue;
     }
-    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value);
+    await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, String(value));
   }
   return c.json({ success: true });
 });
 
 app.post('/admin/trigger-fetch', async (c) => {
   const { stream } = await import('hono/streaming');
+  
+  let overrides: any = null;
+  try {
+     const body = await c.req.json();
+     if (body && body.provider) {
+        overrides = {
+           provider: body.provider,
+           modelId: body.modelId,
+           apiKey: body.apiKey
+        };
+     }
+  } catch (e) {
+     // No body or invalid json, that's fine
+  }
+
   return stream(c, async (stream) => {
     c.header('Content-Type', 'text/event-stream');
     c.header('Cache-Control', 'no-cache');
@@ -564,7 +584,7 @@ app.post('/admin/trigger-fetch', async (c) => {
              try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } 
              catch(e) { isStreamClosed = true; }
            }
-        }) as any;
+        }, overrides) as any;
 
         if (!isStreamClosed) {
           try { await stream.write(JSON.stringify({ type: 'complete', data: { success, message: success ? `分析任务已圆满完成。` : `分析任务未能完成。`, count: count || 0 } }) + '\n'); } 
