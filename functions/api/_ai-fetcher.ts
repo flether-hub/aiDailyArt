@@ -375,7 +375,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
          const ai = new GoogleGenAI({ apiKey: aiKey });
          // Using the latest modern alias for text tasks as per requirements to "let gemini decide"
          const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: modelId || 'gemini-2.0-flash',
             contents: prompt,
             config: {
                responseMimeType: "application/json",
