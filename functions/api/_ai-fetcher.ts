@@ -334,7 +334,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
       const isAli = provider === 'dashscope' || provider === 'bailian';
       const providerName = isAli ? '阿里云大模型' : 'Google Gemini';
-      const displayedModelId = isAli ? (modelId || '默认模型') : '自动选择';
+      const displayedModelId = isAli ? (modelId || '默认模型') : (modelId || '自动选择');
       
       if (notify) {
         const attemptMsg = attempt > 1 ? ` (重试第 ${attempt-1} 次)` : '';
