@@ -486,6 +486,22 @@ export default function AdminDashboard() {
     }
   };
 
+  const resetJobStatus = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/admin/job-reset", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setFetchingWorks(false);
+        setFetchingProgress(null);
+        showToast("后台锁已强制重置");
+        fetchJobStatus();
+      }
+    } catch (e) {}
+  };
+
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     message: string;
@@ -734,14 +750,24 @@ export default function AdminDashboard() {
                   </span>
                 )}
               </span>
-              {fetchingProgress.error && (
+              <div className="flex items-center gap-1">
+                {!fetchingProgress.error && (
+                  <button
+                    onClick={resetJobStatus}
+                    className="p-1 hover:bg-amber-100 rounded-full transition-colors text-amber-700"
+                    title="强制重置锁"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                )}
                 <button
                   onClick={() => setFetchingProgress(null)}
-                  className="p-1 hover:bg-red-100 rounded-full transition-colors ml-1"
+                  className={`p-1 rounded-full transition-colors ${fetchingProgress.error ? "hover:bg-red-100 text-red-600" : "hover:bg-amber-100 text-amber-600"}`}
+                  title="关闭提示"
                 >
                   <Trash2 className="w-3 h-3" />
                 </button>
-              )}
+              </div>
             </motion.div>
           )}
         </div>

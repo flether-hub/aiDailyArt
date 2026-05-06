@@ -105,7 +105,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
     LIMIT 200
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
-  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } });
+  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 15000); 
   if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
   if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析...`);
   const data = await response.json();
@@ -167,8 +167,8 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   const lastTaskStatus = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_status');
   if (lastTaskStatus?.value === 'running') {
     const lastUpdate = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_updated_at'))?.value;
-    // If it's been running for less than 10 minutes, skip
-    if (lastUpdate && Date.now() - new Date(lastUpdate).getTime() < 10 * 60 * 1000) {
+    // If it's been running for less than 3 minutes, skip
+    if (lastUpdate && Date.now() - new Date(lastUpdate).getTime() < 3 * 60 * 1000) {
       if (onProgress) await onProgress('已经有一个任务正在运行中，请稍后再试。');
       return { success: false, message: 'Task already running' };
     }

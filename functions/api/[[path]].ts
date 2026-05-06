@@ -352,7 +352,7 @@ app.get('/admin/job-status', async (c) => {
   
   if (status === 'running' && updatedAtStr) {
     const updatedAt = new Date(updatedAtStr).getTime();
-    if (Date.now() - updatedAt > 10 * 60 * 1000) { // 10 minutes timeout
+    if (Date.now() - updatedAt > 3 * 60 * 1000) { // 3 minutes timeout
       status = 'idle';
     }
   }
@@ -362,6 +362,15 @@ app.get('/admin/job-status', async (c) => {
     message: (messageRes as any)?.value || '',
     error: (errorRes as any)?.value === 'true'
   });
+});
+
+app.post('/admin/job-reset', async (c) => {
+  const db = await getDB();
+  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', 'idle');
+  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', '已手动重置');
+  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', 'false');
+  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
+  return c.json({ success: true });
 });
 
 app.post('/admin/artworks/bulk-delete', async (c) => {
