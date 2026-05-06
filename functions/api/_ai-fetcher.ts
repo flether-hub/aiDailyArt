@@ -451,13 +451,15 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
     } catch (e: any) {
       lastError = e;
-      console.error(`AI error (attempt ${attempt}):`, e);
-      if (attempt < maxRetries) {
-        // Wait before retry (exponential backoff)
+      const errText = e.message || String(e);
+      console.error(`AI error (attempt ${attempt}):`, errText);
+      const isQuota = errText.includes('429') || errText.includes('quota') || errText.includes('RESOURCE_EXHAUSTED');
+      
+      if (attempt < maxRetries && !isQuota) {
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
       } else {
-        if (notify) await notify(`❌ AI 调用最终失败: ${e.message}`, true);
-        throw e; // 重新抛出错误，中断流程
+        if (notify) await notify(isQuota ? "⚠️ AI 配额已耗尽或请求受限，请稍后再试。" : `❌ AI 调用最终失败: ${errText}`, true);
+        throw e;
       }
     }
   }

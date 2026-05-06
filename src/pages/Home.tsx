@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Eye, Brush, MapPin, Hash, ChevronDown } from "lucide-react";
+import { Eye, Brush, MapPin, Hash, ChevronDown, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 import { extractFirstSubheading } from "../lib/artUtils";
+import { useAuth } from "../AuthContext";
 
 type Artwork = {
   id: string;
@@ -22,6 +23,7 @@ type Artwork = {
 };
 
 export default function Home() {
+  const { isAdmin } = useAuth();
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -215,15 +217,19 @@ export default function Home() {
                 <div className="text-slate-300 mb-4 font-serif text-2xl italic">
                   艺术馆目前空空如也
                 </div>
-                <button
-                  onClick={() => {
-                    setSelectedKeyword(null);
-                    setPage(0);
-                  }}
-                  className="text-amber-800 text-xs font-bold uppercase tracking-widest border-b border-amber-800 pb-1"
-                >
-                  重置展览
-                </button>
+                {isAdmin ? (
+                  <button
+                    onClick={() => {
+                      setSelectedKeyword(null);
+                      setPage(0);
+                    }}
+                    className="text-amber-800 text-xs font-bold uppercase tracking-widest border-b border-amber-800 pb-1"
+                  >
+                    重置展览
+                  </button>
+                ) : (
+                  <p className="text-slate-400 text-sm">请稍后再来</p>
+                )}
               </div>
             ) : (
               <>
