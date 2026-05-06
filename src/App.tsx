@@ -219,10 +219,13 @@ function GalleryLogo() {
 
 import { createPortal } from 'react-dom';
 
+import { toggleLanguage, getCurrentLanguage } from './lib/lang';
+
 function Navbar() {
   const { isAdmin, logout } = useAuth();
   const [visits, setVisits] = useState<number | null>(null);
   const [showDonation, setShowDonation] = useState(false);
+  const lang = getCurrentLanguage();
 
   useEffect(() => {
     const ac = new AbortController();
@@ -312,6 +315,13 @@ function Navbar() {
           {visits !== null && <div className="h-4 w-px bg-slate-200 hidden md:block mx-1"></div>}
 
           <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={toggleLanguage}
+              className="hidden md:flex items-center justify-center px-2 py-1 text-slate-400 hover:text-slate-800 transition-colors text-[13px] font-bold mr-1 select-none"
+              title={lang === 'cn' ? '当前为简体，点击切换繁体' : '当前为繁体，点击切换简体'}
+            >
+              <span className="ignore-lang">{lang === 'cn' ? '简' : '繁'}</span>
+            </button>
             <button 
               onClick={() => setShowDonation(true)}
               className="text-red-500 hover:text-red-600 transition-colors flex items-center justify-center p-2 rounded-full hover:bg-red-50"

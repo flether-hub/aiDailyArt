@@ -14,6 +14,8 @@ import {
   Trash2,
   MessageSquare,
   CheckSquare,
+  Users,
+  Network,
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -37,7 +39,19 @@ export default function AdminDashboard() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [totalArtworks, setTotalArtworks] = useState(0);
-  const [activeTab, setActiveTab] = useState<'artworks' | 'comments'>('artworks');
+  const [visitorStats, setVisitorStats] = useState<any>({
+    totalVisits: 0,
+    devices: [],
+    locations: [],
+    page: 1,
+    totalPages: 1,
+    totalLocations: 0,
+  });
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
+  const [visitorPage, setVisitorPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<
+    "artworks" | "comments" | "visitors"
+  >("artworks");
   const [allComments, setAllComments] = useState<any[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [bannedIps, setBannedIps] = useState<string[]>([]);
@@ -55,24 +69,24 @@ export default function AdminDashboard() {
     if (!token) return;
     try {
       const isBanned = bannedIps.includes(ip);
-      const url = `/api/admin/banned-ips${isBanned ? `/${ip}` : ''}`;
-      const method = isBanned ? 'DELETE' : 'POST';
+      const url = `/api/admin/banned-ips${isBanned ? `/${ip}` : ""}`;
+      const method = isBanned ? "DELETE" : "POST";
       const body = isBanned ? undefined : JSON.stringify({ ip_address: ip });
-      
+
       const res = await fetch(url, {
         method,
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`,
         },
-        body
+        body,
       });
-      
+
       if (res.ok) {
         if (isBanned) {
-          setBannedIps(prev => prev.filter(i => i !== ip));
+          setBannedIps((prev) => prev.filter((i) => i !== ip));
         } else {
-          setBannedIps(prev => [...prev, ip]);
+          setBannedIps((prev) => [...prev, ip]);
         }
       }
     } catch (e) {}
@@ -93,13 +107,21 @@ export default function AdminDashboard() {
       } else if (fetchingWorks && data.status === "idle") {
         // Job just finished while we were polling or just loaded
         setFetchingWorks(false);
-        setFetchingProgress({ message: data.message, error: data.error ? "已中止" : undefined });
+        setFetchingProgress({
+          message: data.message,
+          error: data.error ? "已中止" : undefined,
+        });
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
-      } else if (!fetchingWorks && data.status === "idle" && data.message && data.message.includes('圆满完成')) {
-          // If we just loaded and there's a recent completion message, maybe show it?
-          // But usually we don't want to show old completion messages forever.
-          // For now, let's only set if it's an error or we were previously fetching.
+      } else if (
+        !fetchingWorks &&
+        data.status === "idle" &&
+        data.message &&
+        data.message.includes("圆满完成")
+      ) {
+        // If we just loaded and there's a recent completion message, maybe show it?
+        // But usually we don't want to show old completion messages forever.
+        // For now, let's only set if it's an error or we were previously fetching.
       }
       return data.status;
     } catch (e) {
@@ -164,14 +186,16 @@ export default function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/comments/bulk-delete", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}` 
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ids: selectedIds }),
       });
       if (res.ok) {
-        setAllComments((prev) => prev.filter((c) => !selectedIds.includes(c.id)));
+        setAllComments((prev) =>
+          prev.filter((c) => !selectedIds.includes(c.id)),
+        );
         setSelectedIds([]);
       }
     } catch (e) {}
@@ -190,28 +214,49 @@ export default function AdminDashboard() {
       Promise.all([
         fetch("/api/admin/settings", { headers }).then((r) => r.json()),
         fetch("/api/keywords").then((r) => r.json()),
-      ]).then(([settingsData, keywordsData]) => {
-        setSettings(settingsData);
-        setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
-        setLoading(false);
-      }).catch(() => setLoading(false));
+      ])
+        .then(([settingsData, keywordsData]) => {
+          setSettings(settingsData);
+          setKeywords(Array.isArray(keywordsData) ? keywordsData : []);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
     }
   }, [isAdmin, isLoadingAuth, navigate, token]);
 
+  const fetchVisitorStats = async (pageNum = 1) => {
+    if (!token) return;
+    try {
+      setLoadingVisitors(true);
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await fetch(`/api/admin/visitor-stats?page=${pageNum}`, {
+        headers,
+      });
+      const data = await res.json();
+      setVisitorStats(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
+
   useEffect(() => {
     if (isAdmin && token) {
-      if (activeTab === 'artworks') {
+      if (activeTab === "artworks") {
         fetchAdminArtworks(page);
-      } else {
+      } else if (activeTab === "comments") {
         fetchAdminComments();
         fetchBannedIps();
+      } else if (activeTab === "visitors") {
+        fetchVisitorStats(visitorPage);
       }
     }
-  }, [page, isAdmin, token, activeTab]);
+  }, [page, visitorPage, isAdmin, token, activeTab]);
 
   const handleSettingsChange = (key: string, value: string) => {
     let newSettings = { ...settings };
-    
+
     // Support direct updates for provider-specific keys
     if (key.includes("_api_key") || key.includes("_model_id")) {
       newSettings[key] = value;
@@ -222,7 +267,7 @@ export default function AdminDashboard() {
     } else {
       newSettings[key] = value;
     }
-    
+
     // Special handling for provider switch defaults if needed
     if (key === "ai_provider") {
       newSettings.ai_provider = value;
@@ -232,7 +277,7 @@ export default function AdminDashboard() {
         newSettings.dashscope_model_id = "qwen-max";
       }
     }
-    
+
     setSettings(newSettings);
   };
 
@@ -251,7 +296,11 @@ export default function AdminDashboard() {
   const saveSettings = async () => {
     const hours = parseInt(settings.interval_hours || "0", 10);
     const mins = parseInt(settings.interval_minutes || "0", 10);
-    if (isNaN(hours) || isNaN(mins) || (hours * 60 + mins < 30 && settings.enabled_auto_fetch !== "false")) {
+    if (
+      isNaN(hours) ||
+      isNaN(mins) ||
+      (hours * 60 + mins < 30 && settings.enabled_auto_fetch !== "false")
+    ) {
       showToast("自动抓取间隔不能小于30分钟", true);
       return;
     }
@@ -261,7 +310,7 @@ export default function AdminDashboard() {
       // Ensure we send the provider even if it was just using the default
       const settingsToSave = {
         ...settings,
-        ai_provider: settings.ai_provider || "gemini"
+        ai_provider: settings.ai_provider || "gemini",
       };
 
       const res = await fetch("/api/admin/settings", {
@@ -280,10 +329,12 @@ export default function AdminDashboard() {
 
       setSavingSettings(false);
       showToast("配置已成功保存");
-      
+
       // Refresh settings from server to get masked keys correctly
       const headers = { Authorization: `Bearer ${token}` };
-      const updatedSettings = await fetch("/api/admin/settings", { headers }).then(r => r.json());
+      const updatedSettings = await fetch("/api/admin/settings", {
+        headers,
+      }).then((r) => r.json());
       setSettings(updatedSettings);
     } catch (e: any) {
       setSavingSettings(false);
@@ -295,12 +346,12 @@ export default function AdminDashboard() {
     setFetchingWorks(true);
     setFetchingProgress({ message: "正在启动名画寻脉任务..." });
     try {
-      const provider = settings.ai_provider || 'gemini';
+      const provider = settings.ai_provider || "gemini";
       const modelId = settings[`${provider}_model_id`] || "";
       let apiKey = settings[`${provider}_api_key`] || "";
-      
+
       // Don't send masked keys to the server
-      if (apiKey.startsWith('********')) {
+      if (apiKey.includes("***")) {
         apiKey = "";
       }
 
@@ -311,10 +362,10 @@ export default function AdminDashboard() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-           provider,
-           modelId,
-           apiKey
-        })
+          provider,
+          modelId,
+          apiKey,
+        }),
       });
 
       if (!res.ok) {
@@ -464,12 +515,14 @@ export default function AdminDashboard() {
                     ...a,
                     keywords: a.keywords.filter((k: string) => k !== keyword),
                   };
-                } else if (typeof a.keywords === 'string') {
-                  const kwList = a.keywords.split(/[，,]/).map((k: string) => k.trim());
+                } else if (typeof a.keywords === "string") {
+                  const kwList = a.keywords
+                    .split(/[，,]/)
+                    .map((k: string) => k.trim());
                   const newKwList = kwList.filter((k) => k !== keyword);
                   return {
                     ...a,
-                    keywords: newKwList.join(', '),
+                    keywords: newKwList.join(", "),
                   };
                 }
                 return a;
@@ -658,10 +711,7 @@ export default function AdminDashboard() {
             <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
             <span>
               目前馆藏：
-              <span>
-                {totalArtworks}
-              </span>{" "}
-              幅名作
+              <span>{totalArtworks}</span> 幅名作
             </span>
           </h2>
         </div>
@@ -672,10 +722,16 @@ export default function AdminDashboard() {
               animate={{ opacity: 1, x: 0 }}
               className={`text-xs px-4 py-2 rounded-lg font-medium border flex items-center gap-3 shadow-sm ${fetchingProgress.error ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200 animate-pulse"}`}
             >
-              <div className={`w-2 h-2 rounded-full ${fetchingProgress.error ? "bg-red-500" : "bg-amber-500 animate-ping"}`} />
+              <div
+                className={`w-2 h-2 rounded-full ${fetchingProgress.error ? "bg-red-500" : "bg-amber-500 animate-ping"}`}
+              />
               <span className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] sm:max-w-md">
                 {fetchingProgress.message}
-                {fetchingProgress.error && <span className="ml-1 opacity-70">({fetchingProgress.error})</span>}
+                {fetchingProgress.error && (
+                  <span className="ml-1 opacity-70">
+                    ({fetchingProgress.error})
+                  </span>
+                )}
               </span>
               {fetchingProgress.error && (
                 <button
@@ -713,52 +769,79 @@ export default function AdminDashboard() {
 
               <div className="p-4 space-y-6">
                 {/* Gemini Config Section */}
-                <div 
+                <div
                   className={`p-3 rounded-lg border-2 transition-all ${
-                    (settings.ai_provider || "gemini") === "gemini" 
-                    ? "border-amber-400 bg-amber-50/10 shadow-sm" 
-                    : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
+                    (settings.ai_provider || "gemini") === "gemini"
+                      ? "border-amber-400 bg-amber-50/10 shadow-sm"
+                      : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">G</div>
-                      <span className="text-sm font-bold text-slate-700">Google Gemini</span>
+                      <div className="w-6 h-6 rounded bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
+                        G
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">
+                        Google Gemini
+                      </span>
                     </div>
-                    <button 
-                      onClick={() => handleSettingsChange("ai_provider", "gemini")}
+                    <button
+                      onClick={() =>
+                        handleSettingsChange("ai_provider", "gemini")
+                      }
                       className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
                         (settings.ai_provider || "gemini") === "gemini"
-                        ? "bg-amber-500 text-white"
-                        : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                          ? "bg-amber-500 text-white"
+                          : "bg-slate-200 text-slate-500 hover:bg-slate-300"
                       }`}
                     >
-                      {(settings.ai_provider || "gemini") === "gemini" ? "当前激活" : "选中此引擎"}
+                      {(settings.ai_provider || "gemini") === "gemini"
+                        ? "当前激活"
+                        : "选中此引擎"}
                     </button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Model ID</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Model ID
+                      </label>
                       <input
                         value={settings.gemini_model_id || ""}
-                        onChange={(e) => handleSettingsChange("gemini_model_id", e.target.value)}
+                        onChange={(e) =>
+                          handleSettingsChange(
+                            "gemini_model_id",
+                            e.target.value,
+                          )
+                        }
                         className="w-full bg-white border border-slate-200 text-xs rounded px-2 py-1.5 font-mono outline-none focus:ring-1 focus:ring-amber-500/30"
                         placeholder="gemini-1.5-flash"
                       />
                     </div>
                     <div className="space-y-1 relative">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">API Key</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        API Key
+                      </label>
                       <div className="relative">
                         <input
                           type={showKeys["gemini"] ? "text" : "password"}
                           value={settings.gemini_api_key || ""}
-                          onChange={(e) => handleSettingsChange("gemini_api_key", e.target.value)}
+                          onChange={(e) =>
+                            handleSettingsChange(
+                              "gemini_api_key",
+                              e.target.value,
+                            )
+                          }
                           className="w-full bg-white border border-slate-200 text-xs rounded pl-2 pr-8 py-1.5 outline-none focus:ring-1 focus:ring-amber-500/30"
                           placeholder="请输入 Gemini API 密钥"
                         />
-                        <button 
-                          onClick={() => setShowKeys(prev => ({ ...prev, gemini: !prev.gemini }))}
+                        <button
+                          onClick={() =>
+                            setShowKeys((prev) => ({
+                              ...prev,
+                              gemini: !prev.gemini,
+                            }))
+                          }
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
                           title={showKeys["gemini"] ? "隐藏密钥" : "显示密钥"}
                         >
@@ -770,54 +853,83 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* DashScope Config Section */}
-                <div 
+                <div
                   className={`p-3 rounded-lg border-2 transition-all ${
-                    settings.ai_provider === "dashscope" 
-                    ? "border-amber-400 bg-amber-50/10 shadow-sm" 
-                    : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
+                    settings.ai_provider === "dashscope"
+                      ? "border-amber-400 bg-amber-50/10 shadow-sm"
+                      : "border-slate-100 bg-slate-50/30 grayscale-[0.5] opacity-80"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">B</div>
-                      <span className="text-sm font-bold text-slate-700">阿里云百炼</span>
+                      <div className="w-6 h-6 rounded bg-purple-500 flex items-center justify-center text-white text-[10px] font-bold">
+                        B
+                      </div>
+                      <span className="text-sm font-bold text-slate-700">
+                        阿里云百炼
+                      </span>
                     </div>
-                    <button 
-                      onClick={() => handleSettingsChange("ai_provider", "dashscope")}
+                    <button
+                      onClick={() =>
+                        handleSettingsChange("ai_provider", "dashscope")
+                      }
                       className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-colors ${
                         settings.ai_provider === "dashscope"
-                        ? "bg-amber-500 text-white"
-                        : "bg-slate-200 text-slate-500 hover:bg-slate-300"
+                          ? "bg-amber-500 text-white"
+                          : "bg-slate-200 text-slate-500 hover:bg-slate-300"
                       }`}
                     >
-                      {settings.ai_provider === "dashscope" ? "当前激活" : "选中此引擎"}
+                      {settings.ai_provider === "dashscope"
+                        ? "当前激活"
+                        : "选中此引擎"}
                     </button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">Model ID</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        Model ID
+                      </label>
                       <input
                         value={settings.dashscope_model_id || ""}
-                        onChange={(e) => handleSettingsChange("dashscope_model_id", e.target.value)}
+                        onChange={(e) =>
+                          handleSettingsChange(
+                            "dashscope_model_id",
+                            e.target.value,
+                          )
+                        }
                         className="w-full bg-white border border-slate-200 text-xs rounded px-2 py-1.5 font-mono outline-none focus:ring-1 focus:ring-amber-500/30"
                         placeholder="qwen-max"
                       />
                     </div>
                     <div className="space-y-1 relative">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase">API Key</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">
+                        API Key
+                      </label>
                       <div className="relative">
                         <input
                           type={showKeys["dashscope"] ? "text" : "password"}
                           value={settings.dashscope_api_key || ""}
-                          onChange={(e) => handleSettingsChange("dashscope_api_key", e.target.value)}
+                          onChange={(e) =>
+                            handleSettingsChange(
+                              "dashscope_api_key",
+                              e.target.value,
+                            )
+                          }
                           className="w-full bg-white border border-slate-200 text-xs rounded pl-2 pr-8 py-1.5 outline-none focus:ring-1 focus:ring-amber-500/30"
                           placeholder="请输入阿里云百炼 API 密钥"
                         />
-                        <button 
-                          onClick={() => setShowKeys(prev => ({ ...prev, dashscope: !prev.dashscope }))}
+                        <button
+                          onClick={() =>
+                            setShowKeys((prev) => ({
+                              ...prev,
+                              dashscope: !prev.dashscope,
+                            }))
+                          }
                           className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                          title={showKeys["dashscope"] ? "隐藏密钥" : "显示密钥"}
+                          title={
+                            showKeys["dashscope"] ? "隐藏密钥" : "显示密钥"
+                          }
                         >
                           <Eye className="w-3.5 h-3.5" />
                         </button>
@@ -889,9 +1001,7 @@ export default function AdminDashboard() {
                     </div>
                     {settings.cron_last_trigger && (
                       <div className="text-xs sm:text-sm font-mono text-slate-400 p-2 bg-slate-50/50 border border-slate-200/50 rounded-md">
-                        <span className="shrink-0">
-                          上次收到触发任务:
-                        </span>
+                        <span className="shrink-0">上次收到触发任务:</span>
                         <span className="ml-2 text-slate-500">
                           {new Date(
                             settings.cron_last_trigger
@@ -934,7 +1044,7 @@ export default function AdminDashboard() {
                       <span>#{kw}</span>
                       <button
                         onClick={() => deleteKeyword(kw)}
-                        className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-red-500 hover:text-red-600 transition-colors"
                         title="全局删除该焦点"
                       >
                         &times;
@@ -951,51 +1061,92 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit order-1 lg:order-2">
           <div className="flex border-b border-slate-200 bg-slate-50/50">
             <button
-              onClick={() => { setActiveTab('artworks'); setSelectedIds([]); }}
-              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'artworks' ? 'bg-white text-amber-600 border-b-2 border-amber-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+              onClick={() => {
+                setActiveTab("artworks");
+                setSelectedIds([]);
+              }}
+              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "artworks" ? "bg-white text-amber-600 border-b-2 border-amber-500" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
             >
               <Library className="w-4 h-4" /> 藏品库
             </button>
             <button
-              onClick={() => { setActiveTab('comments'); setSelectedIds([]); }}
-              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === 'comments' ? 'bg-white text-amber-600 border-b-2 border-amber-500' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+              onClick={() => {
+                setActiveTab("comments");
+                setSelectedIds([]);
+              }}
+              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "comments" ? "bg-white text-amber-600 border-b-2 border-amber-500" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
             >
-              <MessageSquare className="w-4 h-4" /> 评论管理
+              <MessageSquare className="w-4 h-4" /> 评论区
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("visitors");
+                setSelectedIds([]);
+              }}
+              className={`flex-1 py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${activeTab === "visitors" ? "bg-white text-amber-600 border-b-2 border-amber-500" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"}`}
+            >
+              <Users className="w-4 h-4" /> 访客数
             </button>
           </div>
           <div className="p-4 border-b border-slate-100 flex flex-row justify-between items-center bg-slate-50/50 gap-2">
             <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <h2 className="text-sm sm:text-lg font-bold text-slate-800 flex items-center gap-1.5 sm:gap-2">
-                {activeTab === 'artworks' ? (
-                  <><Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 藏品库管理</>
-                ) : (
-                  <><MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> 评论审查</>
+                {activeTab === "artworks" && (
+                  <>
+                    <Palette className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />{" "}
+                    藏品库管理
+                  </>
+                )}
+                {activeTab === "comments" && (
+                  <>
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />{" "}
+                    评论审查
+                  </>
+                )}
+                {activeTab === "visitors" && (
+                  <>
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />{" "}
+                    访客统计
+                  </>
                 )}
               </h2>
-              {(activeTab === 'artworks' ? artworks.length : allComments.length) > 0 && (
-                <button
-                  onClick={activeTab === 'artworks' ? toggleSelectAll : () => {
-                    if (selectedIds.length === allComments.length) setSelectedIds([]);
-                    else setSelectedIds(allComments.map(c => c.id));
-                  }}
-                  className="text-[10px] sm:text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/50"
-                >
-                  {selectedIds.length === (activeTab === 'artworks' ? artworks.length : allComments.length)
-                    ? "取消全选"
-                    : "全选"}
-                </button>
-              )}
+              {activeTab !== "visitors" &&
+                (activeTab === "artworks"
+                  ? artworks.length
+                  : allComments.length) > 0 && (
+                  <button
+                    onClick={
+                      activeTab === "artworks"
+                        ? toggleSelectAll
+                        : () => {
+                            if (selectedIds.length === allComments.length)
+                              setSelectedIds([]);
+                            else setSelectedIds(allComments.map((c) => c.id));
+                          }
+                    }
+                    className="text-[10px] sm:text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-1.5 py-0.5 rounded hover:bg-slate-200/50"
+                  >
+                    {selectedIds.length ===
+                    (activeTab === "artworks"
+                      ? artworks.length
+                      : allComments.length)
+                      ? "取消全选"
+                      : "全选"}
+                  </button>
+                )}
             </div>
             <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {selectedIds.length > 0 && (
                 <button
-                  onClick={activeTab === 'artworks' ? bulkDelete : bulkDeleteComments}
+                  onClick={
+                    activeTab === "artworks" ? bulkDelete : bulkDeleteComments
+                  }
                   className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-[10px] font-bold transition-colors shadow-xl"
                 >
                   <Trash2 className="w-3 h-3" /> 删除 ({selectedIds.length})
                 </button>
               )}
-              {activeTab === 'artworks' && (
+              {activeTab === "artworks" && (
                 <button
                   onClick={triggerFetch}
                   disabled={fetchingWorks}
@@ -1011,13 +1162,15 @@ export default function AdminDashboard() {
           </div>
 
           <div className="flex flex-col divide-y divide-slate-100 min-h-[400px] overflow-y-auto">
-            {activeTab === 'artworks' ? (
-              artworks.length === 0 ? (
+            {activeTab === "artworks" &&
+              (artworks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 lg:p-24 text-slate-400 min-h-[300px]">
                   <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 shadow-sm">
                     <Palette className="w-8 h-8 text-slate-300" />
                   </div>
-                  <p className="text-sm font-bold text-slate-500">暂无馆藏名画</p>
+                  <p className="text-sm font-bold text-slate-500">
+                    暂无馆藏名画
+                  </p>
                   <p className="text-xs mt-2 opacity-70">
                     系统目前尚未抓取到名画内容，您可以等待后台任务或手动触发获取。
                   </p>
@@ -1069,14 +1222,29 @@ export default function AdminDashboard() {
                           </span>
                         </p>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-slate-400 mt-1 sm:mt-1.5">
-                          <span className="text-slate-600 flex items-center gap-1.5 shrink-0" title="访问次数">
+                          <span
+                            className="text-slate-600 flex items-center gap-1.5 shrink-0"
+                            title="访问次数"
+                          >
                             <Eye className="w-4 h-4" /> {item.views}
                           </span>
-                          <span className="shrink-0 text-slate-500" title="收录时间">
-                            收录: {new Date(item.created_at ? item.created_at + (item.created_at.endsWith("Z") ? "" : "Z") : Date.now()).toLocaleString("zh-CN", { hour12: false })}
+                          <span
+                            className="shrink-0 text-slate-500"
+                            title="收录时间"
+                          >
+                            收录:{" "}
+                            {new Date(
+                              item.created_at
+                                ? item.created_at +
+                                    (item.created_at.endsWith("Z") ? "" : "Z")
+                                : Date.now(),
+                            ).toLocaleString("zh-CN", { hour12: false })}
                           </span>
                           <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 uppercase tracking-tighter border border-slate-200/50">
-                            {settings.ai_provider || "gemini"} / {settings[`${settings.ai_provider || 'gemini'}_model_id`] || "default"}
+                            {settings.ai_provider || "gemini"} /{" "}
+                            {settings[
+                              `${settings.ai_provider || "gemini"}_model_id`
+                            ] || "default"}
                           </span>
                         </div>
                         {reinterpretMessages[item.id] && (
@@ -1089,7 +1257,9 @@ export default function AdminDashboard() {
                           >
                             <div className="flex-1 space-y-1">
                               <div className="font-bold flex items-center gap-1">
-                                {reinterpretMessages[item.id].startsWith("❌") ? "⚠️ 分析失败" : "⚙️ 处理器状态"}
+                                {reinterpretMessages[item.id].startsWith("❌")
+                                  ? "⚠️ 分析失败"
+                                  : "⚙️ 处理器状态"}
                               </div>
                               <motion.div
                                 className="break-all whitespace-pre-wrap opacity-90 leading-relaxed"
@@ -1111,8 +1281,18 @@ export default function AdminDashboard() {
                                 className="hover:bg-red-100 p-1.5 rounded-full flex-shrink-0 transition-colors"
                                 title="关闭"
                               >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
                                 </svg>
                               </button>
                             )}
@@ -1139,10 +1319,10 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))
-              )
-            ) : (
-              loadingComments ? (
-                 <div className="flex flex-col items-center justify-center py-20 gap-4">
+              ))}
+            {activeTab === "comments" &&
+              (loadingComments ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <RefreshCw className="w-10 h-10 text-amber-500 animate-spin opacity-20" />
                   <p className="text-slate-400 font-serif italic">
                     正在核审评论...
@@ -1167,7 +1347,10 @@ export default function AdminDashboard() {
                           type="checkbox"
                           checked={selectedIds.includes(comment.id)}
                           onChange={() => {
-                            if (selectedIds.includes(comment.id)) setSelectedIds(selectedIds.filter(id => id !== comment.id));
+                            if (selectedIds.includes(comment.id))
+                              setSelectedIds(
+                                selectedIds.filter((id) => id !== comment.id),
+                              );
                             else setSelectedIds([...selectedIds, comment.id]);
                           }}
                           className="rounded border-slate-300 text-amber-500 focus:ring-amber-500 cursor-pointer"
@@ -1175,12 +1358,22 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                           <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                             来自馆藏: <Link to={`/artwork/${comment.artwork_id}`} className="text-amber-600 hover:underline">《{comment.artwork_title || '未知作品'}》</Link>
-                           </p>
-                           <span className="text-[10px] sm:text-xs font-mono text-slate-400">
-                             {new Date(comment.created_at.endsWith('Z') ? comment.created_at : `${comment.created_at}Z`).toLocaleString('zh-CN')}
-                           </span>
+                          <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            来自馆藏:{" "}
+                            <Link
+                              to={`/artwork/${comment.artwork_id}`}
+                              className="text-amber-600 hover:underline"
+                            >
+                              《{comment.artwork_title || "未知作品"}》
+                            </Link>
+                          </p>
+                          <span className="text-[10px] sm:text-xs font-mono text-slate-400">
+                            {new Date(
+                              comment.created_at.endsWith("Z")
+                                ? comment.created_at
+                                : `${comment.created_at}Z`,
+                            ).toLocaleString("zh-CN")}
+                          </span>
                         </div>
                         <div className="bg-white/50 p-3 rounded-lg border border-slate-100 text-slate-700 text-sm leading-relaxed mb-2">
                           {comment.content}
@@ -1188,15 +1381,20 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs text-slate-400 font-mono">
                             <span>IP: {comment.ip_address}</span>
-                            <span>位置: {comment.location || '未知'}</span>
-                            {comment.ip_address && comment.ip_address !== 'Unknown' && (
-                              <button
-                                onClick={() => toggleBanIp(comment.ip_address)}
-                                className={`px-2 py-0.5 rounded border transition-colors ${bannedIps.includes(comment.ip_address) ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' : 'bg-white text-slate-500 hover:bg-slate-50 border-slate-200'}`}
-                              >
-                                {bannedIps.includes(comment.ip_address) ? '已禁止 (点击解除)' : '封禁IP'}
-                              </button>
-                            )}
+                            <span>位置: {comment.location || "未知"}</span>
+                            {comment.ip_address &&
+                              comment.ip_address !== "Unknown" && (
+                                <button
+                                  onClick={() =>
+                                    toggleBanIp(comment.ip_address)
+                                  }
+                                  className={`px-2 py-0.5 rounded border transition-colors ${bannedIps.includes(comment.ip_address) ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" : "bg-white text-slate-500 hover:bg-slate-50 border-slate-200"}`}
+                                >
+                                  {bannedIps.includes(comment.ip_address)
+                                    ? "已禁止 (点击解除)"
+                                    : "封禁IP"}
+                                </button>
+                              )}
                           </div>
                           <button
                             onClick={() => deleteComment(comment.id)}
@@ -1209,11 +1407,151 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 ))
-              )
-            )}
+              ))}
+            {activeTab === "visitors" &&
+              (loadingVisitors ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <RefreshCw className="w-10 h-10 text-amber-500 animate-spin opacity-20" />
+                  <p className="text-slate-400 font-serif italic">
+                    正在分析客流数据...
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-6 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-2">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <Network className="w-4 h-4 text-emerald-500" />{" "}
+                        设备分布
+                      </h3>
+                      {visitorStats.devices?.length === 0 ? (
+                        <p className="text-sm text-slate-400 italic">
+                          暂无设备数据
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-2 mt-2">
+                          {visitorStats.devices.map((d: any) => (
+                            <div
+                              key={d.device_type}
+                              className="flex flex-col gap-1"
+                            >
+                              <div className="flex justify-between text-xs text-slate-600 font-bold">
+                                <span>{d.device_type}</span>
+                                <span>
+                                  {(
+                                    (d.count / visitorStats.totalVisits) *
+                                    100
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              </div>
+                              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-400"
+                                  style={{
+                                    width: `${(d.count / visitorStats.totalVisits) * 100}%`,
+                                  }}
+                                ></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col gap-2">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <Users className="w-4 h-4 text-blue-500" /> 总访问量概览
+                      </h3>
+                      <div className="flex-1 flex flex-col items-center justify-center pt-2 pb-4">
+                        <span className="text-4xl font-black text-slate-800 font-mono tracking-tight">
+                          {visitorStats.totalVisits.toLocaleString()}
+                        </span>
+                        <span className="text-xs text-slate-400 uppercase tracking-widest mt-1 font-bold">
+                          全站累计请求
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-100 rounded-xl overflow-hidden bg-white">
+                    <div className="bg-slate-50 border-b border-slate-100 p-3 px-4 flex justify-between items-center text-sm font-bold text-slate-700">
+                      <span>全球客源地</span>
+                      <span className="text-slate-400 font-normal">
+                        展示 {visitorStats.locations.length} 个地区
+                      </span>
+                    </div>
+                    {visitorStats.locations?.length === 0 ? (
+                      <p className="text-sm text-slate-400 italic p-6 text-center">
+                        空空如也，暂无足迹
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-slate-50">
+                        {visitorStats.locations.map((loc: any, idx: number) => (
+                          <div
+                            key={loc.location}
+                            className="flex items-center justify-between p-3 px-4 hover:bg-slate-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="w-6 h-6 rounded bg-slate-100 text-slate-400 font-mono text-xs flex items-center justify-center font-bold">
+                                {(visitorStats.page - 1) * 20 + idx + 1}
+                              </span>
+                              <span className="text-sm font-bold text-slate-800">
+                                {loc.location}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="text-xs text-slate-400">
+                                占比{" "}
+                                {(
+                                  (loc.count / visitorStats.totalVisits) *
+                                  100
+                                ).toFixed(1)}
+                                %
+                              </span>
+                              <span className="text-sm font-mono font-bold text-slate-700">
+                                {loc.count.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
 
-          {activeTab === 'artworks' && totalArtworks > 0 && (
+          {activeTab === "visitors" && visitorStats.totalLocations > 0 && (
+            <div className="px-4 py-4 border-t border-slate-100 flex justify-end items-center bg-slate-50/50">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setVisitorPage(Math.max(1, visitorPage - 1))}
+                  disabled={visitorPage === 1}
+                  className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-30 transition-all font-bold text-lg"
+                  title="上一页"
+                >
+                  ‹
+                </button>
+
+                <div className="flex items-center gap-1.5 px-3">
+                  <span className="text-sm font-bold text-slate-600">
+                    {visitorPage} / {visitorStats.totalPages}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setVisitorPage(visitorPage + 1)}
+                  disabled={visitorPage >= visitorStats.totalPages}
+                  className="w-8 h-8 flex items-center justify-center bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 disabled:opacity-30 transition-all font-bold text-lg"
+                  title="下一页"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "artworks" && totalArtworks > 0 && (
             <div className="px-4 py-4 border-t border-slate-100 flex justify-end items-center bg-slate-50/50">
               <div className="flex items-center gap-1">
                 <button
@@ -1240,7 +1578,7 @@ export default function AdminDashboard() {
                     }
                     return Array.from(
                       { length: endPage - startPage + 1 },
-                      (_, i) => startPage + i
+                      (_, i) => startPage + i,
                     ).map((pageNum) => (
                       <button
                         key={pageNum}

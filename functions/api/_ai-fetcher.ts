@@ -338,24 +338,33 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       const isAli = provider === 'dashscope' || provider === 'bailian';
       const providerName = isAli ? '阿里云百炼' : 'Google Gemini';
 
+      // Advanced check: If it's just asterisks, or a placeholder, we shouldn't use it.
+      // E.g. "******" or "请设置..."
+      const isObviouslyInvalid = (key: string | undefined): boolean => {
+         if (!key) return true;
+         if (key.includes('***')) return true;
+         if (key.length < 15) return true; // Gemini/Ali keys are much longer
+         return false;
+      };
+
       // Use environment key as fallback for Gemini in AI Studio
-      if (!isAli && (!aiKey || aiKey.includes('***'))) {
+      if (!isAli && isObviouslyInvalid(aiKey)) {
         const envKey = env.GEMINI_API_KEY;
-        if (envKey) {
+        if (envKey && !isObviouslyInvalid(envKey)) {
           aiKey = envKey;
         }
       }
 
       const maskedForLog = aiKey ? (aiKey.length > 8 ? aiKey.substring(0, 4) + '...' + aiKey.substring(aiKey.length-4) : '***') : 'NONE';
-      console.log(`AI Fetcher using key: ${maskedForLog} for provider: ${provider} (length: ${aiKey?.length || 0})`);
+      console.log(`AI Fetcher using key: ${maskedForLog} for provider: ${provider}`);
 
-      if (!aiKey || aiKey.includes('***')) {
+      if (isObviouslyInvalid(aiKey)) {
         if (notify) await notify(`⚠️ 尚未配置 ${providerName} API 密钥`, true);
         return { 
           keywords, 
           content: `<p>尚未配置 ${providerName} API 密钥或密钥无效。请在管理员控制台设置有效的 API 密钥以生成艺术解读。</p>`,
-          title_zh,
-          artist_zh
+          title_zh: title,
+          artist_zh: artist
         };
       }
 

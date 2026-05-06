@@ -126,19 +126,43 @@ app.get('/artworks', async (c) => {
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
 
+  const sort = c.req.query('sort') || 'latest';
   let artworks;
   let totalResult;
   let total = 0;
   
-  if (keyword) {
-    artworks = await db.prepare('SELECT * FROM artworks WHERE is_visible = 1 AND keywords LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?')
-      .all(`%${keyword}%`, limit, offset);
-    totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks WHERE is_visible = 1 AND keywords LIKE ?').get(`%${keyword}%`)) as any;
-  } else {
-    artworks = await db.prepare('SELECT * FROM artworks WHERE is_visible = 1 ORDER BY created_at DESC LIMIT ? OFFSET ?')
-      .all(limit, offset);
-    totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks WHERE is_visible = 1').get()) as any;
+  let queryBase = 'SELECT a.*';
+  let fromBase = 'FROM artworks a';
+  let whereBase = 'WHERE a.is_visible = 1';
+  let params: any[] = [];
+  let orderStr = 'ORDER BY a.created_at DESC';
+
+  if (sort === 'oldest') {
+    orderStr = 'ORDER BY a.created_at ASC';
+  } else if (sort === 'views' || sort === 'views_desc') {
+    orderStr = 'ORDER BY a.views DESC, a.created_at DESC';
+  } else if (sort === 'views_asc') {
+    orderStr = 'ORDER BY a.views ASC, a.created_at DESC';
+  } else if (sort === 'comments_desc') {
+    queryBase = 'SELECT a.*, COUNT(c.id) as comments_count';
+    fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
+    orderStr = 'GROUP BY a.id ORDER BY comments_count DESC, a.created_at DESC';
+  } else if (sort === 'comments_asc') {
+    queryBase = 'SELECT a.*, COUNT(c.id) as comments_count';
+    fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
+    orderStr = 'GROUP BY a.id ORDER BY comments_count ASC, a.created_at DESC';
   }
+
+  if (keyword) {
+    whereBase += ' AND a.keywords LIKE ?';
+    params.push(`%${keyword}%`);
+  }
+
+  const query = `${queryBase} ${fromBase} ${whereBase} ${orderStr} LIMIT ? OFFSET ?`;
+  const countQuery = `SELECT COUNT(*) as total FROM artworks a ${keyword ? 'WHERE a.is_visible = 1 AND a.keywords LIKE ?' : 'WHERE a.is_visible = 1'}`;
+
+  artworks = await db.prepare(query).all(...params, limit, offset);
+  totalResult = (await db.prepare(countQuery).get(...(keyword ? [`%${keyword}%`] : []))) as any;
 
   total = totalResult?.total || 0;
 
@@ -334,6 +358,41 @@ app.get('/stats', async (c) => {
 
 app.post('/stats/visit', async (c) => {
   const db = await getDB();
+  const cf = (c.req.raw as any).cf;
+  const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || '127.0.0.1';
+  const ua = c.req.header('user-agent') || 'Unknown';
+  
+  let country = cf?.country || 'Unknown';
+  let region = cf?.region || 'Unknown';
+  
+  let formattedLocation = '其他地区';
+  if (country === 'CN') {
+    formattedLocation = region;
+  } else if (country === 'HK') {
+    formattedLocation = '香港';
+  } else if (country === 'MO') {
+    formattedLocation = '澳门';
+  } else if (country === 'TW') {
+    formattedLocation = '台湾';
+  } else if (country !== 'Unknown') {
+    formattedLocation = country;
+  }
+  
+  let deviceType = 'Desktop';
+  if (/mobile/i.test(ua)) {
+    deviceType = 'Mobile';
+  } else if (/tablet/i.test(ua) || /ipad/i.test(ua)) {
+    deviceType = 'Tablet';
+  }
+
+  const statRecordPromise = (async () => {
+    try {
+      await db.prepare("INSERT INTO visitor_stats (id, ip_address, location, device_type) VALUES (?, ?, ?, ?)").run(crypto.randomUUID(), ip, formattedLocation, deviceType);
+    } catch (e) {
+      console.error('Failed to insert visitor_stats:', e);
+    }
+  })();
+
   const incrementPromise = (async () => {
     try {
       // Use atomic update to prevent race conditions
@@ -345,12 +404,39 @@ app.post('/stats/visit', async (c) => {
   })();
 
   try {
-    c.executionCtx.waitUntil(incrementPromise);
+    c.executionCtx.waitUntil(Promise.all([incrementPromise, statRecordPromise]));
   } catch (e) {
-    await incrementPromise;
+    await Promise.all([incrementPromise, statRecordPromise]);
   }
 
   return c.json({ success: true });
+});
+
+app.get('/admin/visitor-stats', async (c) => {
+  const db = await getDB();
+  const page = parseInt(c.req.query('page') || '1');
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  // Overview stats
+  const totalVisitsRes = await db.prepare("SELECT COUNT(*) as count FROM visitor_stats").get();
+  const totalVisits = (totalVisitsRes as any)?.count || 0;
+
+  const devicesRes = await db.prepare("SELECT device_type, COUNT(*) as count FROM visitor_stats GROUP BY device_type").all();
+  
+  // Locations grouped and sorted by count descending
+  const locationsRes = await db.prepare("SELECT location, COUNT(*) as count FROM visitor_stats GROUP BY location ORDER BY count DESC LIMIT ?, ?").all(offset, limit);
+  const totalLocationsRes = await db.prepare("SELECT COUNT(DISTINCT location) as count FROM visitor_stats").get();
+  const totalLocations = (totalLocationsRes as any)?.count || 0;
+
+  return c.json({
+    totalVisits,
+    devices: devicesRes || [],
+    locations: locationsRes || [],
+    page,
+    totalPages: Math.ceil(totalLocations / limit),
+    totalLocations
+  });
 });
 
 app.get('/keywords', async (c) => {

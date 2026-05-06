@@ -268,7 +268,7 @@ export default function ArtworkDetail() {
 
       <div className="w-full min-h-screen bg-[#faf9f6] flex py-8 sm:py-12 px-4 sm:px-8 md:px-12 lg:px-16 pb-32">
         <div className="w-full max-w-[1280px] mx-auto">
-          <Link to="/" className="group inline-flex items-center gap-2 text-[11px] md:text-sm font-bold tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
+          <Link to="/" className="group inline-flex items-center gap-2 text-sm md:text-lg font-bold tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>返回档案库</span>
           </Link>
@@ -340,7 +340,7 @@ export default function ArtworkDetail() {
               })()}
 
               {/* Interpretation */}
-              <div className="prose prose-slate prose-base md:prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
+              <div className="prose prose-slate prose-lg md:prose-xl max-w-none font-serif text-slate-700 leading-relaxed mb-12"
                     dangerouslySetInnerHTML={santizeHtml(cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>')} />
 
               {/* Additional Info / Footer */}

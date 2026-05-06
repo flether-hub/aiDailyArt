@@ -70,11 +70,11 @@ export async function getDB(): Promise<DBClient> {
       try {
         // Dynamic require to avoid Cloudflare/esbuild bundling node built-ins and native modules
         let req: any;
-        if (typeof require !== 'undefined') {
-          req = require;
-        } else {
-          const { createRequire } = await import('module');
-          req = createRequire(import.meta.url);
+        try {
+          req = eval('require');
+        } catch (e) {
+          const mod = await import('node:module');
+          req = mod.createRequire(import.meta.url);
         }
         
         const Database = req('better-sqlite3');
@@ -145,15 +145,29 @@ export async function initDB(db: DBClient) {
     )
   `).run();
   
-  try {
-    const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
-    const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
-    if (!hasLocation) {
-      await db.prepare("ALTER TABLE comments ADD COLUMN location TEXT").run();
-      console.log('Migrated comments: added location column');
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS visitor_stats (
+      id TEXT PRIMARY KEY,
+      ip_address TEXT,
+      location TEXT,
+      device_type TEXT,
+      visited_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  // PRAGMA is not supported in D1, and migration is only needed for legacy SQLite files
+  const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+  if (isNode) {
+    try {
+      const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
+      const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
+      if (!hasLocation) {
+        await db.prepare("ALTER TABLE comments ADD COLUMN location TEXT").run();
+        console.log('Migrated comments: added location column');
+      }
+    } catch (e) {
+      console.warn('Migration check failed (safe to ignore if columns exist):', e);
     }
-  } catch (e) {
-    // Standard ALTER TABLE might fail if column exists or PRAGMA not supported (D1 has limitations)
   }
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
