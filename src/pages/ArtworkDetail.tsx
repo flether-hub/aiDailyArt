@@ -434,7 +434,7 @@ export default function ArtworkDetail() {
               })()}
 
               {/* Interpretation */}
-              <div className="prose prose-slate prose-xl max-w-none font-serif text-slate-700 leading-relaxed mb-12"
+              <div className="prose prose-slate prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
                     dangerouslySetInnerHTML={santizeHtml(cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>')} />
 
               {/* Additional Info / Footer */}
