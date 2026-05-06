@@ -17,8 +17,10 @@ class SQLiteClient implements DBClient {
       run: async (...params: any[]) => stmt.run(...params),
       get: async (...params: any[]) => stmt.get(...params),
       all: async (...params: any[]) => {
-          return stmt.all(...params);
-      },
+      const res = await stmt.all(...params);
+      if (res && res.results && Array.isArray(res.results)) return res.results;
+      return Array.isArray(res) ? res : [];
+    },
     };
   }
   async exec(sql: string) {
@@ -42,7 +44,8 @@ class D1Client implements DBClient {
       all: async (...params: any[]) => {
         const bound = params.length > 0 ? stmt.bind(...params) : stmt;
         const res = await bound.all();
-        return res.results || [];
+        if (res && res.results && Array.isArray(res.results)) return res.results;
+        return Array.isArray(res) ? res : [];
       }
     };
   }

@@ -17,6 +17,7 @@ import {
   Users,
   Network,
 } from "lucide-react";
+import { maskIP } from "../lib/ipUtils";
 
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
@@ -1380,7 +1381,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs text-slate-400 font-mono">
-                            <span>IP: {comment.ip_address}</span>
+                            <span>IP: {maskIP(comment.ip_address)}</span>
                             <span>位置: {comment.location || "未知"}</span>
                             {comment.ip_address &&
                               comment.ip_address !== "Unknown" && (

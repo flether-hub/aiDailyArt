@@ -341,9 +341,11 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       // Advanced check: If it's just asterisks, or a placeholder, we shouldn't use it.
       // E.g. "******" or "请设置..."
       const isObviouslyInvalid = (key: string | undefined): boolean => {
-         if (!key) return true;
-         if (key.includes('***')) return true;
-         if (key.length < 15) return true; // Gemini/Ali keys are much longer
+         if (!key || typeof key !== 'string') return true;
+         const trimmed = key.trim();
+         if (trimmed.length === 0) return true;
+         if (trimmed.includes('***')) return true;
+         if (trimmed.length < 10) return true; 
          return false;
       };
 

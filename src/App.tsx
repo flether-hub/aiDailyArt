@@ -61,7 +61,7 @@ function GalleryLogo() {
       role="button"
       tabIndex={0}
       aria-label="激活动画效果"
-      className="w-16 h-16 flex items-center justify-center cursor-pointer relative group shrink-0"
+      className="w-12 h-12 flex items-center justify-center cursor-pointer relative group shrink-0"
       whileHover={{ scale: 1.1, rotate: 5 }}
       whileTap={{ scale: 0.9 }}
       onMouseDown={triggerAnimation}
@@ -246,15 +246,15 @@ function Navbar() {
   }, []);
   
   return (
-    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-50 sticky top-0">
+    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-50 sticky top-0">
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 h-full flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-3 group shrink-0">
+        <Link to="/" className="flex items-center gap-2 group shrink-0">
           <GalleryLogo />
           <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-widest font-serif uppercase leading-tight brush-header">
+            <h1 className="text-lg font-black tracking-widest font-serif uppercase leading-tight brush-header">
               每日艺术画廊
             </h1>
-            <div className="flex justify-between w-full text-[10px] font-bold text-slate-400 uppercase mt-0.5">
+            <div className="flex justify-between w-full text-[9px] font-bold text-slate-400 uppercase mt-0.5">
               <span>人</span><span>工</span><span>智</span><span>能</span><span>·</span><span>策</span><span>展</span><span>赏</span><span>析</span>
             </div>
           </div>

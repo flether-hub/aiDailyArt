@@ -6,6 +6,7 @@ import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'dompurify';
 import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
+import { maskIP } from '../lib/ipUtils';
 import { useAuth } from '../AuthContext';
 
 export default function ArtworkDetail() {
@@ -24,6 +25,8 @@ export default function ArtworkDetail() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deleteMode, setDeleteMode] = useState<'single' | 'bulk' | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [similarArtworks, setSimilarArtworks] = useState<any[]>([]);
+  const [showMoreSimilar, setShowMoreSimilar] = useState(false);
 
   const santizeHtml = (html: string) => {
     return { __html: DOMPurify.sanitize(html) };
@@ -32,12 +35,32 @@ export default function ArtworkDetail() {
   const fetchComments = async () => {
     try {
       const res = await fetch(`/api/comments/${id}`);
-      if (res.ok) {
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
         const data = await res.json();
-        setComments(data);
+        setComments(Array.isArray(data) ? data : []);
+      } else {
+        const text = await res.text();
+        console.warn('Comments API did not return JSON. Status:', res.status, 'Body snippet:', text.substring(0, 100));
       }
     } catch (e) {
       console.error('Failed to fetch comments', e);
+    }
+  };
+
+  const fetchSimilar = async () => {
+    try {
+      const res = await fetch(`/api/artworks/${id}/similar`);
+      const contentType = res.headers.get("content-type");
+      if (res.ok && contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        setSimilarArtworks(data.data || []);
+      } else {
+        const text = await res.text();
+        console.warn('Similar API did not return JSON. Status:', res.status, 'Body snippet:', text.substring(0, 100));
+      }
+    } catch (e) {
+      console.error('Failed to fetch similar artworks', e);
     }
   };
 
@@ -57,8 +80,9 @@ export default function ArtworkDetail() {
           metaDescription.setAttribute("content", intro.length > 150 ? intro.substring(0, 150) + "..." : intro);
         }
 
-        // Fetch comments in parallel
+        // Fetch comments and similar in parallel
         fetchComments();
+        fetchSimilar();
       } catch (e) {
         console.error(e);
       } finally {
@@ -72,6 +96,70 @@ export default function ArtworkDetail() {
       document.title = "每日艺术画廊 - 人工智能策展赏析";
     };
   }, [id]);
+
+  const GuessYouLikeSection = () => {
+    if (similarArtworks.length === 0) return null;
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="flex items-center gap-4 opacity-80">
+          <div className="flex gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-700/80"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-red-700/50"></div>
+            <div className="w-2.5 h-2.5 rounded-full bg-red-700/20"></div>
+          </div>
+          <h2 className="text-xl font-bold tracking-[0.4em] uppercase brush-header whitespace-nowrap">
+            猜你喜欢
+          </h2>
+          <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-6 shadow-sm rounded-none">
+          <div className="flex flex-col gap-6">
+            {similarArtworks.slice(0, showMoreSimilar ? 7 : 3).map((art, index) => (
+              <Link
+                to={`/artwork/${art.id}`}
+                key={art.id}
+                className="group flex gap-4 items-center"
+              >
+                <span className="text-xl font-serif italic text-slate-300 font-bold w-6 text-center shrink-0">
+                  {index + 1}
+                </span>
+                <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-100 shrink-0 relative bg-slate-50 flex items-center justify-center">
+                  <img
+                    src={art.image_url}
+                    alt={art.title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <h3 className="text-sm font-bold text-slate-800 truncate font-serif mb-1 group-hover:text-amber-800 transition-colors">
+                    {art.title}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-slate-500 truncate">
+                      {art.artist}
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] text-red-500/80 font-mono ml-auto shrink-0 bg-red-50 px-1.5 py-0.5 rounded-md">
+                      <Eye className="w-3 h-3" /> {art.views}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))}
+            {!showMoreSimilar && similarArtworks.length > 3 && (
+              <button
+                onClick={() => setShowMoreSimilar(true)}
+                className="w-full py-3 mt-2 bg-slate-50 text-xs font-bold text-slate-600 uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-1"
+              >
+                显示更多 <ChevronDown className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,8 +369,14 @@ export default function ArtworkDetail() {
           >
             {/* Left Column: Image (Sticky) */}
             <div className="lg:col-span-5 xl:col-span-6 min-w-0">
-              <div className="sticky top-28 cursor-zoom-in group relative" onClick={() => setIsZoomed(true)}>
-                <div className="art-frame bg-white overflow-hidden p-3 shadow-md border border-slate-200/60 relative block group-hover:shadow-xl transition-shadow duration-300 sm:min-h-[300px] flex items-center justify-center">
+              <div className="sticky top-28 cursor-zoom-in group relative">
+                <div className="hidden lg:block mb-12">
+                  <GuessYouLikeSection />
+                </div>
+                <div 
+                  className="art-frame bg-white overflow-hidden p-3 shadow-md border border-slate-200/60 relative block group-hover:shadow-xl transition-shadow duration-300 sm:min-h-[300px] flex items-center justify-center"
+                  onClick={() => setIsZoomed(true)}
+                >
                   <img
                     src={artwork.image_url}
                     alt={artwork.title}
@@ -332,7 +426,7 @@ export default function ArtworkDetail() {
                 if (!subheading) return null;
                 return (
                   <div className="mb-10 p-6 bg-slate-50 border-l-4 border-amber-800/20 rounded-r-lg animate-fade-in shadow-sm">
-                    <h2 className="text-xl md:text-2xl font-serif italic text-slate-800 leading-tight">
+                    <h2 className="text-2xl md:text-3xl font-serif italic text-slate-800 leading-tight">
                       “{subheading}”
                     </h2>
                   </div>
@@ -340,7 +434,7 @@ export default function ArtworkDetail() {
               })()}
 
               {/* Interpretation */}
-              <div className="prose prose-slate prose-lg md:prose-xl max-w-none font-serif text-slate-700 leading-relaxed mb-12"
+              <div className="prose prose-slate prose-xl max-w-none font-serif text-slate-700 leading-relaxed mb-12"
                     dangerouslySetInnerHTML={santizeHtml(cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>')} />
 
               {/* Additional Info / Footer */}
@@ -406,6 +500,10 @@ export default function ArtworkDetail() {
               </div>
             </div>
           </motion.div>
+
+          <div className="lg:hidden mt-20 pt-16 border-t border-slate-200">
+            <GuessYouLikeSection />
+          </div>
 
           {/* Comment Section */}
           <motion.div 
@@ -517,7 +615,7 @@ export default function ArtworkDetail() {
                               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-xs font-bold text-slate-900 tracking-wide">{comment.ip_address.split(',')[0].trim()}</span>
+                              <span className="text-xs font-bold text-slate-900 tracking-wide">{maskIP(comment.ip_address)}</span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-slate-400 font-medium">{comment.location}</span>
                                 <span className="w-1 h-1 rounded-full bg-slate-200" />

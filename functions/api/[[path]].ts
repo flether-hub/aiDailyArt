@@ -199,6 +199,68 @@ app.get('/artworks/:id', async (c) => {
   return c.json(processedArtwork);
 });
 
+app.get('/artworks/:id/similar', async (c) => {
+  const db = await getDB();
+  const id = c.req.param('id');
+  
+  try {
+    const artwork = await db.prepare('SELECT id, keywords FROM artworks WHERE id = ?').get(id) as any;
+    if (!artwork) return c.json({ data: [] });
+    
+    const currentKeywords = typeof artwork.keywords === 'string' 
+      ? artwork.keywords.split(/[，,]/).map((k: string) => k.trim()).filter(Boolean)
+      : [];
+
+    const allArtworks = await db.prepare('SELECT * FROM artworks WHERE id != ? AND is_visible = 1').all(id);
+    // Cloudflare D1 may return { results: [] } or just [] depending on the driver version
+    const artworksArray = Array.isArray(allArtworks) ? allArtworks : ((allArtworks as any)?.results || []);
+
+    if (!artworksArray || artworksArray.length === 0) {
+      return c.json({ data: [] });
+    }
+
+    if (currentKeywords.length === 0) {
+      // If no keywords, return latest 10
+      const fallback = [...artworksArray]
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10);
+      return c.json({ data: fallback });
+    }
+
+    const scored = artworksArray.map((art: any) => {
+      const artKeywords = typeof art.keywords === 'string' 
+        ? art.keywords.split(/[，,]/).map((k: string) => k.trim()).filter(Boolean)
+        : [];
+      
+      let score = 0;
+      for (const kw of currentKeywords) {
+        if (artKeywords.includes(kw)) score++;
+      }
+      return { ...art, score };
+    });
+
+    const similar = scored
+      .filter(art => art.score > 0)
+      .sort((a, b) => b.score - a.score || b.views - a.views)
+      .slice(0, 10);
+
+    if (similar.length < 10) {
+      const existingIds = new Set([id, ...similar.map(s => s.id)]);
+      const latest = artworksArray
+        .filter((art: any) => !existingIds.has(art.id))
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 10 - similar.length);
+      
+      return c.json({ data: [...similar, ...latest] });
+    }
+
+    return c.json({ data: similar });
+  } catch (err) {
+    console.error('Similar API Error:', err);
+    return c.json({ data: [] });
+  }
+});
+
 app.delete('/admin/artworks/:id', async (c) => {
   const db = await getDB();
   const id = c.req.param('id');
