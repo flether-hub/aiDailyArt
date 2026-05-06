@@ -310,11 +310,11 @@ export default function Home() {
                 )}
 
                 <section>
-                  <div className="flex sm:items-center flex-col sm:flex-row mb-16 gap-4 w-full">
-                    <h2 className="text-2xl font-serif font-black text-slate-950 tracking-tight shrink-0">
+                  <div className="flex flex-row items-center justify-between mb-12 sm:mb-16 gap-4 w-full">
+                    <h2 className="text-xl sm:text-2xl font-serif font-black text-slate-950 tracking-tight shrink-0">
                       {selectedKeyword ? (
                         <span className="flex items-center gap-3">
-                          <span className="text-slate-300 italic font-medium">
+                          <span className="text-slate-300 italic font-medium hidden sm:inline">
                             主题 //
                           </span>{" "}
                           {selectedKeyword}
@@ -324,9 +324,9 @@ export default function Home() {
                       )}
                     </h2>
 
-                    <div className="flex-1 h-px bg-slate-200/80 hidden sm:block mx-4"></div>
+                    <div className="flex-1 h-px bg-slate-200/80 hidden md:block mx-4"></div>
 
-                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest mt-2 md:mt-0 shrink-0">
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest shrink-0">
                       <div className="relative flex items-center bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white px-3 py-1.5 rounded-md transition-colors shadow-sm cursor-pointer">
                         <select
                           value={sortMode}
@@ -395,13 +395,13 @@ export default function Home() {
                             <h3 className="text-xl font-serif font-bold text-slate-900 mb-2 group-hover:text-amber-800 transition-colors leading-snug line-clamp-2 h-14 flex items-start">
                               {item.title}
                             </h3>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 truncate">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 truncate">
                               {item.artist} ·{" "}
                               {item.year
                                 ? item.year.toString().substring(0, 4)
                                 : "年代未知"}
                             </p>
-                            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-widest">
+                            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-300 uppercase tracking-widest">
                               <span className="truncate mr-4">
                                 {item.museum}
                               </span>

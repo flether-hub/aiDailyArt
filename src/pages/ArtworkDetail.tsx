@@ -406,11 +406,11 @@ export default function ArtworkDetail() {
             {/* Right Column: Details & Content */}
             <div className="lg:col-span-7 xl:col-span-6">
               {/* Title & Metadata */}
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-black text-slate-950 mb-6 leading-tight tracking-tight">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-serif font-black text-slate-950 mb-4 leading-tight tracking-tight">
                 {artwork.title}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-4 text-xs md:text-sm font-bold uppercase tracking-widest mb-8">
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-1 text-xs md:text-sm font-bold uppercase tracking-widest mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-slate-500 tracking-[0.2em]">艺术家:</span>
                   <span className="text-slate-800">{artwork.artist}</span>
@@ -419,13 +419,20 @@ export default function ArtworkDetail() {
                   <span className="text-slate-500 tracking-[0.2em]">年代:</span>
                   <span className="text-slate-800">{artwork.year ? artwork.year.toString().substring(0, 4) : '年代未知'}</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-500 tracking-[0.2em]">浏览:</span>
+                  <span className="text-slate-800 flex items-center gap-1">
+                    <Eye className="w-3.5 h-3.5 text-slate-400" />
+                    {(artwork.views || 0).toLocaleString()}
+                  </span>
+                </div>
               </div>
 
               {(() => {
                 const subheading = extractFirstSubheading(artwork.ai_interpretation);
                 if (!subheading) return null;
                 return (
-                  <div className="mb-10 p-6 bg-slate-50 border-l-4 border-amber-800/20 rounded-r-lg animate-fade-in shadow-sm">
+                  <div className="mb-8 p-6 bg-slate-50 border-l-4 border-amber-800/20 rounded-r-lg animate-fade-in shadow-sm">
                     <h2 className="text-2xl md:text-3xl font-serif italic text-slate-800 leading-tight">
                       “{subheading}”
                     </h2>
@@ -434,13 +441,13 @@ export default function ArtworkDetail() {
               })()}
 
               {/* Interpretation */}
-              <div className="prose prose-slate prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-12"
+              <div className="prose prose-slate prose-lg max-w-none font-serif text-slate-700 leading-relaxed mb-3"
                     dangerouslySetInnerHTML={santizeHtml(cleanInterpretation(artwork.ai_interpretation) || '<p>记录遗失，目前暂无关于该画作的深度分析手稿...</p>')} />
 
               {/* Additional Info / Footer */}
-              <div className="mt-4 pt-4 border-t border-slate-200/60 ">
+              <div className="mt-0 pt-4 border-t border-slate-200/60 ">
                 {/* Meta Row - Wrapped to prevent scrollbar */}
-                <div className="flex flex-wrap items-start gap-x-10 gap-y-6">
+                <div className="flex flex-wrap items-start gap-x-10 gap-y-4">
                   
                   {/* Museum col */}
                   <div className="flex flex-col gap-1 min-w-[180px]">
@@ -458,12 +465,6 @@ export default function ArtworkDetail() {
                     ) : (
                       <span className="text-slate-800 text-[11px] md:text-xs font-bold flex items-center gap-1 leading-relaxed">未提供</span>
                     )}
-                  </div>
-
-                  {/* Views col */}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[11px] md:text-xs font-black text-slate-500 uppercase tracking-[0.2em] h-5 flex items-center">浏览次数</span>
-                    <span className="text-[11px] md:text-xs text-slate-800 font-bold flex items-center gap-1.5 leading-relaxed"><Eye className="w-3 h-3 text-slate-400"/> {(artwork.views || 0).toLocaleString()} 次</span>
                   </div>
 
                   {/* Created At col */}
