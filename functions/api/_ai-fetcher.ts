@@ -2,16 +2,20 @@ import { getDB } from './_db';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000): Promise<Response> {
   for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
     try {
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           ...(options.headers || {})
         }
       });
+      clearTimeout(timer);
       if (response.ok) return response;
       if (response.status === 429 || response.status >= 500) {
         // Rate limit or server error - wait and retry
@@ -19,7 +23,8 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
         continue;
       }
       return response;
-    } catch (e) {
+    } catch (e: any) {
+      clearTimeout(timer);
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
     }
@@ -86,6 +91,7 @@ const SOURCES = [
 ];
 
 async function fetchFromWikidata(qid, sourceName, notify) {
+  if (notify) await notify(`正在向 Wikidata 请求 ${sourceName} 的艺术清单...`);
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
       VALUES ?type { wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 wd:Q428054 wd:Q2152862 wd:Q1750219 }
@@ -101,6 +107,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
   const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } });
   if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
+  if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析...`);
   const data = await response.json();
   const bindings = data.results?.bindings || [];
   if (bindings.length === 0) return [];
@@ -123,6 +130,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
 }
 
 async function fetchFromMet(notify) {
+  if (notify) await notify(`正在从大都会艺术博物馆搜寻藏品...`);
   const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
   const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`);
@@ -130,6 +138,7 @@ async function fetchFromMet(notify) {
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
   const results = [];
+  if (notify) await notify(`在大都会艺术博物馆找到 ${objectIDs.length} 个候选，正在筛选...`);
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
      try {
