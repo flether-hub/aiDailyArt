@@ -8,6 +8,9 @@ import { setCloudEnv, getCloudEnv } from './_cloud-env';
 const app = new Hono<any>().basePath('/api');
 
 let dbInitialized = false;
+let cachedKeywords: string[] | null = null;
+let lastKeywordRefresh = 0;
+const KEYWORD_CACHE_TTL = 30 * 60 * 1000; // 30 mins
 
 app.use('*', async (c, next) => {
   setCloudEnv(c.env);
@@ -107,7 +110,7 @@ app.get('/admin/artworks', async (c) => {
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
   
-  const artworks = await db.prepare('SELECT * FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
+  const artworks = await db.prepare('SELECT id, source_id, title, artist, year, museum, image_url, keywords, views, is_visible, created_at FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
     .all(limit, offset);
   const totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks').get()) as any;
   const total = totalResult?.total || 0;
@@ -131,7 +134,7 @@ app.get('/artworks', async (c) => {
   let totalResult;
   let total = 0;
   
-  let queryBase = 'SELECT a.*';
+  let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.keywords, a.views, a.is_visible, a.created_at';
   let fromBase = 'FROM artworks a';
   let whereBase = 'WHERE a.is_visible = 1';
   let params: any[] = [];
@@ -211,20 +214,19 @@ app.get('/artworks/:id/similar', async (c) => {
       ? artwork.keywords.split(/[，,]/).map((k: string) => k.trim()).filter(Boolean)
       : [];
 
-    const allArtworks = await db.prepare('SELECT * FROM artworks WHERE id != ? AND is_visible = 1').all(id);
-    // Cloudflare D1 may return { results: [] } or just [] depending on the driver version
-    const artworksArray = Array.isArray(allArtworks) ? allArtworks : ((allArtworks as any)?.results || []);
+    let artworksArray: any[] = [];
+    if (currentKeywords.length > 0) {
+      const keywordConditions = currentKeywords.slice(0, 5).map(() => 'keywords LIKE ?').join(' OR ');
+      const params = currentKeywords.slice(0, 5).map(kw => `%${kw}%`);
+      const results = await db.prepare(`SELECT id, title, artist, image_url, keywords, views, created_at FROM artworks WHERE id != ? AND is_visible = 1 AND (${keywordConditions}) LIMIT 100`).all(id, ...params);
+      artworksArray = results || [];
+    } else {
+      const results = await db.prepare('SELECT id, title, artist, image_url, keywords, views, created_at FROM artworks WHERE id != ? AND is_visible = 1 ORDER BY created_at DESC LIMIT 20').all(id);
+      artworksArray = results || [];
+    }
 
     if (!artworksArray || artworksArray.length === 0) {
       return c.json({ data: [] });
-    }
-
-    if (currentKeywords.length === 0) {
-      // If no keywords, return latest 10
-      const fallback = [...artworksArray]
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 10);
-      return c.json({ data: fallback });
     }
 
     const scored = artworksArray.map((art: any) => {
@@ -233,25 +235,29 @@ app.get('/artworks/:id/similar', async (c) => {
         : [];
       
       let score = 0;
-      for (const kw of currentKeywords) {
-        if (artKeywords.includes(kw)) score++;
+      if (currentKeywords.length > 0) {
+        for (const kw of currentKeywords) {
+          if (artKeywords.includes(kw)) score++;
+        }
       }
       return { ...art, score };
     });
 
-    const similar = scored
+    // Pick top similar ones
+    let similar = scored
       .filter(art => art.score > 0)
       .sort((a, b) => b.score - a.score || b.views - a.views)
       .slice(0, 10);
 
+    // If we need more, fill from the candidate pool (already fetched)
     if (similar.length < 10) {
       const existingIds = new Set([id, ...similar.map(s => s.id)]);
-      const latest = artworksArray
-        .filter((art: any) => !existingIds.has(art.id))
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      const extra = scored
+        .filter(art => !existingIds.has(art.id))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()) // Sort candidates by recency
         .slice(0, 10 - similar.length);
       
-      return c.json({ data: [...similar, ...latest] });
+      similar = [...similar, ...extra];
     }
 
     return c.json({ data: similar });
@@ -512,6 +518,12 @@ app.get('/admin/visitor-stats', async (c) => {
 
 app.get('/keywords', async (c) => {
   const db = await getDB();
+  
+  const now = Date.now();
+  if (cachedKeywords && (now - lastKeywordRefresh < KEYWORD_CACHE_TTL)) {
+    return c.json(cachedKeywords);
+  }
+
   const results = await db.prepare('SELECT keywords FROM artworks').all();
   const fetchedResults = Array.isArray(results) ? results : [];
   const keywordCounts: Record<string, number> = {};
@@ -527,6 +539,10 @@ app.get('/keywords', async (c) => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 40)
     .map(entry => entry[0]);
+    
+  cachedKeywords = sortedKeywords;
+  lastKeywordRefresh = now;
+  
   return c.json(sortedKeywords);
 });
 
