@@ -482,7 +482,7 @@ export default function Home() {
           <aside className="w-full lg:w-72 shrink-0 order-2 lg:order-2 lg:sticky lg:top-32 flex flex-col gap-12">
             {popularArtworks.length > 0 && (
               <div>
-                <div className="flex items-center gap-4 mb-8 opacity-80">
+                <div className="flex items-center gap-4 mb-12 opacity-80">
                   <div className="flex gap-2 hidden lg:flex">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-700/80"></div>
                     <div className="w-2.5 h-2.5 rounded-full bg-red-700/50"></div>
@@ -543,7 +543,7 @@ export default function Home() {
             )}
 
             <div>
-              <div className="flex items-center gap-4 mb-8 opacity-80">
+              <div className="flex items-center gap-4 mb-12 opacity-80">
                 <div className="flex gap-2 hidden lg:flex">
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-700/80"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-amber-700/50"></div>
