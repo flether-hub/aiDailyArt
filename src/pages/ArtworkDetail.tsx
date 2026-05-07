@@ -101,7 +101,7 @@ export default function ArtworkDetail() {
   const GuessYouLikeSection = () => {
     if (similarArtworks.length === 0) return null;
     return (
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-12">
         <div className="flex items-center gap-4 opacity-80">
           <div className="flex gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-red-700/80"></div>
