@@ -130,11 +130,11 @@ app.get('/artworks', async (c) => {
   const offset = parseInt(c.req.query('offset') || '0', 10);
 
   const sort = c.req.query('sort') || 'latest';
-  let artworks;
+  let artworksList: any[] = [];
   let totalResult;
   let total = 0;
   
-  let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.keywords, a.views, a.is_visible, a.created_at';
+  let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at';
   let fromBase = 'FROM artworks a';
   let whereBase = 'WHERE a.is_visible = 1';
   let params: any[] = [];
@@ -147,11 +147,11 @@ app.get('/artworks', async (c) => {
   } else if (sort === 'views_asc') {
     orderStr = 'ORDER BY a.views ASC, a.created_at DESC';
   } else if (sort === 'comments_desc') {
-    queryBase = 'SELECT a.*, COUNT(c.id) as comments_count';
+    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
     fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
     orderStr = 'GROUP BY a.id ORDER BY comments_count DESC, a.created_at DESC';
   } else if (sort === 'comments_asc') {
-    queryBase = 'SELECT a.*, COUNT(c.id) as comments_count';
+    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
     fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
     orderStr = 'GROUP BY a.id ORDER BY comments_count ASC, a.created_at DESC';
   }
@@ -164,12 +164,13 @@ app.get('/artworks', async (c) => {
   const query = `${queryBase} ${fromBase} ${whereBase} ${orderStr} LIMIT ? OFFSET ?`;
   const countQuery = `SELECT COUNT(*) as total FROM artworks a ${keyword ? 'WHERE a.is_visible = 1 AND a.keywords LIKE ?' : 'WHERE a.is_visible = 1'}`;
 
-  artworks = await db.prepare(query).all(...params, limit, offset);
+  const artworksResults = await db.prepare(query).all(...params, limit, offset);
+  artworksList = artworksResults || [];
   totalResult = (await db.prepare(countQuery).get(...(keyword ? [`%${keyword}%`] : []))) as any;
 
   total = totalResult?.total || 0;
 
-  const processedArtworks = (Array.isArray(artworks) ? artworks : []).map((item: any) => ({
+  const processedArtworks = (Array.isArray(artworksList) ? artworksList : []).map((item: any) => ({
     ...item,
     keywords: typeof item.keywords === 'string' ? item.keywords.split(/[，,]/).map((k: string) => k.trim()) : (Array.isArray(item.keywords) ? item.keywords : [])
   }));
@@ -499,17 +500,17 @@ app.get('/admin/visitor-stats', async (c) => {
   const totalVisitsRes = await db.prepare("SELECT COUNT(*) as count FROM visitor_stats").get();
   const totalVisits = (totalVisitsRes as any)?.count || 0;
 
-  const devicesRes = await db.prepare("SELECT device_type, COUNT(*) as count FROM visitor_stats GROUP BY device_type").all();
+  const devices = await db.prepare("SELECT device_type, COUNT(*) as count FROM visitor_stats GROUP BY device_type").all();
   
   // Locations grouped and sorted by count descending
-  const locationsRes = await db.prepare("SELECT location, COUNT(*) as count FROM visitor_stats GROUP BY location ORDER BY count DESC LIMIT ?, ?").all(offset, limit);
+  const locations = await db.prepare("SELECT location, COUNT(*) as count FROM visitor_stats GROUP BY location ORDER BY count DESC LIMIT ?, ?").all(offset, limit);
   const totalLocationsRes = await db.prepare("SELECT COUNT(DISTINCT location) as count FROM visitor_stats").get();
   const totalLocations = (totalLocationsRes as any)?.count || 0;
 
   return c.json({
     totalVisits,
-    devices: devicesRes || [],
-    locations: locationsRes || [],
+    devices: devices || [],
+    locations: locations || [],
     page,
     totalPages: Math.ceil(totalLocations / limit),
     totalLocations

@@ -83,18 +83,23 @@ const SOURCES = [
   { key: 'q1395996', name: '毕尔巴鄂美术馆 (Museo de Bellas Artes de Bilbao)', type: 'wikidata', qid: 'Q1395996' },
   { key: 'q165631', name: '柏林画廊 (Gemäldegalerie)', type: 'wikidata', qid: 'Q165631' },
   { key: 'q176251', name: '提森-博内米萨博物馆 (Thyssen-Bornemisza Museum)', type: 'wikidata', qid: 'Q176251' },
-  { key: 'q170566', name: '故宫博物院 (The Palace Museum)', type: 'wikidata', qid: 'Q170566' },
-  { key: 'q540540', name: '国立故宫博物院 (National Palace Museum)', type: 'wikidata', qid: 'Q540540' },
-  { key: 'q1053428', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1053428' },
-  { key: 'q836262', name: '辽宁省博物馆 (Liaoning Provincial Museum)', type: 'wikidata', qid: 'Q836262' },
-  { key: 'q1936306', name: '浙江省博物馆 (Zhejiang Provincial Museum)', type: 'wikidata', qid: 'Q1936306' }
+  { key: 'q540540', name: '国立故宫博物院 (National Palace Museum, Taipei)', type: 'wikidata', qid: 'Q540540' },
+  { key: 'q49133', name: '波士顿美术馆 (Museum of Fine Arts, Boston)', type: 'wikidata', qid: 'Q49133' },
+  { key: 'q1454516', name: '弗利尔美术馆 (Freer Gallery of Art)', type: 'wikidata', qid: 'Q1454516' },
+  { key: 'q427014', name: '吉美博物馆 (Musée Guimet)', type: 'wikidata', qid: 'Q427014' },
+  { key: 'q664879', name: '赛努奇博物馆 (Musée Cernuschi)', type: 'wikidata', qid: 'Q664879' },
+  { key: 'q170566', name: '故宫博物院 (The Palace Museum, Beijing)', type: 'wikidata', qid: 'Q170566' }
 ];
 
 async function fetchFromWikidata(qid, sourceName, notify) {
   if (notify) await notify(`正在向 Wikidata 请求 ${sourceName} 的艺术清单...`);
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
-      VALUES ?type { wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 wd:Q428054 wd:Q2152862 wd:Q1750219 }
+      VALUES ?type { 
+        wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 
+        wd:Q428054 wd:Q2152862 wd:Q1750219 wd:Q1347065 wd:Q42502 
+        wd:Q1195655 wd:Q659357 wd:Q15303496 wd:Q1058223 wd:Q3534015
+      }
       ?item wdt:P31 ?type;
             wdt:P195 wd:${qid};
             wdt:P18 ?image.
@@ -241,11 +246,11 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   await notify(`系统开始获取名画，本次计划获取 ${targetCount} 幅...`);
   let shuffledSources = [...SOURCES].sort(() => 0.5 - Math.random());
   
-  // 50% chance to put Chinese sources at the front to ensure Chinese paintings are frequently fetched
-  if (Math.random() < 0.5) {
-     const chineseNames = ['故宫博物院', '国立故宫博物院', '上海博物馆', '辽宁省博物馆', '浙江省博物馆'];
-     const cSources = shuffledSources.filter(s => chineseNames.some(n => s.name.includes(n)));
-     const wSources = shuffledSources.filter(s => !chineseNames.some(n => s.name.includes(n)));
+  // 70% chance to put Chinese/Asian sources at the front
+  if (Math.random() < 0.7) {
+     const asianMuseums = ['故宫博物院', '国立故宫博物院', '上海博物馆', '辽宁省博物馆', '浙江省博物馆', '波士顿美术馆', '弗利尔美术馆', '吉美博物馆', '赛努奇博物馆'];
+     const cSources = shuffledSources.filter(s => asianMuseums.some(n => s.name.includes(n)));
+     const wSources = shuffledSources.filter(s => !asianMuseums.some(n => s.name.includes(n)));
      shuffledSources = [...cSources, ...wSources];
   }
 
