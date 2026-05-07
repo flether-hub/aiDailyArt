@@ -5,6 +5,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'dompurify';
+import { createPortal } from 'react-dom';
 import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
 import { maskIP } from '../lib/ipUtils';
 import { useAuth } from '../AuthContext';
@@ -275,84 +276,90 @@ export default function ArtworkDetail() {
   return (
     <>
       {/* Error Modal */}
-      <AnimatePresence>
-        {!!errorModalMsg && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setErrorModalMsg('')}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
-            >
-              <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <X className="w-6 h-6 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">发布未能成功</h3>
-              <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
-                {errorModalMsg}
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setErrorModalMsg('')}
-                  className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95"
-                >
-                  我知道了
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {!!errorModalMsg && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setErrorModalMsg('')}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
+              >
+                <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <X className="w-6 h-6 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 text-center mb-2">发布未能成功</h3>
+                <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
+                  {errorModalMsg}
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setErrorModalMsg('')}
+                    className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                  >
+                    我知道了
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* Confirmation Modal */}
-      <AnimatePresence>
-        {showConfirmModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowConfirmModal(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
-            >
-              <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <Trash2 className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 text-center mb-2">确认删除操作</h3>
-              <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
-                {deleteMode === 'single' ? '此操作将永久删除该条艺术谈评论，无法撤销。' : `此操作将永久删除选中的 ${selectedComments.size} 条艺术谈评论，无法撤销。`}
-              </p>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
-                >
-                  确认删除
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {showConfirmModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowConfirmModal(false)}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl relative z-10 border border-slate-100"
+              >
+                <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 text-center mb-2">确认删除操作</h3>
+                <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
+                  {deleteMode === 'single' ? '此操作将永久删除该条艺术谈评论，无法撤销。' : `此操作将永久删除选中的 ${selectedComments.size} 条艺术谈评论，无法撤销。`}
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowConfirmModal(false)}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md active:scale-95"
+                  >
+                    确认删除
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       <div className="w-full min-h-screen bg-[#faf9f6] flex py-8 sm:py-12 px-4 sm:px-8 md:px-12 lg:px-16 pb-32">
         <div className="w-full max-w-[1280px] mx-auto">
@@ -656,39 +663,46 @@ export default function ArtworkDetail() {
       </div>
 
       {/* Lightbox / Zoom Overlay */}
-      <AnimatePresence>
-        {isZoomed && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 bg-[#faf9f6]/95 backdrop-blur-sm flex items-center justify-center overflow-hidden cursor-zoom-out"
-            onClick={() => setIsZoomed(false)}
-          >
-            <button className="absolute top-6 right-6 lg:top-10 lg:right-10 bg-white/50 hover:bg-white text-slate-900 z-10 p-3 rounded-full transition-colors shadow-sm" onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}>
-               <X className="w-6 h-6" />
-            </button>
+      {createPortal(
+        <AnimatePresence>
+          {isZoomed && (
             <motion.div 
-              className="w-full h-full flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[120] bg-[#faf9f6]/95 backdrop-blur-sm flex items-center justify-center overflow-hidden cursor-zoom-out"
+              onClick={() => setIsZoomed(false)}
             >
-              <motion.img 
-                drag
-                dragConstraints={{ left: -1500, right: 1500, top: -1500, bottom: 1500 }}
-                initial={{ scale: 0.95 }}
-                animate={{ scale: 2 }}
-                exit={{ scale: 0.95 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                src={artwork.image_url} 
-                alt={artwork.title} 
-                className="max-w-[80vw] max-h-[80vh] object-contain shadow-2xl rounded-sm border border-slate-200/50 cursor-grab active:cursor-grabbing" 
-                referrerPolicy="no-referrer"
-                onClick={(e) => e.stopPropagation()}
-              />
+              <button 
+                className="absolute top-4 right-4 lg:top-8 lg:right-8 bg-white/80 hover:bg-white text-slate-900 z-[100] p-3 rounded-full transition-all shadow-md border border-slate-200" 
+                onClick={(e) => { e.stopPropagation(); setIsZoomed(false); }}
+                title="关闭"
+              >
+                 <X className="w-6 md:w-8 h-6 md:h-8" />
+              </button>
+              <motion.div 
+                className="w-full h-full flex items-center justify-center"
+              >
+                <motion.img 
+                  drag
+                  dragConstraints={{ left: -1500, right: 1500, top: -1500, bottom: 1500 }}
+                  initial={{ scale: 0.95 }}
+                  animate={{ scale: 2 }}
+                  exit={{ scale: 0.95 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  src={artwork.image_url} 
+                  alt={artwork.title} 
+                  className="max-w-[80vw] max-h-[80vh] object-contain shadow-2xl rounded-sm border border-slate-200/50 cursor-grab active:cursor-grabbing relative z-10" 
+                  referrerPolicy="no-referrer"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

@@ -193,7 +193,7 @@ export default function Home() {
             <div className="flex items-center justify-center gap-4 md:gap-6 opacity-80 relative z-10">
               <div className="h-px w-16 md:w-32 bg-gradient-to-r from-transparent to-amber-200"></div>
               <span className="text-[10px] md:text-xs font-black text-amber-100 uppercase tracking-[0.4em] md:tracking-[0.5em] shadow-black drop-shadow-md">
-                Vincent van Gogh
+                Henry Ward Beecher
               </span>
               <div className="h-px w-16 md:w-32 bg-gradient-to-l from-transparent to-amber-200"></div>
             </div>

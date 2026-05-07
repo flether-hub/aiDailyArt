@@ -82,8 +82,29 @@ export async function getDB(): Promise<DBClient> {
         
         const Database = req('better-sqlite3');
         const path = req('path');
+        const fs = req('fs');
         const dbPath = path.resolve(process.cwd(), 'database.sqlite');
-        const db = new Database(dbPath);
+        
+        let db: any;
+        try {
+          db = new Database(dbPath);
+          // Quick check to see if database is actually working, as better-sqlite-3 might not throw until first query
+          db.prepare('PRAGMA integrity_check').get();
+        } catch (dbErr: any) {
+          if (dbErr.message.includes('malformed') || dbErr.code === 'SQLITE_CORRUPT') {
+            console.error('CRITICAL: Database image is malformed. Attempting to recover by renaming corrupted file.');
+            const backupPath = `${dbPath}.corrupt.${Date.now()}`;
+            try {
+              if (fs.existsSync(dbPath)) fs.renameSync(dbPath, backupPath);
+              db = new Database(dbPath); // Start fresh
+            } catch (recoveryErr) {
+              throw new Error(`Database corruption recovery failed: ${recoveryErr}`);
+            }
+          } else {
+            throw dbErr;
+          }
+        }
+        
         dbInstance = new SQLiteClient(db);
         return dbInstance;
       } catch (e) {

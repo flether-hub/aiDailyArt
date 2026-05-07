@@ -455,14 +455,12 @@ function AnimatedRoutes() {
   return (
     <ErrorBoundary>
       <AnimatePresence mode="wait">
-        <div key={location.pathname}>
-          <Routes location={location}>
-            <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-            <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
-            <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
-            <Route path="/admin/dashboard" element={<ProtectedRoute><PageWrapper><AdminDashboard /></PageWrapper></ProtectedRoute>} />
-          </Routes>
-        </div>
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+          <Route path="/artwork/:id" element={<PageWrapper><ArtworkDetail /></PageWrapper>} />
+          <Route path="/admin/login" element={<PageWrapper><AdminLogin /></PageWrapper>} />
+          <Route path="/admin/dashboard" element={<ProtectedRoute><PageWrapper><AdminDashboard /></PageWrapper></ProtectedRoute>} />
+        </Routes>
       </AnimatePresence>
     </ErrorBoundary>
   );
