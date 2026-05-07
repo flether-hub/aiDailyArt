@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Trash2, CheckCircle, Circle, Send } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Trash2, CheckCircle, Circle, Send, Home } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,6 +12,7 @@ import { useAuth } from '../AuthContext';
 
 export default function ArtworkDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [artwork, setArtwork] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -101,8 +102,8 @@ export default function ArtworkDetail() {
   const GuessYouLikeSection = () => {
     if (similarArtworks.length === 0) return null;
     return (
-      <div className="flex flex-col gap-12">
-        <div className="flex items-center gap-4 opacity-80">
+      <div className="mb-12">
+        <div className="flex items-center gap-4 mb-12 opacity-80">
           <div className="flex gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-red-700/80"></div>
             <div className="w-2.5 h-2.5 rounded-full bg-red-700/50"></div>
@@ -363,10 +364,44 @@ export default function ArtworkDetail() {
 
       <div className="w-full min-h-screen bg-[#faf9f6] flex py-8 sm:py-12 px-4 sm:px-8 md:px-12 lg:px-16 pb-32">
         <div className="w-full max-w-[1280px] mx-auto">
-          <Link to="/" className="group inline-flex items-center gap-2 text-sm md:text-lg font-bold tracking-widest text-slate-500 hover:text-slate-900 transition-colors mb-12">
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>返回档案库</span>
-          </Link>
+          <div className="flex items-center justify-between gap-4 md:gap-8 mb-12">
+            <Link 
+              to="/" 
+              onClick={(e) => {
+                e.preventDefault();
+                if (window.history.state && window.history.state.idx > 0) {
+                  navigate(-1);
+                } else {
+                  navigate('/');
+                }
+              }}
+              className="group inline-flex items-center gap-2 text-sm md:text-lg font-bold tracking-widest text-slate-500 hover:text-slate-900 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+              <span>返回档案库</span>
+            </Link>
+
+            <div className="flex-1 hidden sm:flex items-center justify-center opacity-40 px-6">
+              <svg className="w-full text-slate-300" height="12" viewBox="0 0 100 12" preserveAspectRatio="none">
+                <path d="M0 6 L 100 6" stroke="currentColor" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke"/>
+                <circle cx="50" cy="6" r="3" fill="none" stroke="currentColor" vectorEffect="non-scaling-stroke"/>
+                <circle cx="50" cy="6" r="1.5" fill="currentColor" />
+              </svg>
+            </div>
+
+            <Link 
+              to="/" 
+              onClick={() => {
+                sessionStorage.removeItem("artworksPage"); 
+                sessionStorage.removeItem("artworksKeyword");
+              }}
+              className="group inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 shadow-sm rounded-full text-xs md:text-sm font-bold tracking-widest text-slate-600 hover:text-amber-800 hover:border-amber-200 transition-all hover:shadow-md shrink-0"
+              title="返回画廊首页"
+            >
+              <Home className="w-4 h-4 md:w-5 md:h-5 text-slate-400 group-hover:text-amber-700 transition-colors" />
+              <span className="hidden sm:inline">返回画廊首页</span>
+            </Link>
+          </div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}

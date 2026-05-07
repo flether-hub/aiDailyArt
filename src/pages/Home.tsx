@@ -28,10 +28,10 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   const [keywords, setKeywords] = useState<string[]>([]);
-  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
+  const [selectedKeyword, setSelectedKeyword] = useState<string | null>(() => sessionStorage.getItem("artworksKeyword") || null);
   const [popularArtworks, setPopularArtworks] = useState<Artwork[]>([]);
   const [showMorePopular, setShowMorePopular] = useState(false);
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(() => Number(sessionStorage.getItem("artworksPage")) || 0);
   const [totalArtworks, setTotalArtworks] = useState(0);
   const [sortMode, setSortMode] = useState<string>(
     localStorage.getItem("artworksSort") || "latest",
@@ -41,6 +41,15 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("artworksSort", sortMode);
   }, [sortMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem("artworksPage", page.toString());
+  }, [page]);
+
+  useEffect(() => {
+    if (selectedKeyword) sessionStorage.setItem("artworksKeyword", selectedKeyword);
+    else sessionStorage.removeItem("artworksKeyword");
+  }, [selectedKeyword]);
 
   const fetchLatestArtwork = async () => {
     try {

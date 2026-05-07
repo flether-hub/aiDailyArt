@@ -248,7 +248,14 @@ function Navbar() {
   return (
     <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 shrink-0 z-50 sticky top-0">
       <div className="w-full max-w-7xl mx-auto px-4 lg:px-8 h-full flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 group shrink-0">
+        <Link 
+          to="/" 
+          onClick={() => {
+            sessionStorage.removeItem("artworksPage"); 
+            sessionStorage.removeItem("artworksKeyword");
+          }}
+          className="flex items-center gap-2 group shrink-0"
+        >
           <GalleryLogo />
           <div className="flex flex-col">
             <h1 className="text-lg font-black tracking-widest font-serif uppercase leading-tight brush-header">
