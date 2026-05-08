@@ -395,7 +395,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
              temperature: 0.7,
              top_p: 0.8
            })
-         }, 3, 1000, 60000);
+         }, 3, 2000, 120000);
 
          if (notify) await notify(`📡 阿里云响应已接收 (HTTP ${res.status})，正在处理数据...`);
 
@@ -477,7 +477,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
     } catch (e: any) {
       let errorMsg = e.message || String(e);
       if (e.name === 'AbortError' || errorMsg.includes('aborted')) {
-        errorMsg = `此操作已中止（可能由网络超时引起）。正在尝试重试...`;
+        errorMsg = `此操作由于响应过慢已中止（已超过预计的最长等待时间）。正在尝试更换模型或重试...`;
       }
       console.error(`AI error (attempt ${attempt}):`, errorMsg);
       
