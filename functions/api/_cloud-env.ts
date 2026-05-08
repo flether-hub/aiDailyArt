@@ -7,8 +7,8 @@ export function getCloudEnv() {
 }
 
 export function setCloudEnv(env: any) {
-  if (env && Object.keys(env).length > 0) {
-    cloudEnv = env;
+  if (env) {
+    cloudEnv = { ...cloudEnv, ...env };
   }
 }
 

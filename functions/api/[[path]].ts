@@ -52,7 +52,8 @@ app.use('/admin/*', async (c, next) => {
   const expectedPassword = env.ADMIN_PASSWORD;
   
   if (!expectedPassword) {
-    return c.json({ error: 'System configuration error: ADMIN_PASSWORD not set' }, 500);
+    console.error('[Auth] ADMIN_PASSWORD missing in env');
+    return c.json({ error: '系统配置错误: 未在环境变量中设置 ADMIN_PASSWORD。', details: '请在 Cloudflare Pages 设置中配置环境变量 ADMIN_PASSWORD。' }, 500);
   }
 
   const expectedToken = await generateToken(expectedPassword);
@@ -566,19 +567,32 @@ app.get('/keywords', async (c) => {
 });
 
 app.post('/auth/login', async (c) => {
-  const { password } = await c.req.json();
-  const env = getCloudEnv();
-  const expectedPassword = env.ADMIN_PASSWORD;
-  
-  if (!expectedPassword) {
-    return c.json({ success: false, error: '系统未配置管理员密码' }, 500);
-  }
+  try {
+    const { password } = await c.req.json();
+    const env = getCloudEnv();
+    const expectedPassword = env.ADMIN_PASSWORD;
+    
+    if (!expectedPassword) {
+      console.error('[Auth] ADMIN_PASSWORD is NOT configured in the environment.');
+      return c.json({ 
+        success: false, 
+        error: '系统配置缺失', 
+        message: '管理员密码未在环境变量中设置。请在 Cloudflare Dashboard 中配置 ADMIN_PASSWORD 并重新部署。' 
+      }, 500);
+    }
 
-  if (password === expectedPassword) {
-    const token = await generateToken(expectedPassword);
-    return c.json({ success: true, token }); 
+    if (password === expectedPassword) {
+      const token = await generateToken(expectedPassword);
+      return c.json({ success: true, token }); 
+    }
+    return c.json({ success: false, error: '密码错误' }, 401);
+  } catch (err: any) {
+    return c.json({ success: false, error: '登录异常', message: err.message }, 500);
   }
-  return c.json({ success: false, error: '密码错误' }, 401);
+});
+
+app.post('/auth/logout', async (c) => {
+  return c.json({ success: true });
 });
 
 // Helper to generate a hash for cache keys

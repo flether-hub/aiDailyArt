@@ -39,7 +39,7 @@ export default function AdminLogin() {
         navigate('/admin/dashboard');
       } else {
         const data = await res.json();
-        setError(data.error || '登录失败');
+        setError(data.message || data.error || '登录失败');
       }
     } catch {
       setError('网络异常，请重试');
