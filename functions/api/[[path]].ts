@@ -551,15 +551,15 @@ app.get('/admin/visitor-stats', async (c) => {
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  // Overview stats
-  const totalVisitsRes = await db.prepare("SELECT COUNT(*) as count FROM visitor_stats").get();
-  const totalVisits = (totalVisitsRes as any)?.count || 0;
+  // Run all stats queries concurrently
+  const [totalVisitsRes, devices, locations, totalLocationsRes] = await Promise.all([
+    db.prepare("SELECT COUNT(*) as count FROM visitor_stats").get(),
+    db.prepare("SELECT device_type, COUNT(*) as count FROM visitor_stats GROUP BY device_type").all(),
+    db.prepare("SELECT location, COUNT(*) as count FROM visitor_stats GROUP BY location ORDER BY count DESC LIMIT ?, ?").all(offset, limit),
+    db.prepare("SELECT COUNT(DISTINCT location) as count FROM visitor_stats").get()
+  ]);
 
-  const devices = await db.prepare("SELECT device_type, COUNT(*) as count FROM visitor_stats GROUP BY device_type").all();
-  
-  // Locations grouped and sorted by count descending
-  const locations = await db.prepare("SELECT location, COUNT(*) as count FROM visitor_stats GROUP BY location ORDER BY count DESC LIMIT ?, ?").all(offset, limit);
-  const totalLocationsRes = await db.prepare("SELECT COUNT(DISTINCT location) as count FROM visitor_stats").get();
+  const totalVisits = (totalVisitsRes as any)?.count || 0;
   const totalLocations = (totalLocationsRes as any)?.count || 0;
 
   return c.json({

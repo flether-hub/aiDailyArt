@@ -1607,16 +1607,26 @@ export default function AdminDashboard() {
                             key={loc.location}
                             className="flex items-center justify-between p-3 px-4 hover:bg-slate-50 transition-colors"
                           >
-                            <div className="flex items-center gap-3">
-                              <span className="w-6 h-6 rounded bg-slate-100 text-slate-400 font-mono text-xs flex items-center justify-center font-bold">
+                            <div className="flex items-center gap-3 w-1/3 min-w-[100px]">
+                              <span className="w-6 h-6 shrink-0 rounded bg-slate-100 text-slate-400 font-mono text-xs flex items-center justify-center font-bold">
                                 {(visitorStats.page - 1) * 20 + idx + 1}
                               </span>
-                              <span className="text-sm font-bold text-slate-800">
+                              <span className="text-sm font-bold text-slate-800 truncate">
                                 {loc.location}
                               </span>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className="text-xs text-slate-400">
+                            
+                            <div className="flex-1 mx-4 hidden sm:block">
+                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-blue-400 rounded-full" 
+                                      style={{ width: `${Math.min(100, (loc.count / visitorStats.locations[0].count) * 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 sm:gap-4 w-[120px] shrink-0">
+                              <span className="text-xs text-slate-400 shrink-0">
                                 占比{" "}
                                 {(
                                   (loc.count / visitorStats.totalVisits) *
