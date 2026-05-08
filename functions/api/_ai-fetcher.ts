@@ -114,9 +114,43 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
     LIMIT 200
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
-  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 60000); 
-  if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
-  if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析...`);
+  
+  let response;
+  try {
+    // 尝试获取 Wikidata 数据，设置 45 秒超时，并在 15 秒没响应时发送一个“保持心跳”的通知
+    const fetchPromise = fetchWithRetry(url, { 
+      headers: { 
+        'Accept': 'application/sparql-results+json', 
+        'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
+      } 
+    }, 2, 1000, 45000);
+
+    const timeoutPulse = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('PULSE_TIMEOUT')), 15000)
+    );
+
+    try {
+      response = await Promise.race([fetchPromise, timeoutPulse]);
+    } catch (raceErr: any) {
+      if (raceErr.message === 'PULSE_TIMEOUT') {
+        if (notify) await notify(`⌛ Wikidata 响应较慢，仍在努力加载中 (已等待 15s)...`);
+        response = await fetchPromise;
+      } else {
+        throw raceErr;
+      }
+    }
+
+  } catch (e: any) {
+    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (45s)' : (e.message || String(e));
+    throw new Error(`连接失败: ${errorMsg}`);
+  }
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error('Wikidata 请求被限流 (429)');
+    throw new Error(`Wikidata HTTP 错误: ${response.status}`);
+  }
+
+  if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析数据...`);
   const data = await response.json();
   const bindings = data.results?.bindings || [];
   if (bindings.length === 0) return [];
@@ -176,7 +210,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   if (lastTaskStatus?.value === 'running') {
     const lastUpdate = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_updated_at'))?.value;
     if (lastUpdate && Date.now() - new Date(lastUpdate).getTime() < 3 * 60 * 1000) {
-      if (onProgress) await onProgress('已经有一个任务正在运行中，请稍后再试。');
+      if (onProgress) await onProgress(`⚠️ 任务冲突：已有${isManual ? '自动' : '手动'}任务正在执行中 (更新于 ${new Date(lastUpdate).toLocaleTimeString()})。`);
       return { success: false, message: 'Task already running' };
     }
   }
