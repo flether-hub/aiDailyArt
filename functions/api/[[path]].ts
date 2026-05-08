@@ -136,7 +136,7 @@ app.get('/artworks', async (c) => {
   let totalResult;
   let total = 0;
   
-  let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at';
+  let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.image_size, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at';
   let fromBase = 'FROM artworks a';
   let whereBase = 'WHERE a.is_visible = 1';
   let whereParams: any[] = [];
@@ -150,11 +150,11 @@ app.get('/artworks', async (c) => {
   } else if (sort === 'views_asc') {
     orderStr = 'ORDER BY a.views ASC, a.created_at DESC';
   } else if (sort === 'comments_desc') {
-    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
+    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.image_size, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
     fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
     orderStr = 'GROUP BY a.id ORDER BY comments_count DESC, a.created_at DESC';
   } else if (sort === 'comments_asc') {
-    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
+    queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.image_size, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at, COUNT(c.id) as comments_count';
     fromBase = 'FROM artworks a LEFT JOIN comments c ON a.id = c.artwork_id';
     orderStr = 'GROUP BY a.id ORDER BY comments_count ASC, a.created_at DESC';
   }

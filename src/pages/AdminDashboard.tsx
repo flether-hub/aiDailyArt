@@ -154,9 +154,20 @@ export default function AdminDashboard() {
         { headers },
       );
       const data = await res.json();
-      setArtworks(Array.isArray(data) ? data : data.data || []);
-      if (data.total !== undefined) setTotalArtworks(data.total);
-    } catch (e) {}
+      
+      if (res.ok) {
+        setArtworks(Array.isArray(data) ? data : data.data || []);
+        if (data.total !== undefined) setTotalArtworks(data.total);
+      } else {
+        console.error("Fetch Admin Artworks Failed:", data);
+        setToastMessage({ message: `获取馆藏失败: ${data.message || data.error || "未知错误"}`, isError: true });
+        setArtworks([]);
+      }
+    } catch (e: any) {
+      console.error("Fetch Admin Artworks Exception:", e);
+      setToastMessage({ message: `网络错误: ${e.message}`, isError: true });
+      setArtworks([]);
+    }
   };
 
   const fetchAdminComments = async () => {

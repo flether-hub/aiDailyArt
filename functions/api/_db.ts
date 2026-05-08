@@ -196,30 +196,27 @@ export async function initDB(db: DBClient) {
     CREATE INDEX IF NOT EXISTS idx_visitor_stats_location ON visitor_stats(location)
   `).run();
 
-  // PRAGMA is not supported in D1, and migration is only needed for legacy SQLite files
-  const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
-  if (isNode) {
-    try {
-      const tableInfo = await db.prepare("PRAGMA table_info(artworks)").all();
-      const hasImageSize = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'image_size');
-      if (!hasImageSize) {
-        await db.prepare("ALTER TABLE artworks ADD COLUMN image_size INTEGER DEFAULT 0").run();
-        console.log('Migrated artworks: added image_size column');
-      }
-    } catch (e) {
-      console.warn('Migration check for artworks failed (safe to ignore if columns exist):', e);
+  // Migration for existing databases (Works on both Node and D1)
+  try {
+    const tableInfo = await db.prepare("PRAGMA table_info(artworks)").all();
+    const hasImageSize = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'image_size');
+    if (!hasImageSize) {
+      await db.prepare("ALTER TABLE artworks ADD COLUMN image_size INTEGER DEFAULT 0").run();
+      console.log('Migrated artworks: added image_size column');
     }
+  } catch (e) {
+    console.warn('Migration check for artworks failed (safe to ignore if columns exist):', e);
+  }
 
-    try {
-      const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
-      const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
-      if (!hasLocation) {
-        await db.prepare("ALTER TABLE comments ADD COLUMN location TEXT").run();
-        console.log('Migrated comments: added location column');
-      }
-    } catch (e) {
-      console.warn('Migration check for comments failed (safe to ignore if columns exist):', e);
+  try {
+    const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
+    const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
+    if (!hasLocation) {
+      await db.prepare("ALTER TABLE comments ADD COLUMN location TEXT").run();
+      console.log('Migrated comments: added location column');
     }
+  } catch (e) {
+    console.warn('Migration check for comments failed (safe to ignore if columns exist):', e);
   }
   
   const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
