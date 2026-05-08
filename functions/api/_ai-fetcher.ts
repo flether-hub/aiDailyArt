@@ -333,19 +333,20 @@ export async function generateDetailedInterpretation(title: string, artist: stri
     const defaultModelId = isAli ? 'qwen-max' : 'gemini-3-flash-preview';
     let displayedModelId = modelId || defaultModelId;
     
-    // Prohibit deprecated models
-    if (displayedModelId === 'gemini-1.5-flash' || displayedModelId === 'gemini-1.5-pro') {
-      displayedModelId = 'gemini-3-flash-preview';
+    // Prohibit legacy versions if necessary, but 1.5 is still very stable. 
+    // We only remap if the user is using something very old or if we really want to push the preview.
+    // Reverting the strict prohibition to allow expert users to use 1.5-flash if preferred.
+    if (displayedModelId === 'gemini-1.0-pro') {
+      displayedModelId = 'gemini-1.5-flash';
     }
 
     try {
-      // Fallback logic for Gemini
-      if (!isAli) {
-        if (isObviouslyInvalid(aiKey)) {
-          const envKey = env.GEMINI_API_KEY;
-          if (envKey && !isObviouslyInvalid(envKey)) {
-             aiKey = envKey;
-          }
+      // Fallback logic for keys
+      if (isObviouslyInvalid(aiKey)) {
+        const fallbackKeyKey = isAli ? 'DASHSCOPE_API_KEY' : 'GEMINI_API_KEY';
+        const envKey = env[fallbackKeyKey];
+        if (envKey && !isObviouslyInvalid(envKey)) {
+           aiKey = envKey;
         }
       }
 
@@ -456,13 +457,14 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       }
 
       // If it's an API Key error, and we aren't already using the environment key fallback,
-      // try to switch to the env key for the next attempt (if Gemini).
-      if (!isAli && (errorMsg.includes('API key not valid') || errorMsg.includes('INVALID_ARGUMENT')) && attempt < maxRetries) {
-        const envKey = env.GEMINI_API_KEY;
+      // try to switch to the env key for the next attempt.
+      if ((errorMsg.includes('API key not valid') || errorMsg.includes('INVALID_ARGUMENT') || errorMsg.includes('Unauthorized')) && attempt < maxRetries) {
+        const fallbackKeyKey = isAli ? 'DASHSCOPE_API_KEY' : 'GEMINI_API_KEY';
+        const envKey = env[fallbackKeyKey];
         if (envKey && envKey !== aiKey && !isObviouslyInvalid(envKey)) {
           console.log(`[AI] Previous key failed, attempting fallback to environment key...`);
           userApiKey = envKey; // Update our source so the next loop iteration picks it up
-          if (notify) await notify(`🔄 预设密钥无效，正在切换到系统备用密钥重试...`, true);
+          if (notify) await notify(`🔄 预设密钥无效或鉴权失败，正在切换到系统备用密钥重试...`, true);
         }
       }
 
