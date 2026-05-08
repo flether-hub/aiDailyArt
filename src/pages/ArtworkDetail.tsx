@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Trash2, CheckCircle, Circle, Send, Home } from 'lucide-react';
+import { ArrowLeft, Eye, ZoomIn, X, ExternalLink, ChevronDown, MessageSquare, Trash2, CheckCircle, Circle, Send, Home, Quote } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
@@ -474,8 +474,9 @@ export default function ArtworkDetail() {
                 const subheading = extractFirstSubheading(artwork.ai_interpretation);
                 if (!subheading) return null;
                 return (
-                  <div className="mb-8 p-6 bg-slate-50 border-l-4 border-amber-800/20 rounded-r-lg animate-fade-in shadow-sm">
-                    <h2 className="text-2xl md:text-3xl font-serif italic text-slate-800 leading-tight">
+                  <div className="mb-8 p-6 bg-amber-50/60 border-l-[3px] border-amber-900/30 rounded-r-sm animate-fade-in relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber-900/20 to-transparent"></div>
+                    <h2 className="text-lg md:text-xl font-serif italic text-slate-900 leading-snug tracking-tight">
                       “{subheading}”
                     </h2>
                   </div>
