@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Eye, Brush, MapPin, Hash, ChevronDown, RefreshCw } from "lucide-react";
+import { Eye, Brush, MapPin, Hash, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
-import { extractFirstSubheading } from "../lib/artUtils";
+import { extractFirstSubheading, getProxiedImageUrl } from "../lib/artUtils";
 import { useAuth } from "../AuthContext";
 
 type Artwork = {
@@ -29,6 +29,8 @@ export default function Home() {
 
   const [keywords, setKeywords] = useState<string[]>([]);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(() => sessionStorage.getItem("artworksKeyword") || null);
+  const [searchTerm, setSearchTerm] = useState<string>(() => sessionStorage.getItem("artworksSearch") || "");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [popularArtworks, setPopularArtworks] = useState<Artwork[]>([]);
   const [showMorePopular, setShowMorePopular] = useState(false);
   const [page, setPage] = useState(() => Number(sessionStorage.getItem("artworksPage")) || 0);
@@ -50,6 +52,14 @@ export default function Home() {
     if (selectedKeyword) sessionStorage.setItem("artworksKeyword", selectedKeyword);
     else sessionStorage.removeItem("artworksKeyword");
   }, [selectedKeyword]);
+
+  useEffect(() => {
+    sessionStorage.setItem("artworksSearch", searchTerm);
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const fetchLatestArtwork = async () => {
     try {
@@ -85,6 +95,7 @@ export default function Home() {
   const fetchArtworks = async (
     currentPage: number,
     currentKeyword: string | null,
+    currentSearch: string,
     currentSortMode: string,
     signal?: AbortSignal,
   ) => {
@@ -95,6 +106,9 @@ export default function Home() {
       let url = `/api/artworks?limit=${limit}&offset=${offset}&sort=${currentSortMode}`;
       if (currentKeyword) {
         url += `&keyword=${encodeURIComponent(currentKeyword)}`;
+      }
+      if (currentSearch) {
+        url += `&search=${encodeURIComponent(currentSearch)}`;
       }
 
       const res = await fetch(url, { signal });
@@ -142,9 +156,9 @@ export default function Home() {
 
   useEffect(() => {
     const ac = new AbortController();
-    fetchArtworks(page, selectedKeyword, sortMode, ac.signal);
+    fetchArtworks(page, selectedKeyword, debouncedSearchTerm, sortMode, ac.signal);
     return () => ac.abort();
-  }, [page, selectedKeyword, sortMode]);
+  }, [page, selectedKeyword, debouncedSearchTerm, sortMode]);
 
   const handleKeywordClick = (k: string) => {
     if (selectedKeyword === k) {
@@ -152,6 +166,13 @@ export default function Home() {
     } else {
       setSelectedKeyword(k);
     }
+    setPage(0);
+    sessionStorage.setItem("artworksScrollPos", "0");
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setDebouncedSearchTerm(searchTerm);
     setPage(0);
     sessionStorage.setItem("artworksScrollPos", "0");
   };
@@ -179,7 +200,7 @@ export default function Home() {
   }, [loading, artworks.length]);
 
   const showHighlight =
-    !selectedKeyword && page === 0 && latestArtwork !== null;
+    !selectedKeyword && !debouncedSearchTerm && page === 0 && latestArtwork !== null;
   const highlight = showHighlight ? latestArtwork : null;
   const gridItems = showHighlight
     ? artworks.filter((a) => a.id !== highlight?.id).slice(0, 12)
@@ -287,7 +308,7 @@ export default function Home() {
                       <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500 min-w-0">
                         <div className="lg:w-3/5 min-w-0 relative overflow-hidden bg-slate-100 flex items-center justify-center p-4 md:p-8">
                           <img
-                            src={highlight.image_url}
+                            src={getProxiedImageUrl(highlight.image_url)}
                             alt={highlight.title}
                             className="relative z-10 w-full max-h-[400px] md:max-h-[500px] object-contain shadow-2xl transition-transform duration-700 group-hover:scale-[1.02]"
                             referrerPolicy="no-referrer"
@@ -345,10 +366,17 @@ export default function Home() {
                 <section>
                   <div className="flex flex-row items-center justify-between mb-12 sm:mb-16 gap-4 w-full">
                     <h2 className="text-xl sm:text-2xl font-serif font-black text-slate-950 tracking-tight shrink-0">
-                      {selectedKeyword ? (
+                      {debouncedSearchTerm ? (
                         <span className="flex items-center gap-3">
                           <span className="text-slate-300 italic font-medium hidden sm:inline">
-                            主题 //
+                            搜索 //
+                          </span>{" "}
+                          {debouncedSearchTerm}
+                        </span>
+                      ) : selectedKeyword ? (
+                        <span className="flex items-center gap-3">
+                          <span className="text-slate-300 italic font-medium hidden sm:inline">
+                            艺术焦点 //
                           </span>{" "}
                           {selectedKeyword}
                         </span>
@@ -405,7 +433,7 @@ export default function Home() {
                         >
                           <div className="art-frame mb-8 overflow-hidden bg-white relative flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] aspect-square md:aspect-[5/6]">
                             <img
-                              src={item.image_url}
+                              src={getProxiedImageUrl(item.image_url)}
                               alt={item.title}
                               className="block w-full max-w-[90%] max-h-[90%] object-contain grayscale-[0.2] group-hover:grayscale-0 transition-all duration-700"
                               referrerPolicy="no-referrer"
@@ -545,7 +573,7 @@ export default function Home() {
                           </span>
                           <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 shrink-0 relative">
                             <img
-                              src={art.image_url}
+                              src={getProxiedImageUrl(art.image_url)}
                               alt={art.title}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             />
@@ -621,6 +649,47 @@ export default function Home() {
                     清除筛选
                   </button>
                 )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-4 mb-12 opacity-80">
+                <div className="flex gap-2 hidden lg:flex">
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-400/80"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-400/50"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-slate-400/20"></div>
+                </div>
+                <h2 className="text-xl font-bold tracking-[0.4em] uppercase brush-header text-slate-800">
+                  馆藏搜索
+                </h2>
+                <div className="h-px bg-gradient-to-r from-slate-300 via-slate-200 to-transparent flex-1 ml-2"></div>
+              </div>
+
+              <div className="bg-white border border-slate-100 p-6 shadow-sm rounded-none">
+                <form onSubmit={handleSearchSubmit} className="relative">
+                  <input
+                    type="text"
+                    placeholder="按名称、作者或艺术焦点搜索..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600/50 transition-all rounded-sm placeholder:text-slate-400"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setDebouncedSearchTerm("");
+                        setPage(0);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-lg leading-none"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </form>
               </div>
             </div>
           </aside>

@@ -6,7 +6,7 @@ import { zhCN } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 import DOMPurify from 'dompurify';
 import { createPortal } from 'react-dom';
-import { extractFirstSubheading, cleanInterpretation } from '../lib/artUtils';
+import { extractFirstSubheading, cleanInterpretation, getProxiedImageUrl } from '../lib/artUtils';
 import { maskIP } from '../lib/ipUtils';
 import { useAuth } from '../AuthContext';
 
@@ -128,7 +128,7 @@ export default function ArtworkDetail() {
                 </span>
                 <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-100 shrink-0 relative bg-slate-50 flex items-center justify-center">
                   <img
-                    src={art.image_url}
+                    src={getProxiedImageUrl(art.image_url)}
                     alt={art.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     referrerPolicy="no-referrer"
@@ -417,7 +417,7 @@ export default function ArtworkDetail() {
                   onClick={() => setIsZoomed(true)}
                 >
                   <img
-                    src={artwork.image_url}
+                    src={getProxiedImageUrl(artwork.image_url)}
                     alt={artwork.title}
                     className="w-full h-auto object-contain mx-auto transition-transform duration-500 group-hover:scale-[1.01]"
                     referrerPolicy="no-referrer"
@@ -726,7 +726,7 @@ export default function ArtworkDetail() {
                   animate={{ scale: 2 }}
                   exit={{ scale: 0.95 }}
                   transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                  src={artwork.image_url} 
+                  src={getProxiedImageUrl(artwork.image_url)} 
                   alt={artwork.title} 
                   className="max-w-[80vw] max-h-[80vh] object-contain shadow-2xl rounded-sm border border-slate-200/50 cursor-grab active:cursor-grabbing relative z-10" 
                   referrerPolicy="no-referrer"

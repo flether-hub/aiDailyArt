@@ -110,7 +110,7 @@ app.get('/admin/artworks', async (c) => {
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
   
-  const artworks = await db.prepare('SELECT id, source_id, title, artist, year, museum, image_url, keywords, views, is_visible, created_at FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
+  const artworks = await db.prepare('SELECT id, source_id, title, artist, year, museum, image_url, image_size, keywords, views, is_visible, created_at FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
     .all(limit, offset);
   const totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks').get()) as any;
   const total = totalResult?.total || 0;
@@ -126,6 +126,7 @@ app.get('/admin/artworks', async (c) => {
 app.get('/artworks', async (c) => {
   const db = await getDB();
   const keyword = c.req.query('keyword');
+  const search = c.req.query('search');
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
 
@@ -137,7 +138,8 @@ app.get('/artworks', async (c) => {
   let queryBase = 'SELECT a.id, a.source_id, a.title, a.artist, a.year, a.museum, a.image_url, a.ai_interpretation, a.keywords, a.views, a.is_visible, a.created_at';
   let fromBase = 'FROM artworks a';
   let whereBase = 'WHERE a.is_visible = 1';
-  let params: any[] = [];
+  let whereParams: any[] = [];
+  let orderParams: any[] = [];
   let orderStr = 'ORDER BY a.created_at DESC';
 
   if (sort === 'oldest') {
@@ -158,15 +160,31 @@ app.get('/artworks', async (c) => {
 
   if (keyword) {
     whereBase += ' AND a.keywords LIKE ?';
-    params.push(`%${keyword}%`);
+    whereParams.push(`%${keyword}%`);
+  }
+
+  if (search) {
+    whereBase += ' AND (a.title LIKE ? OR a.artist LIKE ? OR a.keywords LIKE ?)';
+    whereParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    
+    // Priority: 1. Title, 2. Artist, 3. Keywords
+    if (!orderStr.startsWith('GROUP BY')) {
+      orderStr = `ORDER BY 
+        CASE 
+          WHEN a.title LIKE ? THEN 1
+          WHEN a.artist LIKE ? THEN 2
+          ELSE 3
+        END ASC, a.views DESC, a.created_at DESC`;
+      orderParams.push(`%${search}%`, `%${search}%`);
+    }
   }
 
   const query = `${queryBase} ${fromBase} ${whereBase} ${orderStr} LIMIT ? OFFSET ?`;
-  const countQuery = `SELECT COUNT(*) as total FROM artworks a ${keyword ? 'WHERE a.is_visible = 1 AND a.keywords LIKE ?' : 'WHERE a.is_visible = 1'}`;
+  const countQuery = `SELECT COUNT(*) as total ${fromBase} ${whereBase}`;
 
-  const artworksResults = await db.prepare(query).all(...params, limit, offset);
+  const artworksResults = await db.prepare(query).all(...whereParams, ...orderParams, limit, offset);
   artworksList = artworksResults || [];
-  totalResult = (await db.prepare(countQuery).get(...(keyword ? [`%${keyword}%`] : []))) as any;
+  totalResult = (await db.prepare(countQuery).get(...whereParams)) as any;
 
   total = totalResult?.total || 0;
 
@@ -525,7 +543,7 @@ app.get('/keywords', async (c) => {
     return c.json(cachedKeywords);
   }
 
-  const results = await db.prepare('SELECT keywords FROM artworks').all();
+  const results = await db.prepare('SELECT keywords FROM artworks WHERE is_visible = 1 ORDER BY created_at DESC LIMIT 5000').all();
   const fetchedResults = Array.isArray(results) ? results : [];
   const keywordCounts: Record<string, number> = {};
   fetchedResults.forEach((row: any) => {
@@ -561,6 +579,99 @@ app.post('/auth/login', async (c) => {
     return c.json({ success: true, token }); 
   }
   return c.json({ success: false, error: '密码错误' }, 401);
+});
+
+// Helper to generate a hash for cache keys
+async function hashString(str: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Proxy for external images to solve CORS and connectivity issues
+app.get('/proxy-image', async (c) => {
+  const url = c.req.query('url');
+  if (!url) return c.json({ error: 'URL is required' }, 400);
+
+  const env = getCloudEnv();
+  const hasR2 = env && env.ART_GALLERY_IMAGES && typeof env.ART_GALLERY_IMAGES.get === 'function';
+  let cacheKey = '';
+  
+  if (hasR2) {
+    cacheKey = 'artworks/' + await hashString(url);
+    try {
+      const cached = await env.ART_GALLERY_IMAGES.get(cacheKey);
+      if (cached) {
+        console.log(`[Proxy] Serving from R2: ${url}`);
+        const headers = new Headers();
+        cached.writeHttpMetadata(headers);
+        headers.set('etag', cached.httpEtag);
+        headers.set('Cache-Control', 'public, max-age=31536000');
+        headers.set('Access-Control-Allow-Origin', '*');
+        return new Response(cached.body, { headers });
+      }
+    } catch (e) {
+      console.error('R2 Cache Read Error:', e);
+    }
+  }
+
+  try {
+    console.log(`[Proxy] Remediating - Fetching from source and saving to R2: ${url}`);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      }
+    });
+
+    if (!response.ok) {
+       return c.text(response.statusText, response.status as any);
+    }
+
+    const contentType = response.headers.get('Content-Type') || 'image/jpeg';
+    const body = await response.arrayBuffer();
+    
+    // Save to R2 cache (Remediation)
+    if (hasR2 && cacheKey) {
+      const savePromise = (async () => {
+        try {
+          await env.ART_GALLERY_IMAGES.put(cacheKey, body, {
+            httpMetadata: { contentType: contentType }
+          });
+          console.log(`[Proxy] Successfully remediated to R2: ${url}`);
+          
+          // Try to update the database with the size if we can identify the artwork
+          // This is a bit tricky as the proxy doesn't know the artwork ID easily
+          // But we could potentially find it by image_url
+          try {
+            const db = await getDB();
+            await db.prepare('UPDATE artworks SET image_size = ? WHERE image_url = ? AND (image_size IS NULL OR image_size = 0)').run(body.byteLength, url);
+          } catch (dbErr) {
+            console.warn('Failed to update image_size in DB during proxy', dbErr);
+          }
+        } catch (e) {
+          console.error('R2 Remediation Save Error:', e);
+        }
+      })();
+      
+      try {
+        c.executionCtx.waitUntil(savePromise);
+      } catch (e) {
+        await savePromise;
+      }
+    }
+    
+    const headers = new Headers();
+    headers.set('Content-Type', contentType);
+    headers.set('Cache-Control', 'public, max-age=604800'); // 1 week cache
+    headers.set('Access-Control-Allow-Origin', '*');
+    
+    return new Response(body, { headers });
+  } catch (e: any) {
+    console.error('Proxy Image Error:', e);
+    return c.text('Internal Server Error', 500);
+  }
 });
 
 app.get('/auth/check', async (c) => {
@@ -806,12 +917,12 @@ app.get('/cdn/*', async (c) => {
   
   // Check if R2 is actually a binding (object with get method)
   if (!env || !env.ART_GALLERY_IMAGES || typeof env.ART_GALLERY_IMAGES.get !== 'function') {
-    return c.status(404);
+    return c.text('R2 Storage not configured', 404);
   }
   
   try {
     const object = await env.ART_GALLERY_IMAGES.get(path);
-    if (!object) return c.status(404);
+    if (!object) return c.text('Object not found', 404);
     
     const headers = new Headers();
     object.writeHttpMetadata(headers);
@@ -824,7 +935,7 @@ app.get('/cdn/*', async (c) => {
     return new Response(object.body, { headers });
   } catch (e) {
     console.error('CDN Error:', e);
-    return c.status(500);
+    return c.text('Internal Server Error', 500);
   }
 });
 

@@ -18,6 +18,7 @@ import {
   Network,
 } from "lucide-react";
 import { maskIP } from "../lib/ipUtils";
+import { getProxiedImageUrl } from "../lib/artUtils";
 
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
@@ -697,6 +698,13 @@ export default function AdminDashboard() {
     });
   };
 
+  const formatSize = (bytes: number) => {
+    if (!bytes) return "未知大小";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+  };
+
   if (loading)
     return (
       <div className="text-center py-20 text-slate-500 animate-pulse">
@@ -1226,7 +1234,7 @@ export default function AdminDashboard() {
                       >
                         {item.image_url ? (
                           <img
-                            src={item.image_url}
+                            src={getProxiedImageUrl(item.image_url)}
                             alt=""
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
@@ -1268,10 +1276,7 @@ export default function AdminDashboard() {
                             ).toLocaleString("zh-CN", { hour12: false })}
                           </span>
                           <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 uppercase tracking-tighter border border-slate-200/50">
-                            {settings.ai_provider || "gemini"} /{" "}
-                            {settings[
-                              `${settings.ai_provider || "gemini"}_model_id`
-                            ] || "default"}
+                            文件大小: {formatSize(item.image_size)}
                           </span>
                         </div>
                         {reinterpretMessages[item.id] && (

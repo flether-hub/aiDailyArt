@@ -32,29 +32,30 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
 }
 
-async function uploadToR2(url: string, id: string): Promise<string> {
+async function uploadToR2(url: string, id: string): Promise<{ url: string; size: number }> {
   const env = getCloudEnv();
   // Check if R2 is actually a binding (object with put method)
   if (!env || !env.ART_GALLERY_IMAGES || typeof env.ART_GALLERY_IMAGES.put !== 'function') {
-    return url; 
+    return { url, size: 0 }; 
   }
 
   try {
     const response = await fetchWithRetry(url);
-    if (!response.ok) return url;
+    if (!response.ok) return { url, size: 0 };
     
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     const buffer = await response.arrayBuffer();
+    const size = buffer.byteLength;
     const fileName = `artworks/${id}.${contentType.split('/')[1] || 'jpg'}`;
     
     await env.ART_GALLERY_IMAGES.put(fileName, buffer, {
       httpMetadata: { contentType }
     });
     
-    return `/api/cdn/${fileName}`;
+    return { url: `/api/cdn/${fileName}`, size };
   } catch (e) {
     console.error('R2 Upload failed:', e);
-    return url;
+    return { url, size: 0 };
   }
 }
 
@@ -280,7 +281,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
         try {
           const artworkId = crypto.randomUUID();
-          const r2Url = await uploadToR2(objData.primaryImage, artworkId);
+          const { url: r2Url, size: imageSize } = await uploadToR2(objData.primaryImage, artworkId);
           const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
 
           if (aiData.content.includes('解读生成失败') || aiData.content.includes('未能生成详细解读')) {
@@ -293,9 +294,9 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
           const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
 
           await db.prepare(`
-            INSERT INTO artworks (id, source_id, title, artist, year, museum, image_url, source_url, ai_interpretation, keywords)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(artworkId, objData.sourceId, title_zh, artist_zh, objData.objectDate, objData.repository, r2Url, objData.objectURL, aiData.content, keywordsStr);
+            INSERT INTO artworks (id, source_id, title, artist, year, museum, image_url, image_size, source_url, ai_interpretation, keywords)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(artworkId, objData.sourceId, title_zh, artist_zh, objData.objectDate, objData.repository, r2Url, imageSize, objData.objectURL, aiData.content, keywordsStr);
 
           newlyAdded++;
         } catch (itemErr: any) {

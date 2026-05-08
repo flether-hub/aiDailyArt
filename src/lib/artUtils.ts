@@ -44,3 +44,21 @@ export function cleanInterpretation(html: string | undefined | null): string {
   
   return html.trim();
 }
+
+/**
+ * Wraps an image URL with the local proxy if it's an external URL. 
+ * This helps bypass CORS and other loading restrictions.
+ * @param url The original image URL
+ * @returns The proxied URL or original if already internal
+ */
+export function getProxiedImageUrl(url: string | undefined | null): string {
+  if (!url) return '';
+  
+  // If it's already a relative URL or points to our API/CDN, leave it
+  if (url.startsWith('/') || url.includes(window.location.host + '/api/')) {
+    return url;
+  }
+
+  // Use the proxy-image endpoint
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}

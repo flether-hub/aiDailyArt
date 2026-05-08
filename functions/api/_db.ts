@@ -141,6 +141,7 @@ export async function initDB(db: DBClient) {
       year TEXT,
       museum TEXT,
       image_url TEXT,
+      image_size INTEGER DEFAULT 0,
       source_url TEXT,
       ai_interpretation TEXT,
       keywords TEXT,
@@ -179,9 +180,36 @@ export async function initDB(db: DBClient) {
     )
   `).run();
 
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_artworks_is_visible_created_at ON artworks(is_visible, created_at DESC)
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_artworks_is_visible_views ON artworks(is_visible, views DESC)
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_comments_artwork_id ON comments(artwork_id, created_at DESC)
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_visitor_stats_location ON visitor_stats(location)
+  `).run();
+
   // PRAGMA is not supported in D1, and migration is only needed for legacy SQLite files
   const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
   if (isNode) {
+    try {
+      const tableInfo = await db.prepare("PRAGMA table_info(artworks)").all();
+      const hasImageSize = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'image_size');
+      if (!hasImageSize) {
+        await db.prepare("ALTER TABLE artworks ADD COLUMN image_size INTEGER DEFAULT 0").run();
+        console.log('Migrated artworks: added image_size column');
+      }
+    } catch (e) {
+      console.warn('Migration check for artworks failed (safe to ignore if columns exist):', e);
+    }
+
     try {
       const tableInfo = await db.prepare("PRAGMA table_info(comments)").all();
       const hasLocation = Array.isArray(tableInfo) && tableInfo.some((col: any) => col.name === 'location');
@@ -190,7 +218,7 @@ export async function initDB(db: DBClient) {
         console.log('Migrated comments: added location column');
       }
     } catch (e) {
-      console.warn('Migration check failed (safe to ignore if columns exist):', e);
+      console.warn('Migration check for comments failed (safe to ignore if columns exist):', e);
     }
   }
   
