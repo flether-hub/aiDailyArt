@@ -273,13 +273,17 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
     const intervalHours = parseInt(((await getSetting('interval_hours')) as any)?.value || '0', 10);
     const intervalMinutes = parseInt(((await getSetting('interval_minutes')) as any)?.value || '30', 10);
     let intervalMs = (intervalHours * 60 + intervalMinutes) * 60 * 1000;
-    if (intervalMs < 30 * 60 * 1000) intervalMs = 30 * 60 * 1000; 
+    if (intervalMs < 15 * 60 * 1000) intervalMs = 15 * 60 * 1000; 
   
     const targetCount = 1;
 
     if (!isManual) {
        try {
          const enabledAutoFetch = (((await getSetting('enabled_auto_fetch')) as any)?.value || 'true') === 'true';
+         if (!enabledAutoFetch) {
+            await updateJobInDB('未启用后台自动抓取，本次触发已忽略。', 'idle');
+            return { success: false, message: 'Auto fetch disabled' };
+         }
          if (enabledAutoFetch) {
            const result: any = await db.prepare("SELECT max(created_at) as last_run FROM artworks").get();
            let lastRunMs = 0;
@@ -290,7 +294,10 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
               if (!isoStr.endsWith('Z') && !isoStr.includes('+')) isoStr += 'Z';
               lastRunMs = isNaN(new Date(isoStr).getTime()) ? 0 : new Date(isoStr).getTime();
            }
-           if (Date.now() - lastRunMs < intervalMs) return { success: false, message: 'Interval not reached' };
+           if (Date.now() - lastRunMs < intervalMs) {
+               await updateJobInDB('后台任务未达设定的自动抓取间隔，本次触发已跳过。', 'idle');
+               return { success: false, message: 'Interval not reached' };
+           }
          }
        } catch(e) {}
     }
