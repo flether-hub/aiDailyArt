@@ -27,7 +27,11 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       if (e.name === 'AbortError') {
         const timeoutMsg = `${label}超时 (超过 ${timeout/1000} 秒)。请稍后重试。`;
         console.error(`[Fetch] ${label} Timeout after ${timeout}ms: ${url}`);
-        if (i === retries - 1) throw new Error(timeoutMsg);
+        if (i === retries - 1) {
+          const timeoutErr = new Error(timeoutMsg);
+          timeoutErr.name = 'AbortError';
+          throw timeoutErr;
+        }
       }
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
@@ -117,31 +121,49 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   
   let response;
   try {
-    // 尝试获取 Wikidata 数据，设置 45 秒超时，并在 15 秒没响应时发送一个“保持心跳”的通知
+    // 尝试获取 Wikidata 数据，设置 30 秒超时，并在 10秒和 20秒没响应时发送一个“保持心跳”的通知
     const fetchPromise = fetchWithRetry(url, { 
       headers: { 
         'Accept': 'application/sparql-results+json', 
         'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
       } 
-    }, 2, 1000, 45000, "Wikidata 数据连接");
+    }, 2, 1000, 30000, "Wikidata 数据连接");
 
-    const timeoutPulse = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('PULSE_TIMEOUT')), 15000)
+    let timer10s: any, timer20s: any;
+    const pulse10s = new Promise((_, reject) => 
+      timer10s = setTimeout(() => reject(new Error('PULSE_10S')), 10000)
     );
+    const pulse20s = new Promise((_, reject) => 
+      timer20s = setTimeout(() => reject(new Error('PULSE_20S')), 20000)
+    );
+    pulse10s.catch(() => {});
+    pulse20s.catch(() => {});
 
     try {
-      response = await Promise.race([fetchPromise, timeoutPulse]);
-    } catch (raceErr: any) {
-      if (raceErr.message === 'PULSE_TIMEOUT') {
-        if (notify) await notify(`⌛ Wikidata 响应较慢，仍在努力加载中 (已等待 15s)...`);
-        response = await fetchPromise;
+      response = await Promise.race([fetchPromise, pulse10s]);
+    } catch (e: any) {
+      if (e.message === 'PULSE_10S') {
+        if (notify) await notify(`⌛ Wikidata 响应较慢，仍在努力加载中 (已等待 10s)...`);
+        try {
+          response = await Promise.race([fetchPromise, pulse20s]);
+        } catch (e2: any) {
+          if (e2.message === 'PULSE_20S') {
+            if (notify) await notify(`⌛ Wikidata 响应极其缓慢，仍在继续尝试 (已等待 20s)...`);
+            response = await fetchPromise;
+          } else {
+            throw e2;
+          }
+        }
       } else {
-        throw raceErr;
+        throw e;
       }
+    } finally {
+      clearTimeout(timer10s);
+      clearTimeout(timer20s);
     }
 
   } catch (e: any) {
-    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (45s)' : (e.message || String(e));
+    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (30s)' : (e.message || String(e));
     throw new Error(`连接失败: ${errorMsg}`);
   }
 
@@ -288,16 +310,28 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
           continue;
        }
 
-       if (candidates.length === 0) continue;
+       if (candidates.length === 0) {
+          if (notify) await notify(`⚠️ 未从该数据源找到合适的名画，正在切换下一个源...`);
+          continue;
+       }
 
+       const validCandidates = [];
        for (const objData of candidates) {
-          if (newlyAdded >= targetCount) break;
           try {
             const exists = await db.prepare('SELECT id FROM artworks WHERE source_id = ?').get(objData.sourceId);
-            if (exists) continue;
-          } catch(e) {}
+            if (!exists) validCandidates.push(objData);
+          } catch(e) { validCandidates.push(objData); }
+       }
 
-          await notify(`精选名画: 《${objData.title}》 - ${objData.artistDisplayName}`);
+       if (validCandidates.length === 0) {
+          if (notify) await notify(`⏭️ 该数据源获取到的 ${candidates.length} 幅名画均已收录在库中，正在寻找新作品...`);
+          continue;
+       }
+
+       for (const objData of validCandidates) {
+          if (newlyAdded >= targetCount) break;
+
+          await notify(`精选新画作: 《${objData.title}》 - ${objData.artistDisplayName}`);
           await notify(`💡 正在进行深度分析并转存资源...`);
 
           try {
@@ -317,6 +351,12 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
             newlyAdded++;
           } catch (itemErr: any) {
             await notify(`❌ 处理《${objData.title}》时出错: ${itemErr.message}`, true);
+            // 如果是 AI API 凭证错误或限流，直接中断整个抓取避免疯狂报错
+            const errLower = itemErr.message.toLowerCase();
+            const isCriticalError = ['api 密钥', '限流', '额度', '频繁', 'auth', 'api key', '429', '401', '403', 'quota', 'rate limit', 'exhausted'].some(keyword => errLower.includes(keyword));
+            if (isCriticalError) {
+              throw itemErr; 
+            }
             continue; 
           }
        }
@@ -338,7 +378,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
   const prompt = `你是一位风趣幽默、见多识广、偶尔带点“凡尔赛”气息的顶级艺术策展人。
 请为以下名画撰写一篇让人欲罢不能的高深度、长篇赏析。同时，请将画作名称和创作者翻译成中文（如果是外语）。
 【创作要求】：
-1. **字数下限**：赏析内容（content字段）必须在 800 至 1000 字之间，务必保证内容的深度与趣味性。
+1. **字数与结构**：赏析内容（content字段）字数必须严格在 700 至 900 字之间。正文内容需使用 <h3> 标签包含 3 到 5 个小标题，**小标题内严禁出现任何数字序号或项目符号**（如“1., 2., 一、, 二、, 第一, 其一”等）。
 2. **讲故事，别讲课**：讲讲这幅画背后的轶事、画家的特殊习惯或者那个时代的背景。
 3. **金句频出**：每段建议包含一两个耐人寻味的段子或金句。
 4. **排版优雅**：使用 HTML 标签（h3, p, strong）进行排版。严禁输出任何 Markdown 标记（如反引号）。
@@ -409,16 +449,56 @@ export async function generateDetailedInterpretation(title: string, artist: stri
         throw new Error(`[Auth] 尚未配置有效的 ${providerName} API 密钥。`);
       }
       
-      if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId})${attempt > 1 ? ` (重试 ${attempt-1})` : ''} ...`);
+      if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId}) (第 ${attempt} 次尝试) ...`);
 
       let text = "";
+      const modelNameForLog = isAli ? '阿里云' : 'Google Gemini';
+
+      let timer20s: any, timer40s: any, timer60s: any;
+      const pulse20s = new Promise((_, reject) => timer20s = setTimeout(() => reject(new Error('PULSE_20S')), 20000));
+      const pulse40s = new Promise((_, reject) => timer40s = setTimeout(() => reject(new Error('PULSE_40S')), 40000));
+      const pulse60s = new Promise((_, reject) => timer60s = setTimeout(() => reject(new Error('PULSE_60S')), 60000));
+      pulse20s.catch(() => {});
+      pulse40s.catch(() => {});
+      pulse60s.catch(() => {});
+
+      const runWithPulses = async <T,>(promise: Promise<T>): Promise<T> => {
+         try {
+            return await Promise.race([promise, pulse20s]);
+         } catch (e: any) {
+            if (e.message === 'PULSE_20S') {
+                if (notify) await notify(`⌛ ${modelNameForLog} 模型思考中 (第 ${attempt} 次尝试，已等待 20s)...`);
+                try {
+                  return await Promise.race([promise, pulse40s]);
+                } catch (e2: any) {
+                  if (e2.message === 'PULSE_40S') {
+                      if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 40s)...`);
+                      try {
+                        return await Promise.race([promise, pulse60s]);
+                      } catch (e3: any) {
+                        if (e3.message === 'PULSE_60S') {
+                            throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 60s)`);
+                        }
+                        throw e3;
+                      }
+                  } else {
+                      throw e2;
+                  }
+                }
+            } else {
+                throw e;
+            }
+         } finally {
+            clearTimeout(timer20s);
+            clearTimeout(timer40s);
+            clearTimeout(timer60s);
+         }
+      };
 
       if (isAli) {
-         if (notify) await notify(`🔄 正在向阿里云百炼 (Dashscope) 发送请求，这可能需要 30-60 秒...`);
-         
          // Optimization for Alibaba: Use the direct model ID if it carries the prefix, 
          // otherwise ensure the compatible-mode endpoint is used correctly.
-         const res = await fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+         const fetchPromise = fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
            method: 'POST',
            headers: { 
              'Content-Type': 'application/json', 
@@ -433,7 +513,9 @@ export async function generateDetailedInterpretation(title: string, artist: stri
              temperature: 0.7,
              top_p: 0.8
            })
-         }, 3, 2000, 120000);
+         }, 1, 0, 70000, "阿里云API调用");
+
+         const res: any = await runWithPulses(fetchPromise);
 
          if (notify) await notify(`📡 阿里云响应已接收 (HTTP ${res.status})，正在处理数据...`);
 
@@ -448,9 +530,8 @@ export async function generateDetailedInterpretation(title: string, artist: stri
          text = data.choices?.[0]?.message?.content || "{}";
          if (notify) await notify(`📑 内容已提取，字数：${text.length}，正在解析 JSON 结构...`);
        } else {
-         if (notify) await notify(`🔄 正在向 Google Gemini 发送请求...`);
          const ai = new GoogleGenAI({ apiKey: aiKey });
-         const response = await ai.models.generateContent({
+         const geminiPromise = ai.models.generateContent({
             model: displayedModelId,
             contents: prompt,
             config: {
@@ -467,6 +548,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
                }
             }
          });
+         const response: any = await runWithPulses(geminiPromise);
          text = response.text || "{}";
        }
 

@@ -158,6 +158,16 @@ export default function AdminDashboard() {
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
       }
+      
+      if (data.cron_last_trigger) {
+        setSettings((prev: any) => {
+          if (prev.cron_last_trigger !== data.cron_last_trigger) {
+            return { ...prev, cron_last_trigger: data.cron_last_trigger };
+          }
+          return prev;
+        });
+      }
+      
       return data.status;
     } catch (e) {
       return "idle";
@@ -345,9 +355,9 @@ export default function AdminDashboard() {
     if (
       isNaN(hours) ||
       isNaN(mins) ||
-      (hours * 60 + mins < 30 && settings.enabled_auto_fetch !== "false")
+      (hours * 60 + mins < 15 && settings.enabled_auto_fetch !== "false")
     ) {
-      showToast("自动抓取间隔不能小于30分钟", true);
+      showToast("自动抓取间隔不能小于15分钟", true);
       return;
     }
 
@@ -1004,7 +1014,7 @@ export default function AdminDashboard() {
                       启用后台自动抓取间隔
                     </div>
                     <span className="text-xs text-slate-400 font-normal">
-                      最少30分钟
+                      最少15分钟
                     </span>
                   </label>
                   <div className="flex flex-col gap-3">
