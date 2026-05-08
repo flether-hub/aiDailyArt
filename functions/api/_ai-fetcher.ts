@@ -114,7 +114,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
     LIMIT 200
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
-  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 30000); 
+  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 60000); 
   if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
   if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析...`);
   const data = await response.json();
@@ -183,8 +183,8 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   const updateJobInDB = async (msg: string, status: string, isError = false) => {
     try {
-      const prefix = isManual ? "[手动] " : "[后台] ";
-      const finalMsg = msg.includes("🚀") || msg.includes("✅") ? msg : `${prefix}${msg}`;
+      // 移除前缀，避免与 SSE 实时流内容产生差异导致前端去重失效
+      const finalMsg = msg; 
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', finalMsg);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
@@ -200,9 +200,13 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   };
 
   let newlyAdded = 0;
-  const targetProvider = overrides?.provider || (await db.prepare('SELECT value FROM settings WHERE key = ?').get('ai_provider') as any)?.value || 'gemini';
-  const engineName = targetProvider === 'ali' ? "阿里云百炼" : "Google Gemini";
-  await updateJobInDB(`🚀 正在启动名画寻脉任务... (引擎: ${engineName})`, 'running');
+  const providerSetting = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('ai_provider') as any)?.value;
+  const targetProvider = overrides?.provider || providerSetting || 'gemini';
+  
+  // 确保启动时的引擎显示逻辑与实际逻辑一致
+  const isAliStart = targetProvider === 'ali' || targetProvider === 'dashscope' || targetProvider === 'bailian';
+  const engineName = isAliStart ? "阿里云百炼" : "Google Gemini";
+  await updateJobInDB(`🚀 正在启动名画寻脉任务... (主要引擎: ${engineName})`, 'running');
 
   try {
     const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
@@ -332,7 +336,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const env = getCloudEnv();
     let aiKey = userApiKey;
-    const isAli = provider === 'dashscope' || provider === 'bailian';
+    const isAli = provider === 'dashscope' || provider === 'bailian' || provider === 'ali';
     const providerName = isAli ? '阿里云百炼' : 'Google Gemini';
 
     const isObviouslyInvalid = (key: string | undefined): boolean => {
