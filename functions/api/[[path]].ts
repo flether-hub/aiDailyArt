@@ -86,24 +86,17 @@ app.get('/cron', async (c) => {
     console.error('Error saving cron_last_trigger:', err);
   }
 
-  // Asynchronous execution without blocking the response
-  const promise = (async () => {
-    try {
-      const { runAIAggregation } = await import('./_ai-fetcher');
-      await runAIAggregation(false);
-      console.log('[Cron] Aggregation finished.');
-    } catch (err) {
-      console.error('[Cron] Error running aggregation:', err);
-    }
-  })();
-  
+  // Try to keep the connection alive as long as possible by awaiting the aggregation
+  // Cloudflare Workers restricts waitUntil to a very short background window after response.
   try {
-    c.executionCtx.waitUntil(promise);
-  } catch (e) {
-    // Non-Cloudflare environment, no waitUntil available
+    const { runAIAggregation } = await import('./_ai-fetcher');
+    await runAIAggregation(false);
+    console.log('[Cron] Aggregation finished.');
+  } catch (err) {
+    console.error('[Cron] Error running aggregation:', err);
   }
 
-  return c.json({ success: true, message: 'Cron job initiated in the background.' });
+  return c.json({ success: true, message: 'Cron job executed.' });
 });
 
 app.get('/admin/artworks', async (c) => {
