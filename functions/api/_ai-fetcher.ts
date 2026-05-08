@@ -25,7 +25,9 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
     } catch (e: any) {
       clearTimeout(timer);
       if (e.name === 'AbortError') {
+        const timeoutMsg = `请求超时 (超过 ${timeout/1000} 秒)。AI 响应过慢，请稍后重试。`;
         console.error(`[Fetch] Timeout after ${timeout}ms: ${url}`);
+        if (i === retries - 1) throw new Error(timeoutMsg);
       }
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
@@ -181,7 +183,8 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   const updateJobInDB = async (msg: string, status: string, isError = false) => {
     try {
-      const finalMsg = isManual ? msg : `[系统自动] ${msg}`;
+      const prefix = isManual ? "[手动] " : "[后台] ";
+      const finalMsg = msg.includes("🚀") || msg.includes("✅") ? msg : `${prefix}${msg}`;
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', finalMsg);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
@@ -197,7 +200,9 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   };
 
   let newlyAdded = 0;
-  await updateJobInDB('正在启动名画寻脉任务...', 'running');
+  const targetProvider = overrides?.provider || (await db.prepare('SELECT value FROM settings WHERE key = ?').get('ai_provider') as any)?.value || 'gemini';
+  const engineName = targetProvider === 'ali' ? "阿里云百炼" : "Google Gemini";
+  await updateJobInDB(`🚀 正在启动名画寻脉任务... (引擎: ${engineName})`, 'running');
 
   try {
     const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
@@ -371,6 +376,8 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       let text = "";
 
       if (isAli) {
+         if (notify) await notify(`🔄 正在向阿里云百炼 (Dashscope) 发送请求，这可能需要 30-60 秒...`);
+         
          // Optimization for Alibaba: Use the direct model ID if it carries the prefix, 
          // otherwise ensure the compatible-mode endpoint is used correctly.
          const res = await fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
@@ -390,6 +397,8 @@ export async function generateDetailedInterpretation(title: string, artist: stri
            })
          }, 3, 1000, 60000);
 
+         if (notify) await notify(`📡 阿里云响应已接收 (HTTP ${res.status})，正在处理数据...`);
+
          if (!res.ok) {
            const errText = await res.text();
            let errJson: any = {};
@@ -399,7 +408,9 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
          const data: any = await res.json();
          text = data.choices?.[0]?.message?.content || "{}";
+         if (notify) await notify(`📑 内容已提取，字数：${text.length}，正在解析 JSON 结构...`);
        } else {
+         if (notify) await notify(`🔄 正在向 Google Gemini 发送请求...`);
          const ai = new GoogleGenAI({ apiKey: aiKey });
          const response = await ai.models.generateContent({
             model: displayedModelId,
@@ -464,7 +475,10 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       return { keywords: finalKeywords, content, title_zh: finalTitle_zh, artist_zh: finalArtist_zh };
 
     } catch (e: any) {
-      const errorMsg = e.message || String(e);
+      let errorMsg = e.message || String(e);
+      if (e.name === 'AbortError' || errorMsg.includes('aborted')) {
+        errorMsg = `此操作已中止（可能由网络超时引起）。正在尝试重试...`;
+      }
       console.error(`AI error (attempt ${attempt}):`, errorMsg);
       
       // Handle Quota Exceeded (429) / RESOURCE_EXHAUSTED

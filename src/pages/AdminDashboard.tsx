@@ -17,6 +17,7 @@ import {
   Users,
   Network,
   X,
+  Copy,
 } from "lucide-react";
 import { maskIP } from "../lib/ipUtils";
 import { getProxiedImageUrl } from "../lib/artUtils";
@@ -24,6 +25,8 @@ import { getProxiedImageUrl } from "../lib/artUtils";
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
   const [fetchingWorks, setFetchingWorks] = useState(false);
+  const [taskLogs, setTaskLogs] = useState<{ id: string; time: string; msg: string; isError?: boolean }[]>([]);
+  const logContainerRef = useRef<HTMLDivElement>(null);
   const fetchAbortController = useRef<AbortController | null>(null);
   const [fetchingProgress, setFetchingProgress] = useState<{
     message: string;
@@ -114,6 +117,25 @@ export default function AdminDashboard() {
 
   const limit = 12;
 
+  const addLog = (msg: string, isError = false) => {
+    setTaskLogs(prev => {
+      const last = prev[prev.length - 1];
+      if (last && last.msg === msg) return prev; 
+      return [...prev, {
+        id: Math.random().toString(36).substring(7),
+        time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+        msg,
+        isError
+      }].slice(-50); 
+    });
+  };
+
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [taskLogs]);
+
   const fetchJobStatus = async () => {
     try {
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
@@ -125,24 +147,16 @@ export default function AdminDashboard() {
           message: data.message,
           error: data.error ? "预警" : undefined,
         });
+        addLog(data.message, !!data.error);
       } else if (fetchingWorks && data.status === "idle") {
-        // Job just finished while we were polling or just loaded
         setFetchingWorks(false);
         setFetchingProgress({
           message: data.message,
           error: data.error ? "已中止" : undefined,
         });
+        if (data.message) addLog(data.message, !!data.error);
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
-      } else if (
-        !fetchingWorks &&
-        data.status === "idle" &&
-        data.message &&
-        data.message.includes("圆满完成")
-      ) {
-        // If we just loaded and there's a recent completion message, maybe show it?
-        // But usually we don't want to show old completion messages forever.
-        // For now, let's only set if it's an error or we were previously fetching.
       }
       return data.status;
     } catch (e) {
@@ -379,16 +393,17 @@ export default function AdminDashboard() {
     fetchAbortController.current = new AbortController();
     
     setFetchingWorks(true);
-    setFetchingProgress({ message: "正在启动名画寻脉任务..." });
+    setTaskLogs([]); // Clear logs for new task
+    const startMsg = "🚀 正在启动名画寻脉任务...";
+    setFetchingProgress({ message: startMsg });
+    addLog(startMsg);
+
     try {
       const provider = settings.ai_provider || "gemini";
       const modelId = settings[`${provider}_model_id`] || "";
       let apiKey = settings[`${provider}_api_key`] || "";
 
-      // Don't send masked keys to the server
-      if (apiKey.includes("***")) {
-        apiKey = "";
-      }
+      if (apiKey.includes("***")) apiKey = "";
 
       const res = await fetch("/api/admin/trigger-fetch", {
         method: "POST",
@@ -407,7 +422,7 @@ export default function AdminDashboard() {
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(
-          `请求失败 (${res.status}): ${errorText.substring(0, 100)}...`,
+          `请求失败 (${res.status}): ${errorText.substring(0, 100)}`,
         );
       }
 
@@ -416,7 +431,6 @@ export default function AdminDashboard() {
       if (!reader) throw new Error("No readable stream");
 
       let done = false;
-      let finalResult = null;
       let buffer = "";
 
       while (!done) {
@@ -425,17 +439,12 @@ export default function AdminDashboard() {
         if (value) {
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          // Keep the last part in the buffer as it might be incomplete
           buffer = lines.pop() || "";
 
           for (const line of lines) {
             let trimmed = line.trim();
             if (!trimmed) continue;
-
-            // Strip potential SSE data: prefix
-            if (trimmed.startsWith("data: ")) {
-              trimmed = trimmed.substring(6).trim();
-            }
+            if (trimmed.startsWith("data: ")) trimmed = trimmed.substring(6).trim();
 
             try {
               const data = JSON.parse(trimmed);
@@ -444,27 +453,23 @@ export default function AdminDashboard() {
                   message: data.message,
                   error: data.error ? "预警" : undefined,
                 });
+                addLog(data.message, !!data.error);
               } else if (data.type === "complete") {
-                finalResult = data.data;
+                const completeMsg = data.data.success ? `✅ ${data.data.message}` : `❌ ${data.data.message}`;
+                addLog(completeMsg, !data.data.success);
               }
             } catch (e) {
-              console.warn("Failed to parse line:", trimmed, e);
-              // Attempt recovery if multiple objects somehow got concatenated without newlines
-              const parts = trimmed.split("}{");
-              if (parts.length > 1) {
-                for (let i = 0; i < parts.length; i++) {
-                  let part = parts[i];
-                  if (i > 0) part = "{" + part;
-                  if (i < parts.length - 1) part = part + "}";
+              // Attempt to match JSON blocks if they are smashed together
+              const jsonBlocks = trimmed.match(/\{.*?\}/g);
+              if (jsonBlocks) {
+                for (const block of jsonBlocks) {
                   try {
-                    const data = JSON.parse(part);
-                    if (data.type === "progress")
-                      setFetchingProgress({
-                        message: data.message,
-                        error: data.error ? "预警" : undefined,
-                      });
-                    else if (data.type === "complete") finalResult = data.data;
-                  } catch (e2) {}
+                    const data = JSON.parse(block);
+                    if (data.type === "progress") {
+                      setFetchingProgress({ message: data.message, error: data.error ? "警告" : undefined });
+                      addLog(data.message, !!data.error);
+                    }
+                  } catch(e2) {}
                 }
               }
             }
@@ -472,83 +477,53 @@ export default function AdminDashboard() {
         }
       }
 
-      // Process any remaining data in buffer
-      if (buffer.trim()) {
-        let trimmed = buffer.trim();
-        if (trimmed.startsWith("data: ")) trimmed = trimmed.substring(6).trim();
-        try {
-          const data = JSON.parse(trimmed);
-          if (data.type === "complete") finalResult = data.data;
-        } catch (e) {
-          // Attempt recovery
-          const parts = trimmed.split("}{");
-          if (parts.length > 1) {
-            for (let i = 0; i < parts.length; i++) {
-              let part = parts[i];
-              if (i > 0) part = "{" + part;
-              if (i < parts.length - 1) part = part + "}";
-              try {
-                const data = JSON.parse(part);
-                if (data.type === "complete") finalResult = data.data;
-              } catch (e2) {}
-            }
-          }
-        }
-      }
-
-      const data = finalResult;
-      if (data?.success) {
-        setFetchingProgress({ message: data.message });
-      } else if (data) {
-        setFetchingProgress({ message: "抓取中止", error: data.message });
-      } else {
-        setFetchingProgress({ message: "流已断开，后台可能仍在继续执行..." });
-      }
-
-      // Always refresh list
       await fetchAdminArtworks(page);
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        console.log('Stream fetch aborted');
+        addLog("🛑 任务被用户手动停止", true);
         return;
       }
+      const errorStr = e.message || String(e);
       setFetchingProgress({
         message: "连接服务发生异常",
-        error: e.message || "网络断开",
+        error: errorStr,
       });
+      addLog(`❌ 发生错误: ${errorStr}`, true);
     } finally {
-      if (fetchAbortController.current?.signal.aborted) {
-        // preserve the aborted message if we aborted intentionally
-      } else {
+      if (!fetchAbortController.current?.signal.aborted) {
         setFetchingWorks(false);
-        setTimeout(
-          () => setFetchingProgress((prev) => (prev?.error ? prev : null)),
-          5000,
-        ); // Clear after 5 seconds if not an error
+        setTimeout(() => setFetchingProgress((prev) => (prev?.error ? prev : null)), 8000);
       }
     }
   };
 
   const stopTask = async () => {
+    addLog("🛑 正在尝试中断后台任务...", true);
     if (fetchAbortController.current) {
       fetchAbortController.current.abort();
       fetchAbortController.current = null;
     }
     
-    // Attempt to reset job status in DB as well
     if (token) {
       try {
         await fetch("/api/admin/job-reset", {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
+        addLog("✅ 后台分析任务已强制释放");
       } catch (e) {}
     }
     
     setFetchingWorks(false);
-    setFetchingProgress({ message: "分析任务已中止", error: "用户手动中断" });
+    setFetchingProgress({ message: "分析任务已中止", error: "手动中断" });
     setTimeout(() => setFetchingProgress(null), 3000);
     fetchJobStatus();
+  };
+
+  const copyLogs = () => {
+    const text = taskLogs.map(l => `[${l.time}] ${l.msg}`).join('\n');
+    navigator.clipboard.writeText(text);
+    showToast("日志已复制到剪贴板");
   };
 
   const resetJobStatus = async () => {
@@ -794,58 +769,32 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
-      <header className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-end gap-4 pb-4 border-b border-slate-200">
-        <div>
-          <h2 className="text-slate-500 mt-1 text-sm font-medium uppercase tracking-wider flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
-            <span>
-              目前馆藏：
-              <span>{totalArtworks}</span> 幅名作
-            </span>
-          </h2>
-        </div>
-        <div className="w-full sm:w-auto">
-          {fetchingProgress && (
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className={`text-xs px-4 py-2 rounded-lg font-medium border flex items-center gap-3 shadow-sm ${fetchingProgress.error ? "bg-red-50 text-red-600 border-red-200" : "bg-amber-50 text-amber-600 border-amber-200 animate-pulse"}`}
-            >
-              <div
-                className={`w-2 h-2 rounded-full ${fetchingProgress.error ? "bg-red-500" : "bg-amber-500 animate-ping"}`}
-              />
-              <span className="flex-1 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px] sm:max-w-md">
-                {fetchingProgress.message}
-                {fetchingProgress.error && (
-                  <span className="ml-1 opacity-70">
-                    ({fetchingProgress.error})
-                  </span>
-                )}
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 pb-6 border-b border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-6 flex-1 w-full">
+          <div className="shrink-0">
+            <h2 className="text-slate-500 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>
+                目前馆藏：
+                <span className="text-slate-900 ml-1">{totalArtworks}</span> 幅名作
               </span>
-              <div className="flex items-center gap-1">
-                {(fetchingWorks || (fetchingProgress && !fetchingProgress.error)) ? (
-                  <button
-                    onClick={stopTask}
-                    className="p-1 px-2 flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-all border border-red-200/50 shadow-sm"
-                    title="立即中断任务"
-                  >
-                    <X className="w-3 h-3" />
-                    <span className="text-[10px] font-bold">中断</span>
-                  </button>
-                ) : fetchingProgress && (
-                  <button
-                    onClick={() => setFetchingProgress(null)}
-                    className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
-                    title="清除状态"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </motion.div>
+            </h2>
+          </div>
+        </div>
+        
+        <div className="hidden lg:block shrink-0">
+          {fetchingProgress && !fetchingWorks && fetchingProgress.error && (
+             <button
+               onClick={() => setFetchingProgress(null)}
+               className="text-xs text-red-500 hover:underline flex items-center gap-1"
+             >
+               <X className="w-3 h-3" /> 清除警告
+             </button>
           )}
         </div>
       </header>
+
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Sidebar Controls */}
@@ -1158,8 +1107,67 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Content Management */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm col-span-1 lg:col-span-2 overflow-hidden flex flex-col h-fit order-1 lg:order-2">
+        {/* Content Management Area */}
+        <div className="col-span-1 lg:col-span-2 flex flex-col gap-4 order-1 lg:order-2">
+          {/* AI Task Console Area - Width Aligned */}
+          {(fetchingWorks || taskLogs.length > 0) && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full bg-white/40 backdrop-blur-sm rounded-xl border border-slate-200/50 overflow-hidden flex flex-col h-16 sm:h-20"
+            >
+              <div className="bg-slate-100/30 px-3 py-1 flex justify-between items-center border-b border-slate-200/30">
+                <div className="flex items-center gap-2">
+                  <div className={`w-1.5 h-1.5 rounded-full ${fetchingWorks ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">AI 调用状态</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[9px] text-slate-400 font-mono opacity-60">logs: {taskLogs.length}</span>
+                  
+                  <button 
+                    onClick={copyLogs}
+                    className="text-[9px] font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+                    title="复制日志"
+                  >
+                    <Copy className="w-2 h-2" />
+                    复制
+                  </button>
+
+                  {fetchingWorks && (
+                    <button 
+                      onClick={stopTask}
+                      className="text-[9px] font-bold text-red-400 hover:text-red-500 transition-colors"
+                    >
+                      中断
+                    </button>
+                  )}
+                  {!fetchingWorks && (
+                     <button 
+                       onClick={() => {setTaskLogs([]); setFetchingProgress(null);}}
+                       className="text-slate-300 hover:text-slate-500 transition-colors"
+                     >
+                       <X className="w-2.5 h-2.5" />
+                     </button>
+                  )}
+                </div>
+              </div>
+              <div 
+                ref={logContainerRef}
+                className="flex-1 overflow-y-auto p-1.5 px-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent space-y-0.5"
+              >
+                {taskLogs.length === 0 && <div className="text-[10px] text-slate-300 font-mono italic">等待任务...</div>}
+                {taskLogs.map((log) => (
+                  <div key={log.id} className={`text-[9px] font-mono leading-tight flex gap-3 ${log.isError ? "text-red-400/90" : "text-slate-500"}`}>
+                    <span className="text-slate-300 shrink-0 select-none">[{log.time}]</span>
+                    <span className={`break-all ${log.msg.startsWith("🔄") || log.msg.startsWith("🤖") ? "text-amber-600/80 font-medium" : ""}`}>
+                      {log.msg}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-fit">
           <div className="flex border-b border-slate-200 bg-slate-50/50">
             <button
               onClick={() => {
@@ -1702,8 +1710,9 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+    </div>
 
-      {confirmDialog && confirmDialog.isOpen && (
+    {confirmDialog && confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95 duration-200 border border-slate-100">
             <h3 className="text-lg font-bold text-slate-800 mb-2">系统确认</h3>
