@@ -153,7 +153,30 @@ export default function Home() {
       setSelectedKeyword(k);
     }
     setPage(0);
+    sessionStorage.setItem("artworksScrollPos", "0");
   };
+
+  const handleSetPage = (p: number) => {
+    setPage(p);
+    sessionStorage.setItem("artworksScrollPos", "0");
+  };
+
+  const saveScrollPos = () => {
+    sessionStorage.setItem("artworksScrollPos", window.scrollY.toString());
+  };
+
+  useEffect(() => {
+    if (!loading && artworks.length > 0) {
+      const savedPos = sessionStorage.getItem("artworksScrollPos");
+      if (savedPos && savedPos !== "0") {
+        // Delay slightly to ensure browser has settled
+        const timer = setTimeout(() => {
+          window.scrollTo({ top: parseInt(savedPos, 10), behavior: "instant" as any });
+        }, 50);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, artworks.length]);
 
   const showHighlight =
     !selectedKeyword && page === 0 && latestArtwork !== null;
@@ -258,6 +281,7 @@ export default function Home() {
 
                     <Link
                       to={`/artwork/${highlight.id}`}
+                      onClick={saveScrollPos}
                       className="group block relative"
                     >
                       <div className="flex flex-col lg:flex-row items-stretch bg-white shadow-2xl rounded-sm overflow-hidden border border-slate-100 group-hover:border-amber-200 transition-colors duration-500 min-w-0">
@@ -342,6 +366,7 @@ export default function Home() {
                           onChange={(e) => {
                             setSortMode(e.target.value);
                             setPage(0);
+                            sessionStorage.setItem("artworksScrollPos", "0");
                           }}
                           className="bg-transparent border-none text-slate-600 font-bold focus:ring-0 cursor-pointer appearance-none outline-none pr-6 relative z-10 text-sm w-full"
                         >
@@ -375,6 +400,7 @@ export default function Home() {
                       >
                         <Link
                           to={`/artwork/${item.id}`}
+                          onClick={saveScrollPos}
                           className="group flex flex-col min-w-0"
                         >
                           <div className="art-frame mb-8 overflow-hidden bg-white relative flex items-center justify-center transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.4)] aspect-square md:aspect-[5/6]">
@@ -428,7 +454,7 @@ export default function Home() {
                     <div className="mt-20 flex justify-center items-center">
                       <div className="flex items-center gap-2 bg-white px-2 py-2 rounded-full border border-slate-200 shadow-sm">
                         <button
-                          onClick={() => setPage(Math.max(0, page - 1))}
+                          onClick={() => handleSetPage(Math.max(0, page - 1))}
                           disabled={page === 0}
                           className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                         >
@@ -460,7 +486,7 @@ export default function Home() {
                             ).map((pageNum) => (
                               <button
                                 key={pageNum}
-                                onClick={() => setPage(pageNum)}
+                                onClick={() => handleSetPage(pageNum)}
                                 className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-bold transition-all ${page === pageNum ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"}`}
                               >
                                 {pageNum + 1}
@@ -470,7 +496,7 @@ export default function Home() {
                         </div>
 
                         <button
-                          onClick={() => setPage(page + 1)}
+                          onClick={() => handleSetPage(page + 1)}
                           disabled={(() => {
                             const { limit, offset } = getPageInfo(page);
                             return offset + limit >= totalArtworks;
@@ -511,6 +537,7 @@ export default function Home() {
                         <Link
                           to={`/artwork/${art.id}`}
                           key={art.id}
+                          onClick={saveScrollPos}
                           className="group flex gap-4 items-center"
                         >
                           <span className="text-xl font-serif italic text-slate-300 font-bold w-6 text-center">

@@ -767,7 +767,7 @@ app.post('/admin/trigger-fetch', async (c) => {
     
     const task = async () => {
       try {
-        const { success, count } = await runAIAggregation(true, async (msg, isError) => {
+        const { success, count, message } = await runAIAggregation(true, async (msg, isError) => {
            if (!isStreamClosed) {
              try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } 
              catch(e) { isStreamClosed = true; }
@@ -775,7 +775,7 @@ app.post('/admin/trigger-fetch', async (c) => {
         }, overrides) as any;
 
         if (!isStreamClosed) {
-          try { await stream.write(JSON.stringify({ type: 'complete', data: { success, message: success ? `分析任务已圆满完成。` : `分析任务未能完成。`, count: count || 0 } }) + '\n'); } 
+          try { await stream.write(JSON.stringify({ type: 'complete', data: { success, message: success ? `分析任务已圆满完成。` : `分析任务未能完成: ${message || '未知错误'}`, count: count || 0 } }) + '\n'); } 
           catch(e) {}
         }
       } catch (err: any) {

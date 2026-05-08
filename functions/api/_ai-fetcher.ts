@@ -110,7 +110,7 @@ async function fetchFromWikidata(qid, sourceName, notify) {
     LIMIT 200
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
-  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 15000); 
+  const response = await fetchWithRetry(url, { headers: { 'Accept': 'application/sparql-results+json', 'User-Agent': 'ArtBot/1.0' } }, 2, 1000, 30000); 
   if (!response.ok) throw new Error('Wikidata HTTP error: ' + response.statusText);
   if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析...`);
   const data = await response.json();
@@ -278,25 +278,30 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
         await notify(`精选名画: 《${objData.title}》 - ${objData.artistDisplayName}`);
         await notify(`💡 正在进行深度分析并转存资源...`);
 
-        const artworkId = crypto.randomUUID();
-        const r2Url = await uploadToR2(objData.primaryImage, artworkId);
-        const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
+        try {
+          const artworkId = crypto.randomUUID();
+          const r2Url = await uploadToR2(objData.primaryImage, artworkId);
+          const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
 
-        if (aiData.content.includes('解读生成失败') || aiData.content.includes('未能生成详细解读')) {
-          await notify(`❌ 《${objData.title}》 AI 解读失败，跳过添加。`, true);
-          continue;
+          if (aiData.content.includes('解读生成失败') || aiData.content.includes('未能生成详细解读')) {
+            await notify(`❌ 《${objData.title}》 AI 解读失败，跳过添加。`, true);
+            continue;
+          }
+
+          const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
+          const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
+          const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
+
+          await db.prepare(`
+            INSERT INTO artworks (id, source_id, title, artist, year, museum, image_url, source_url, ai_interpretation, keywords)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(artworkId, objData.sourceId, title_zh, artist_zh, objData.objectDate, objData.repository, r2Url, objData.objectURL, aiData.content, keywordsStr);
+
+          newlyAdded++;
+        } catch (itemErr: any) {
+          await notify(`❌ 处理《${objData.title}》时出错: ${itemErr.message}，正在尝试其他候选项...`, true);
+          continue; 
         }
-
-        const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
-        const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
-        const keywordsStr = Array.isArray(aiData.keywords) ? aiData.keywords.join(', ') : String(aiData.keywords || '');
-
-        await db.prepare(`
-          INSERT INTO artworks (id, source_id, title, artist, year, museum, image_url, source_url, ai_interpretation, keywords)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(artworkId, objData.sourceId, title_zh, artist_zh, objData.objectDate, objData.repository, r2Url, objData.objectURL, aiData.content, keywordsStr);
-
-        newlyAdded++;
      }
   }
   
