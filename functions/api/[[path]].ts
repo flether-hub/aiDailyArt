@@ -111,8 +111,8 @@ app.get('/admin/artworks', async (c) => {
   const limit = parseInt(c.req.query('limit') || '12', 10);
   const offset = parseInt(c.req.query('offset') || '0', 10);
   
-  const artworks = await db.prepare('SELECT id, source_id, title, artist, year, museum, image_url, image_size, keywords, views, is_visible, created_at FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
-    .all(limit, offset);
+  const artworks = (await db.prepare('SELECT id, source_id, title, artist, year, museum, image_url, image_size, keywords, views, is_visible, created_at FROM artworks ORDER BY created_at DESC LIMIT ? OFFSET ?')
+    .all(limit, offset)) as any[];
   const totalResult = (await db.prepare('SELECT COUNT(*) as total FROM artworks').get()) as any;
   const total = totalResult?.total || 0;
 
@@ -120,6 +120,47 @@ app.get('/admin/artworks', async (c) => {
     ...item,
     keywords: typeof item.keywords === 'string' ? item.keywords.split(/[，,]/).map((k: string) => k.trim()) : (Array.isArray(item.keywords) ? item.keywords : [])
   }));
+
+  // Background Remediation: Detect items with missing sizes and fix them
+  const itemsToFix = processedArtworks.filter(a => !a.image_size || a.image_size === 0);
+  if (itemsToFix.length > 0) {
+    const remediationPromise = (async () => {
+      const env = getCloudEnv();
+      const hasR2 = env && env.ART_GALLERY_IMAGES && typeof env.ART_GALLERY_IMAGES.get === 'function';
+      
+      for (const item of itemsToFix) {
+        try {
+          let size = 0;
+          if (item.image_url?.startsWith('/api/cdn/')) {
+            // Local CDN image
+            if (hasR2) {
+              const path = item.image_url.replace('/api/cdn/', '');
+              const obj = await env.ART_GALLERY_IMAGES.head(path);
+              if (obj) size = obj.size;
+            }
+          } else if (item.image_url?.startsWith('http')) {
+            // External image - try HEAD request
+            const res = await fetch(item.image_url, { method: 'HEAD' });
+            if (res.ok) {
+              const contentLength = res.headers.get('Content-Length');
+              if (contentLength) size = parseInt(contentLength, 10);
+            }
+          }
+          
+          if (size > 0) {
+            await db.prepare('UPDATE artworks SET image_size = ? WHERE id = ?').run(size, item.id);
+            console.log(`[Remediation] Fixed size for artwork ${item.id}: ${size} bytes`);
+          }
+        } catch (e) {
+          console.warn(`[Remediation] Failed to fix size for artwork ${item.id}:`, e);
+        }
+      }
+    })();
+    
+    try {
+      c.executionCtx.waitUntil(remediationPromise);
+    } catch (e) {}
+  }
 
   return c.json({ data: processedArtworks, total });
 });
@@ -945,6 +986,19 @@ app.get('/cdn/*', async (c) => {
     
     // In dev environment, we might want to ensure CORS is handled if needed
     headers.set('Access-Control-Allow-Origin', '*');
+
+    // Remediation: Update database if this is an artwork image with missing size
+    const remediationPromise = (async () => {
+      try {
+        const db = await getDB();
+        const imageUrl = `/api/cdn/${path}`;
+        await db.prepare('UPDATE artworks SET image_size = ? WHERE image_url = ? AND (image_size IS NULL OR image_size = 0)').run(object.size, imageUrl);
+      } catch (err) {}
+    })();
+    
+    try {
+      c.executionCtx.waitUntil(remediationPromise);
+    } catch (e) {}
     
     return new Response(object.body, { headers });
   } catch (e) {

@@ -93,6 +93,23 @@ export default function AdminDashboard() {
       }
     } catch (e) {}
   };
+  const [remediatedPages, setRemediatedPages] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (isAdmin && token && artworks.length > 0 && !remediatedPages.has(page)) {
+      const missingSizes = artworks.some(a => !a.image_size || a.image_size === 0);
+      if (missingSizes) {
+         // The server is already doing background remediation on the /api/admin/artworks call.
+         // We just need to refresh our local state after a short delay to show the results.
+         setRemediatedPages(prev => new Set(prev).add(page));
+         const timer = setTimeout(() => {
+            fetchAdminArtworks(page);
+         }, 5000);
+         return () => clearTimeout(timer);
+      }
+    }
+  }, [artworks, isAdmin, token, page, remediatedPages]);
+
   const limit = 12;
 
   const fetchJobStatus = async () => {
