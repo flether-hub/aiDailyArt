@@ -317,30 +317,45 @@ export async function generateDetailedInterpretation(title: string, artist: stri
   const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const env = getCloudEnv();
+    let aiKey = userApiKey;
+    const isAli = provider === 'dashscope' || provider === 'bailian';
+    const providerName = isAli ? '阿里云百炼' : 'Google Gemini';
+
+    const isObviouslyInvalid = (key: string | undefined): boolean => {
+       if (!key || typeof key !== 'string') return true;
+       const trimmed = key.trim();
+       // If it's a placeholder like "*****" or "YOUR_KEY_HERE"
+       if (trimmed.length < 10 || trimmed.includes('***') || trimmed.toUpperCase().includes('KEY')) return true;
+       return false;
+    };
+
+    const defaultModelId = isAli ? 'qwen-max' : 'gemini-3-flash-preview';
+    let displayedModelId = modelId || defaultModelId;
+    
+    // Prohibit deprecated models
+    if (displayedModelId === 'gemini-1.5-flash' || displayedModelId === 'gemini-1.5-pro') {
+      displayedModelId = 'gemini-3-flash-preview';
+    }
+
     try {
-      const env = getCloudEnv();
-      let aiKey = userApiKey;
-      const isAli = provider === 'dashscope' || provider === 'bailian';
-      const providerName = isAli ? '阿里云百炼' : 'Google Gemini';
-
-      const isObviouslyInvalid = (key: string | undefined): boolean => {
-         if (!key || typeof key !== 'string') return true;
-         const trimmed = key.trim();
-         return trimmed.length < 10 || trimmed.includes('***');
-      };
-
-      if (!isAli && isObviouslyInvalid(aiKey)) {
-        const envKey = env.GEMINI_API_KEY;
-        if (envKey && !isObviouslyInvalid(envKey)) aiKey = envKey;
+      // Fallback logic for Gemini
+      if (!isAli) {
+        if (isObviouslyInvalid(aiKey)) {
+          const envKey = env.GEMINI_API_KEY;
+          if (envKey && !isObviouslyInvalid(envKey)) {
+             aiKey = envKey;
+          }
+        }
       }
+
+      const maskedForLog = aiKey ? (aiKey.length > 8 ? aiKey.substring(0, 4) + '...' + aiKey.substring(aiKey.length-4) : '***') : 'NONE';
+      console.log(`[AI] Provider: ${provider}, Model: ${displayedModelId}, Key: ${maskedForLog}`);
 
       if (isObviouslyInvalid(aiKey)) {
-        if (notify) await notify(`⚠️ 尚未配置 ${providerName} API 密钥`, true);
-        throw new Error(`尚未配置 ${providerName} API 密钥`);
+        if (notify) await notify(`⚠️ 尚未配置 ${providerName} API 密钥或密钥格式不正确`, true);
+        throw new Error(`[Auth] 尚未配置有效的 ${providerName} API 密钥。`);
       }
-
-      const defaultModelId = isAli ? 'qwen-max' : 'gemini-1.5-flash';
-      const displayedModelId = modelId || defaultModelId;
       
       if (notify) await notify(`🤖 正在调用 ${providerName} (${displayedModelId})${attempt > 1 ? ` (重试 ${attempt-1})` : ''} ...`);
 
@@ -426,7 +441,31 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       return { keywords: finalKeywords, content, title_zh: finalTitle_zh, artist_zh: finalArtist_zh };
 
     } catch (e: any) {
-      console.error(`AI error (attempt ${attempt}):`, e.message);
+      const errorMsg = e.message || String(e);
+      console.error(`AI error (attempt ${attempt}):`, errorMsg);
+      
+      // Handle Quota Exceeded (429) / RESOURCE_EXHAUSTED
+      if (errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('429') || errorMsg.includes('Quota exceeded')) {
+        const isDailyLimit = errorMsg.includes('FreeTier') || errorMsg.includes('day');
+        const limitMsg = isDailyLimit 
+          ? `🚫 您已达到 ${providerName} 的每日免费额度限制（通常为每日 20 次请求）。请稍后再试或在后台设置中切换 API 密钥。` 
+          : `⚠️ ${providerName} 请求过于频繁，请稍候再试。`;
+        
+        if (notify) await notify(limitMsg, true);
+        throw new Error(limitMsg);
+      }
+
+      // If it's an API Key error, and we aren't already using the environment key fallback,
+      // try to switch to the env key for the next attempt (if Gemini).
+      if (!isAli && (errorMsg.includes('API key not valid') || errorMsg.includes('INVALID_ARGUMENT')) && attempt < maxRetries) {
+        const envKey = env.GEMINI_API_KEY;
+        if (envKey && envKey !== aiKey && !isObviouslyInvalid(envKey)) {
+          console.log(`[AI] Previous key failed, attempting fallback to environment key...`);
+          userApiKey = envKey; // Update our source so the next loop iteration picks it up
+          if (notify) await notify(`🔄 预设密钥无效，正在切换到系统备用密钥重试...`, true);
+        }
+      }
+
       if (attempt === maxRetries) throw e;
       await new Promise(r => setTimeout(r, 2000));
     }

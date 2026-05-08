@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
-import { Eye, Brush, MapPin, Hash, ChevronDown, RefreshCw, Search, X } from "lucide-react";
+import { Eye, Brush, MapPin, Hash, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
@@ -364,80 +364,54 @@ export default function Home() {
                 )}
 
                 <section>
-                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-12 sm:mb-16 gap-6 w-full">
-                    <div className="w-full md:w-auto">
-                      <h2 className="text-xl sm:text-3xl font-serif font-black text-slate-950 tracking-tight">
-                        {debouncedSearchTerm ? (
-                          <span className="flex items-center gap-3">
-                            <span className="text-slate-300 italic font-medium hidden sm:inline">
-                              搜索 //
-                            </span>{" "}
-                            {debouncedSearchTerm}
-                          </span>
-                        ) : selectedKeyword ? (
-                          <span className="flex items-center gap-3">
-                            <span className="text-slate-300 italic font-medium hidden sm:inline">
-                              艺术焦点 //
-                            </span>{" "}
-                            {selectedKeyword}
-                          </span>
-                        ) : (
-                          "永恒档案"
-                        )}
-                      </h2>
-                    </div>
+                  <div className="flex flex-row items-center justify-between mb-12 sm:mb-16 gap-4 w-full">
+                    <h2 className="text-xl sm:text-2xl font-serif font-black text-slate-950 tracking-tight shrink-0">
+                      {debouncedSearchTerm ? (
+                        <span className="flex items-center gap-3">
+                          <span className="text-slate-300 italic font-medium hidden sm:inline">
+                            搜索 //
+                          </span>{" "}
+                          {debouncedSearchTerm}
+                        </span>
+                      ) : selectedKeyword ? (
+                        <span className="flex items-center gap-3">
+                          <span className="text-slate-300 italic font-medium hidden sm:inline">
+                            艺术焦点 //
+                          </span>{" "}
+                          {selectedKeyword}
+                        </span>
+                      ) : (
+                        "永恒档案"
+                      )}
+                    </h2>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto flex-1 md:justify-end">
-                      {/* Mobile Search Bar - Prominent placement for smaller screens */}
-                      <div className="w-full sm:max-w-xs md:max-w-md lg:hidden">
-                        <form
-                          onSubmit={handleSearchSubmit}
-                          className="relative group"
+                    <div className="flex-1 h-px bg-slate-200/80 hidden md:block mx-4"></div>
+
+                    <div className="flex items-center gap-2 text-sm font-bold text-slate-400 uppercase tracking-widest shrink-0">
+                      <div className="relative flex items-center bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white px-3 py-1.5 rounded-md transition-colors shadow-sm cursor-pointer">
+                        <select
+                          value={sortMode}
+                          onChange={(e) => {
+                            setSortMode(e.target.value);
+                            setPage(0);
+                            sessionStorage.setItem("artworksScrollPos", "0");
+                          }}
+                          className="bg-transparent border-none text-slate-600 font-bold focus:ring-0 cursor-pointer appearance-none outline-none pr-6 relative z-10 text-sm w-full"
                         >
-                          <input
-                            type="text"
-                            placeholder="搜索画作、艺术家、流派..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-10 py-3 bg-white/60 backdrop-blur-sm border border-slate-200 text-sm focus:outline-none focus:border-amber-800/50 focus:bg-white transition-all rounded-full shadow-sm placeholder:text-slate-400 font-medium"
-                          />
-                          <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-amber-800 transition-colors" />
-                          {searchTerm && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSearchTerm("");
-                                setDebouncedSearchTerm("");
-                                setPage(0);
-                              }}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-600 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </form>
-                      </div>
-
-                      <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <div className="relative flex items-center bg-white/80 border border-slate-200 px-4 py-2 rounded-full transition-all shadow-sm cursor-pointer hover:border-slate-300 w-full sm:w-auto group">
-                          <select
-                            value={sortMode}
-                            onChange={(e) => {
-                              setSortMode(e.target.value);
-                              setPage(0);
-                              sessionStorage.setItem("artworksScrollPos", "0");
-                            }}
-                            className="bg-transparent border-none text-slate-600 font-bold focus:ring-0 cursor-pointer appearance-none outline-none pr-8 relative z-10 text-[11px] uppercase tracking-widest w-full"
-                          >
-                            <option value="latest">最新收录</option>
-                            <option value="oldest">拾遗溯源</option>
-                            <option value="views_desc">热门瞩目</option>
-                            <option value="views_asc">静谧风光</option>
-                            <option value="comments_desc">热议交流</option>
-                            <option value="comments_asc">静待解读</option>
-                          </select>
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-4 group-hover:text-slate-600 transition-colors pointer-events-none" />
-                        </div>
+                          <option value="latest">最新收录 (默认)</option>
+                          <option value="oldest">拾遗溯源 (最早入库)</option>
+                          <option value="views_desc">
+                            热门瞩目 (浏览最多)
+                          </option>
+                          <option value="views_asc">静谧风光 (浏览最少)</option>
+                          <option value="comments_desc">
+                            热议交流 (探讨最多)
+                          </option>
+                          <option value="comments_asc">
+                            静待解读 (探讨最少)
+                          </option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2 pointer-events-none" />
                       </div>
                     </div>
                   </div>
