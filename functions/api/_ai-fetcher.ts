@@ -464,17 +464,17 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
       const runWithPulses = async <T,>(promise: Promise<T>): Promise<T> => {
          try {
-            return await Promise.race([promise, pulse20s]);
+            return await Promise.race([promise, pulse20s as Promise<T>]);
          } catch (e: any) {
             if (e.message === 'PULSE_20S') {
                 if (notify) await notify(`⌛ ${modelNameForLog} 模型思考中 (第 ${attempt} 次尝试，已等待 20s)...`);
                 try {
-                  return await Promise.race([promise, pulse40s]);
+                  return await Promise.race([promise, pulse40s as Promise<T>]);
                 } catch (e2: any) {
                   if (e2.message === 'PULSE_40S') {
                       if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 40s)...`);
                       try {
-                        return await Promise.race([promise, pulse60s]);
+                        return await Promise.race([promise, pulse60s as Promise<T>]);
                       } catch (e3: any) {
                         if (e3.message === 'PULSE_60S') {
                             throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 60s)`);
