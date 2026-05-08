@@ -24,6 +24,9 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       return response;
     } catch (e: any) {
       clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        console.error(`[Fetch] Timeout after ${timeout}ms: ${url}`);
+      }
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
     }
@@ -178,8 +181,9 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   const updateJobInDB = async (msg: string, status: string, isError = false) => {
     try {
+      const finalMsg = isManual ? msg : `[系统自动] ${msg}`;
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', msg);
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', finalMsg);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', isError ? 'true' : 'false');
     } catch (e) {
@@ -189,11 +193,11 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
   const notify = async (msg: string, isError = false) => { 
     if (onProgress) await onProgress(msg, isError); 
-    if (isManual) await updateJobInDB(msg, 'running', isError);
+    await updateJobInDB(msg, 'running', isError);
   };
 
   let newlyAdded = 0;
-  if (isManual) await updateJobInDB('正在启动名画寻脉任务...', 'running');
+  await updateJobInDB('正在启动名画寻脉任务...', 'running');
 
   try {
     const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
@@ -275,10 +279,14 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
        }
     }
     
-    if (isManual) await updateJobInDB(newlyAdded > 0 ? `分析任务完成。新增 ${newlyAdded} 幅名作。` : `任务结束，未发现新作品。`, 'idle');
+    if (newlyAdded >= targetCount) {
+       await updateJobInDB(`分析任务完成。新增 ${newlyAdded} 幅名作。`, 'idle');
+    } else {
+       await updateJobInDB(`任务结束，未发现新作品。`, 'idle');
+    }
     return { success: true, count: newlyAdded };
   } catch (err: any) {
-    if (isManual) await updateJobInDB(`分析任务出错: ${err.message}`, 'idle', true);
+    await updateJobInDB(`分析任务出错: ${err.message}`, 'idle', true);
     return { success: false, message: err.message };
   }
 }
@@ -363,18 +371,32 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       let text = "";
 
       if (isAli) {
+         // Optimization for Alibaba: Use the direct model ID if it carries the prefix, 
+         // otherwise ensure the compatible-mode endpoint is used correctly.
          const res = await fetchWithRetry('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
            method: 'POST',
-           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiKey}` },
+           headers: { 
+             'Content-Type': 'application/json', 
+             'Authorization': `Bearer ${aiKey}` 
+           },
            body: JSON.stringify({
              model: displayedModelId,
              messages: [
-               { role: 'system', content: 'You are a professional art curator. Output ONLY valid JSON.' },
+               { role: 'system', content: 'You are a professional art curator. You MUST output your response in valid JSON format only.' },
                { role: 'user', content: prompt }
              ],
-             response_format: { type: "json_object" }
+             temperature: 0.7,
+             top_p: 0.8
            })
-         });
+         }, 3, 1000, 60000);
+
+         if (!res.ok) {
+           const errText = await res.text();
+           let errJson: any = {};
+           try { errJson = JSON.parse(errText); } catch(e) {}
+           throw new Error(`阿里云 API 错误: [${res.status}] ${errJson.error?.message || errJson.message || errText}`);
+         }
+
          const data: any = await res.json();
          text = data.choices?.[0]?.message?.content || "{}";
        } else {

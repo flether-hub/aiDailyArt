@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion } from "motion/react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../AuthContext";
@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Users,
   Network,
+  X,
 } from "lucide-react";
 import { maskIP } from "../lib/ipUtils";
 import { getProxiedImageUrl } from "../lib/artUtils";
@@ -23,6 +24,7 @@ import { getProxiedImageUrl } from "../lib/artUtils";
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
   const [fetchingWorks, setFetchingWorks] = useState(false);
+  const fetchAbortController = useRef<AbortController | null>(null);
   const [fetchingProgress, setFetchingProgress] = useState<{
     message: string;
     error?: string;
@@ -373,6 +375,9 @@ export default function AdminDashboard() {
   };
 
   const triggerFetch = async () => {
+    if (fetchAbortController.current) fetchAbortController.current.abort();
+    fetchAbortController.current = new AbortController();
+    
     setFetchingWorks(true);
     setFetchingProgress({ message: "正在启动名画寻脉任务..." });
     try {
@@ -387,6 +392,7 @@ export default function AdminDashboard() {
 
       const res = await fetch("/api/admin/trigger-fetch", {
         method: "POST",
+        signal: fetchAbortController.current.signal,
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -502,17 +508,47 @@ export default function AdminDashboard() {
       // Always refresh list
       await fetchAdminArtworks(page);
     } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.log('Stream fetch aborted');
+        return;
+      }
       setFetchingProgress({
         message: "连接服务发生异常",
         error: e.message || "网络断开",
       });
     } finally {
-      setFetchingWorks(false);
-      setTimeout(
-        () => setFetchingProgress((prev) => (prev?.error ? prev : null)),
-        5000,
-      ); // Clear after 5 seconds if not an error
+      if (fetchAbortController.current?.signal.aborted) {
+        // preserve the aborted message if we aborted intentionally
+      } else {
+        setFetchingWorks(false);
+        setTimeout(
+          () => setFetchingProgress((prev) => (prev?.error ? prev : null)),
+          5000,
+        ); // Clear after 5 seconds if not an error
+      }
     }
+  };
+
+  const stopTask = async () => {
+    if (fetchAbortController.current) {
+      fetchAbortController.current.abort();
+      fetchAbortController.current = null;
+    }
+    
+    // Attempt to reset job status in DB as well
+    if (token) {
+      try {
+        await fetch("/api/admin/job-reset", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (e) {}
+    }
+    
+    setFetchingWorks(false);
+    setFetchingProgress({ message: "分析任务已中止", error: "用户手动中断" });
+    setTimeout(() => setFetchingProgress(null), 3000);
+    fetchJobStatus();
   };
 
   const resetJobStatus = async () => {
@@ -787,22 +823,24 @@ export default function AdminDashboard() {
                 )}
               </span>
               <div className="flex items-center gap-1">
-                {!fetchingProgress.error && (
+                {(fetchingWorks || (fetchingProgress && !fetchingProgress.error)) ? (
                   <button
-                    onClick={resetJobStatus}
-                    className="p-1 hover:bg-amber-100 rounded-full transition-colors text-amber-700"
-                    title="强制重置锁"
+                    onClick={stopTask}
+                    className="p-1 px-2 flex items-center gap-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-md transition-all border border-red-200/50 shadow-sm"
+                    title="立即中断任务"
                   >
-                    <RefreshCw className="w-3 h-3" />
+                    <X className="w-3 h-3" />
+                    <span className="text-[10px] font-bold">中断</span>
+                  </button>
+                ) : fetchingProgress && (
+                  <button
+                    onClick={() => setFetchingProgress(null)}
+                    className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+                    title="清除状态"
+                  >
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button
-                  onClick={() => setFetchingProgress(null)}
-                  className={`p-1 rounded-full transition-colors ${fetchingProgress.error ? "hover:bg-red-100 text-red-600" : "hover:bg-amber-100 text-amber-600"}`}
-                  title="关闭提示"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
               </div>
             </motion.div>
           )}
