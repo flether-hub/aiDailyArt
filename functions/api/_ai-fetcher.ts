@@ -2,7 +2,7 @@ import { getDB } from './_db';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000, label = "请求"): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
@@ -11,7 +11,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
         ...options,
         signal: controller.signal,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'User-Agent': 'ArtGalleryBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)',
           ...(options.headers || {})
         }
       });
@@ -25,15 +25,15 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
     } catch (e: any) {
       clearTimeout(timer);
       if (e.name === 'AbortError') {
-        const timeoutMsg = `请求超时 (超过 ${timeout/1000} 秒)。AI 响应过慢，请稍后重试。`;
-        console.error(`[Fetch] Timeout after ${timeout}ms: ${url}`);
+        const timeoutMsg = `${label}超时 (超过 ${timeout/1000} 秒)。请稍后重试。`;
+        console.error(`[Fetch] ${label} Timeout after ${timeout}ms: ${url}`);
         if (i === retries - 1) throw new Error(timeoutMsg);
       }
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
     }
   }
-  throw new Error(`Failed to fetch ${url} after ${retries} attempts`);
+  throw new Error(`${label}失败，已重试 ${retries} 次`);
 }
 
 async function uploadToR2(url: string, id: string): Promise<{ url: string; size: number }> {
@@ -43,7 +43,7 @@ async function uploadToR2(url: string, id: string): Promise<{ url: string; size:
   }
 
   try {
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(url, {}, 3, 1000, 20000, "图片下载");
     if (!response.ok) return { url, size: 0 };
     
     const contentType = response.headers.get('content-type') || 'image/jpeg';
@@ -123,7 +123,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
         'Accept': 'application/sparql-results+json', 
         'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
       } 
-    }, 2, 1000, 45000);
+    }, 2, 1000, 45000, "Wikidata 数据连接");
 
     const timeoutPulse = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('PULSE_TIMEOUT')), 15000)
@@ -176,7 +176,7 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   if (notify) await notify(`正在从大都会艺术博物馆搜寻藏品...`);
   const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`);
+  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取");
   const searchData = await searchRes.json();
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
@@ -185,7 +185,7 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
      try {
-       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`);
+       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取");
        if (!objRes.ok) continue;
        const objData = await objRes.json();
        if (!objData.primaryImage || !objData.title || !objData.artistDisplayName) continue;

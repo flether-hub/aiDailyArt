@@ -1114,29 +1114,29 @@ export default function AdminDashboard() {
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="w-full bg-white/40 backdrop-blur-sm rounded-xl border border-slate-200/50 overflow-hidden flex flex-col h-16 sm:h-20"
+              className="w-full bg-white/40 backdrop-blur-sm rounded-xl border border-slate-200/50 overflow-hidden flex flex-col h-24 sm:h-32"
             >
-              <div className="bg-slate-100/30 px-3 py-1 flex justify-between items-center border-b border-slate-200/30">
+              <div className="bg-slate-100/30 px-3 py-2 flex justify-between items-center border-b border-slate-200/30">
                 <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${fetchingWorks ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">AI 调用状态</span>
+                  <div className={`w-2 h-2 rounded-full ${fetchingWorks ? "bg-amber-400 animate-pulse" : "bg-emerald-400"}`} />
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">AI 调用状态</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[9px] text-slate-400 font-mono opacity-60">logs: {taskLogs.length}</span>
+                  <span className="text-[10px] text-slate-400 font-mono opacity-60">logs: {taskLogs.length}</span>
                   
                   <button 
                     onClick={copyLogs}
-                    className="text-[9px] font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+                    className="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
                     title="复制日志"
                   >
-                    <Copy className="w-2 h-2" />
+                    <Copy className="w-3 h-3" />
                     复制
                   </button>
 
                   {fetchingWorks && (
                     <button 
                       onClick={stopTask}
-                      className="text-[9px] font-bold text-red-400 hover:text-red-500 transition-colors"
+                      className="text-[11px] font-bold text-red-400 hover:text-red-500 transition-colors"
                     >
                       中断
                     </button>
@@ -1146,20 +1146,20 @@ export default function AdminDashboard() {
                        onClick={() => {setTaskLogs([]); setFetchingProgress(null);}}
                        className="text-slate-300 hover:text-slate-500 transition-colors"
                      >
-                       <X className="w-2.5 h-2.5" />
+                       <X className="w-3.5 h-3.5" />
                      </button>
                   )}
                 </div>
               </div>
               <div 
                 ref={logContainerRef}
-                className="flex-1 overflow-y-auto p-1.5 px-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent space-y-0.5"
+                className="flex-1 overflow-y-auto p-2 px-3 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent space-y-1"
               >
-                {taskLogs.length === 0 && <div className="text-[10px] text-slate-300 font-mono italic">等待任务...</div>}
+                {taskLogs.length === 0 && <div className="text-[11px] text-slate-300 font-mono italic">等待任务...</div>}
                 {taskLogs.map((log) => (
-                  <div key={log.id} className={`text-[9px] font-mono leading-tight flex gap-3 ${log.isError ? "text-red-400/90" : "text-slate-500"}`}>
+                  <div key={log.id} className={`text-[11px] font-mono leading-relaxed flex gap-3 ${log.isError ? "text-red-400/95" : "text-slate-500"}`}>
                     <span className="text-slate-300 shrink-0 select-none">[{log.time}]</span>
-                    <span className={`break-all ${log.msg.startsWith("🔄") || log.msg.startsWith("🤖") ? "text-amber-600/80 font-medium" : ""}`}>
+                    <span className={`break-all ${log.msg.startsWith("🔄") || log.msg.startsWith("🤖") || log.msg.startsWith("🚀") ? "text-amber-600/90 font-medium" : ""}`}>
                       {log.msg}
                     </span>
                   </div>
