@@ -22,23 +22,44 @@ type Artwork = {
   ai_interpretation?: string;
 };
 
+// Global cache for home page artworks to prevent flashing loading screen on return
+let artworksCache: {
+  data: Artwork[];
+  total: number;
+  params: string;
+  latest: Artwork | null;
+  keywords: string[];
+  popular: Artwork[];
+} | null = null;
+
 export default function Home() {
   const { isAdmin } = useAuth();
-  const [artworks, setArtworks] = useState<Artwork[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Get initial params to check cache
+  const initialParams = JSON.stringify({
+    page: Number(sessionStorage.getItem("artworksPage")) || 0,
+    keyword: sessionStorage.getItem("artworksKeyword") || null,
+    search: sessionStorage.getItem("artworksSearch") || "",
+    sort: localStorage.getItem("artworksSort") || "latest"
+  });
 
-  const [keywords, setKeywords] = useState<string[]>([]);
+  const isCacheValid = artworksCache && artworksCache.params === initialParams;
+
+  const [artworks, setArtworks] = useState<Artwork[]>(isCacheValid ? artworksCache!.data : []);
+  const [loading, setLoading] = useState(!isCacheValid);
+
+  const [keywords, setKeywords] = useState<string[]>(isCacheValid ? artworksCache!.keywords : []);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(() => sessionStorage.getItem("artworksKeyword") || null);
   const [searchTerm, setSearchTerm] = useState<string>(() => sessionStorage.getItem("artworksSearch") || "");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
-  const [popularArtworks, setPopularArtworks] = useState<Artwork[]>([]);
+  const [popularArtworks, setPopularArtworks] = useState<Artwork[]>(isCacheValid ? artworksCache!.popular : []);
   const [showMorePopular, setShowMorePopular] = useState(false);
   const [page, setPage] = useState(() => Number(sessionStorage.getItem("artworksPage")) || 0);
-  const [totalArtworks, setTotalArtworks] = useState(0);
+  const [totalArtworks, setTotalArtworks] = useState(isCacheValid ? artworksCache!.total : 0);
   const [sortMode, setSortMode] = useState<string>(
     localStorage.getItem("artworksSort") || "latest",
   );
-  const [latestArtwork, setLatestArtwork] = useState<Artwork | null>(null);
+  const [latestArtwork, setLatestArtwork] = useState<Artwork | null>(isCacheValid ? artworksCache!.latest : null);
 
   useEffect(() => {
     localStorage.setItem("artworksSort", sortMode);
@@ -68,7 +89,9 @@ export default function Home() {
         const data = await res.json();
         const items = Array.isArray(data) ? data : data.data || [];
         if (items.length > 0) {
-          setLatestArtwork(items[0]);
+          const item = items[0];
+          setLatestArtwork(item);
+          if (artworksCache) artworksCache.latest = item;
         }
       }
     } catch (e) {
@@ -85,7 +108,9 @@ export default function Home() {
     try {
       const res = await fetch("/api/keywords");
       const data = await res.json();
-      setKeywords(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setKeywords(list);
+      if (artworksCache) artworksCache.keywords = list;
     } catch (e) {
       console.error(e);
       setKeywords([]);
@@ -99,8 +124,18 @@ export default function Home() {
     currentSortMode: string,
     signal?: AbortSignal,
   ) => {
+    const paramsKey = JSON.stringify({
+      page: currentPage,
+      keyword: currentKeyword,
+      search: currentSearch,
+      sort: currentSortMode
+    });
+
     try {
-      setLoading(true);
+      // Only show full-screen loader if we don't have data for these parameters
+      if (!artworksCache || artworksCache.params !== paramsKey) {
+        setLoading(true);
+      }
 
       const { limit, offset } = getPageInfo(currentPage);
       let url = `/api/artworks?limit=${limit}&offset=${offset}&sort=${currentSortMode}`;
@@ -114,12 +149,23 @@ export default function Home() {
       const res = await fetch(url, { signal });
       const data = await res.json();
       const fetchedArtworks = Array.isArray(data) ? data : data.data || [];
+      const total = data.total !== undefined ? data.total : 0;
 
       if (data.total !== undefined) {
-        setTotalArtworks(data.total);
+        setTotalArtworks(total);
       }
 
       setArtworks(fetchedArtworks);
+
+      // Update global cache
+      artworksCache = {
+        data: fetchedArtworks,
+        total: total,
+        params: paramsKey,
+        latest: latestArtwork,
+        keywords: keywords,
+        popular: popularArtworks
+      };
     } catch (e: any) {
       if (e.name !== "AbortError") console.error(e);
     } finally {
@@ -132,7 +178,9 @@ export default function Home() {
       const res = await fetch("/api/artworks?limit=10&sort=views");
       if (res.ok) {
         const data = await res.json();
-        setPopularArtworks(data.data || []);
+        const items = data.data || [];
+        setPopularArtworks(items);
+        if (artworksCache) artworksCache.popular = items;
       }
     } catch (e) {
       console.error(e);
