@@ -782,14 +782,6 @@ export default function AdminDashboard() {
         </div>
         
         <div className="hidden lg:block shrink-0">
-          {fetchingProgress && !fetchingWorks && fetchingProgress.error && (
-             <button
-               onClick={() => setFetchingProgress(null)}
-               className="text-xs text-red-500 hover:underline flex items-center gap-1"
-             >
-               <X className="w-3 h-3" /> 清除警告
-             </button>
-          )}
         </div>
       </header>
 
