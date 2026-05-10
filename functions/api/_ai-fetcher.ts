@@ -551,32 +551,32 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       let text = "";
       const modelNameForLog = isAli ? '阿里云' : 'Google Gemini';
 
-      let timer20s: any, timer40s: any, timer60s: any;
+      let timer10s: any, timer20s: any, timer30s: any;
+      const pulse10s = new Promise((_, reject) => timer10s = setTimeout(() => reject(new Error('PULSE_10S')), 10000));
       const pulse20s = new Promise((_, reject) => timer20s = setTimeout(() => reject(new Error('PULSE_20S')), 20000));
-      const pulse40s = new Promise((_, reject) => timer40s = setTimeout(() => reject(new Error('PULSE_40S')), 40000));
-      const pulse60s = new Promise((_, reject) => timer60s = setTimeout(() => reject(new Error('PULSE_60S')), 60000));
+      const pulse30s = new Promise((_, reject) => timer30s = setTimeout(() => reject(new Error('PULSE_30S')), 30000));
+      pulse10s.catch(() => {});
       pulse20s.catch(() => {});
-      pulse40s.catch(() => {});
-      pulse60s.catch(() => {});
+      pulse30s.catch(() => {});
 
       const runWithPulses = async <T,>(promise: Promise<T>): Promise<T> => {
          try {
-            return await Promise.race([promise, pulse20s as Promise<T>]);
+            return await Promise.race([promise, pulse10s as Promise<T>]);
          } catch (e: any) {
-            if (e.message === 'PULSE_20S') {
+            if (e.message === 'PULSE_10S') {
                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                if (notify) await notify(`⌛ ${modelNameForLog} 模型思考中 (第 ${attempt} 次尝试，已等待 20s)...`);
+                if (notify) await notify(`⌛ ${modelNameForLog} 思考中 (第 ${attempt} 次尝试，已等待 10s)...`);
                 try {
-                  return await Promise.race([promise, pulse40s as Promise<T>]);
+                  return await Promise.race([promise, pulse20s as Promise<T>]);
                 } catch (e2: any) {
-                  if (e2.message === 'PULSE_40S') {
+                  if (e2.message === 'PULSE_20S') {
                       if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                      if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 40s)...`);
+                      if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 20s)...`);
                       try {
-                        return await Promise.race([promise, pulse60s as Promise<T>]);
+                        return await Promise.race([promise, pulse30s as Promise<T>]);
                       } catch (e3: any) {
-                        if (e3.message === 'PULSE_60S') {
-                            throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 60s)`);
+                        if (e3.message === 'PULSE_30S') {
+                            throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 30s)`);
                         }
                         throw e3;
                       }
@@ -588,9 +588,9 @@ export async function generateDetailedInterpretation(title: string, artist: stri
                 throw e;
             }
          } finally {
+            clearTimeout(timer10s);
             clearTimeout(timer20s);
-            clearTimeout(timer40s);
-            clearTimeout(timer60s);
+            clearTimeout(timer30s);
          }
       };
 
