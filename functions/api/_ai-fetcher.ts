@@ -2,11 +2,14 @@ import { getDB } from './_db';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000, label = "请求"): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000, label = "请求", notify?: (msg: string) => void | Promise<void>): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
+      if (i > 0 && notify) {
+        await notify(`🔄 ${label} 正在进行第 ${i + 1} 次重试...`);
+      }
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
@@ -17,7 +20,10 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       });
       clearTimeout(timer);
       if (response.ok) return response;
+      
       if (response.status === 429 || response.status >= 500) {
+        const statusText = response.status === 429 ? "请求受限(429)" : `服务器错误(${response.status})`;
+        if (i < retries - 1 && notify) await notify(`⚠️ ${label} 遇到 ${statusText}，${backoff * Math.pow(2, i) / 1000}s 后重试...`);
         await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
         continue;
       }
@@ -25,19 +31,21 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
     } catch (e: any) {
       clearTimeout(timer);
       if (e.name === 'AbortError') {
-        const timeoutMsg = `${label}超时 (超过 ${timeout/1000} 秒)。请稍后重试。`;
-        console.error(`[Fetch] ${label} Timeout after ${timeout}ms: ${url}`);
+        const timeoutMsg = `${label}响应超时 (超过 ${timeout/1000} 秒)。`;
+        if (i < retries - 1 && notify) await notify(`⌛ ${timeoutMsg} 正在尝试重试...`);
         if (i === retries - 1) {
-          const timeoutErr = new Error(timeoutMsg);
+          const timeoutErr = new Error(`${timeoutMsg}请检查网络或稍后重试。`);
           timeoutErr.name = 'AbortError';
           throw timeoutErr;
         }
+      } else {
+        if (i < retries - 1 && notify) await notify(`❌ ${label} 发生预期外错误: ${e.message}，正在重试...`);
       }
       if (i === retries - 1) throw e;
       await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
     }
   }
-  throw new Error(`${label}失败，已重试 ${retries} 次`);
+  throw new Error(`${label}最终失败，已重试 ${retries} 次`);
 }
 
 async function uploadToR2(url: string, id: string): Promise<{ url: string; size: number }> {
@@ -127,7 +135,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
         'Accept': 'application/sparql-results+json', 
         'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
       } 
-    }, 2, 1000, 30000, "Wikidata 数据连接");
+    }, 2, 1000, 30000, "Wikidata 数据连接", notify);
 
     let timer10s: any, timer20s: any;
     const pulse10s = new Promise((_, reject) => 
@@ -198,7 +206,7 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   if (notify) await notify(`正在从大都会艺术博物馆搜寻藏品...`);
   const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取");
+  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取", notify);
   const searchData = await searchRes.json();
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
@@ -207,7 +215,7 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
      try {
-       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取");
+       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取", notify);
        if (!objRes.ok) continue;
        const objData = await objRes.json();
        if (!objData.primaryImage || !objData.title || !objData.artistDisplayName) continue;
@@ -313,7 +321,9 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
          if (source.type === 'met_api') candidates = await fetchFromMet(notify);
          else if (source.type === 'wikidata') candidates = await fetchFromWikidata(source.qid, source.name, notify);
        } catch (err: any) {
-          await notify(`连接 ${source.name} 失败: ${err.message}`, true);
+          await notify(`❌ 连接 ${source.name} 失败: ${err.message}`, true);
+          // Small delay to ensure the error message is visible in the status field
+          await new Promise(r => setTimeout(r, 2000));
           continue;
        }
 
