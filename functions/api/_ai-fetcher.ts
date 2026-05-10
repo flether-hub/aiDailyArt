@@ -394,9 +394,16 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
        return false;
     };
 
+    let sourcesTried = 0;
     for (const source of shuffledSources) {
        if (newlyAdded >= targetCount) break;
+       if (sourcesTried >= 3) {
+          if (notify) await notify(`⚠️ 已尝试 3 个数据源皆未成功获取，为避免过度消耗，本轮抓取提前结束。`);
+          break;
+       }
        if (await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+       
+       sourcesTried++;
        await notify(`正在连接 ${source.name} 的数据源...`);
        let candidates = [];
        try {
