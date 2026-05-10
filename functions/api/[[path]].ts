@@ -967,8 +967,14 @@ app.post('/admin/trigger-fetch', async (c) => {
   const { streamText } = await import('hono/streaming');
   return streamText(c, async (stream) => {
     let isDone = false;
-    task().then(() => isDone = true).catch(() => isDone = true);
+    const taskPromise = task().then(() => isDone = true).catch(() => isDone = true);
     
+    try {
+      if (c.executionCtx && typeof c.executionCtx.waitUntil === 'function') {
+        c.executionCtx.waitUntil(taskPromise);
+      }
+    } catch (e) {}
+
     await stream.writeln("START");
     
     while (!isDone) {

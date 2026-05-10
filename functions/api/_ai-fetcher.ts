@@ -342,10 +342,6 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
     try {
       // 移除前缀，避免与 SSE 实时流内容产生差异导致前端去重失效
       const finalMsg = msg; 
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', status);
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', finalMsg);
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', isError ? 'true' : 'false');
       
       const isStartMsg = finalMsg.includes('正在启动名画寻脉任务');
       const isSkipMsg = finalMsg.includes('后台任务未达设定的自动抓取间隔') || finalMsg.includes('未启用后台自动抓取') || finalMsg.includes('已有自动任务正在执行中') || finalMsg.includes('已有手动任务正在执行中');
@@ -374,7 +370,16 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
       
       if (logs.length > 50) logs = logs.slice(logs.length - 50);
 
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_logs', JSON.stringify(logs));
+      await db.prepare(`
+        INSERT OR REPLACE INTO settings (key, value) VALUES 
+        (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)
+      `).run(
+        'job_status', status,
+        'job_message', finalMsg,
+        'job_updated_at', new Date().toISOString(),
+        'job_error', isError ? 'true' : 'false',
+        'job_logs', JSON.stringify(logs)
+      );
     } catch (e) {
       console.error('Failed to update job status in DB:', e);
     }
@@ -476,11 +481,24 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
        }
 
        const validCandidates = [];
-       for (const objData of candidates) {
-          try {
-            const exists = await db.prepare('SELECT id FROM artworks WHERE source_id = ?').get(objData.sourceId);
-            if (!exists) validCandidates.push(objData);
-          } catch(e) { validCandidates.push(objData); }
+       if (candidates.length > 0) {
+         try {
+            // Check all candidates at once to save D1 HTTP requests
+            const sourceIds = candidates.map(c => c.sourceId);
+            const placeholders = sourceIds.map(() => '?').join(',');
+            const existingRows = await db.prepare(`SELECT source_id FROM artworks WHERE source_id IN (${placeholders})`).all(...sourceIds);
+            const existingIds = new Set((existingRows || []).map((r: any) => r.source_id));
+            
+            for (const objData of candidates) {
+               if (!existingIds.has(objData.sourceId)) {
+                  validCandidates.push(objData);
+               }
+            }
+         } catch(e) {
+            for (const objData of candidates) {
+               validCandidates.push(objData);
+            }
+         }
        }
 
        if (validCandidates.length === 0) {
