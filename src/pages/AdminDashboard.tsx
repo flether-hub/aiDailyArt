@@ -27,6 +27,7 @@ export default function AdminDashboard() {
   const [fetchingWorks, setFetchingWorks] = useState(false);
   const [taskLogs, setTaskLogs] = useState<{ id: string; time: string; msg: string; isError?: boolean }[]>([]);
   const logContainerRef = useRef<HTMLDivElement>(null);
+  const sseActive = useRef(false);
   const fetchAbortController = useRef<AbortController | null>(null);
   const [fetchingProgress, setFetchingProgress] = useState<{
     message: string;
@@ -141,22 +142,46 @@ export default function AdminDashboard() {
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       const res = await fetch("/api/admin/job-status", { headers });
       const data = await res.json();
+      
+      const hasLogs = data.logs && data.logs.length > 0;
+      
+      const syncLogs = () => {
+        if (!sseActive.current) {
+          if (hasLogs) {
+            setTaskLogs(prev => {
+              if (prev.length === 0) return data.logs;
+              const merged = data.logs.map((serverLog: any) => {
+                 const matching = prev.find((p: any) => p.msg === serverLog.msg);
+                 if (matching) return { ...serverLog, id: matching.id };
+                 return serverLog;
+              });
+              return merged;
+            });
+          } else if (data.message) {
+            addLog(data.message, !!data.error);
+          }
+        }
+      };
+
       if (data.status === "running") {
         setFetchingWorks(true);
         setFetchingProgress({
           message: data.message,
           error: data.error ? "预警" : undefined,
         });
-        addLog(data.message, !!data.error);
+        syncLogs();
       } else if (fetchingWorks && data.status === "idle") {
         setFetchingWorks(false);
         setFetchingProgress({
           message: data.message,
           error: data.error ? "已中止" : undefined,
         });
-        if (data.message) addLog(data.message, !!data.error);
+        syncLogs();
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
+      } else if (!fetchingWorks && data.status === "idle" && hasLogs && taskLogs.length === 0 && !sseActive.current) {
+        // If we just loaded the page and there are logs from a previous run, display them
+        setTaskLogs(data.logs);
       }
       
       if (data.cron_last_trigger) {
@@ -401,6 +426,7 @@ export default function AdminDashboard() {
   const triggerFetch = async () => {
     if (fetchAbortController.current) fetchAbortController.current.abort();
     fetchAbortController.current = new AbortController();
+    sseActive.current = true;
     
     setFetchingWorks(true);
     setTaskLogs([]); // Clear logs for new task
@@ -504,6 +530,7 @@ export default function AdminDashboard() {
         setFetchingWorks(false);
         setTimeout(() => setFetchingProgress((prev) => (prev?.error ? prev : null)), 8000);
       }
+      sseActive.current = false;
     }
   };
 

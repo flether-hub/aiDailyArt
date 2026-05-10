@@ -407,6 +407,7 @@ app.get('/admin/job-status', async (c) => {
   const errorRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_error');
   const updatedRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_updated_at');
   const triggerRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('cron_last_trigger');
+  const logsRes = await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_logs');
 
   let status = (statusRes as any)?.value || 'idle';
   const updatedAtStr = (updatedRes as any)?.value;
@@ -418,11 +419,15 @@ app.get('/admin/job-status', async (c) => {
     }
   }
 
+  let logs = [];
+  try { logs = JSON.parse((logsRes as any)?.value || '[]'); } catch (e) {}
+
   return c.json({
     status,
     cron_last_trigger: (triggerRes as any)?.value || null,
     message: (messageRes as any)?.value || '',
-    error: (errorRes as any)?.value === 'true'
+    error: (errorRes as any)?.value === 'true',
+    logs
   });
 });
 

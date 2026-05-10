@@ -104,7 +104,32 @@ const SOURCES = [
   { key: 'q1454516', name: '弗利尔美术馆 (Freer Gallery of Art)', type: 'wikidata', qid: 'Q1454516' },
   { key: 'q427014', name: '吉美博物馆 (Musée Guimet)', type: 'wikidata', qid: 'Q427014' },
   { key: 'q664879', name: '赛努奇博物馆 (Musée Cernuschi)', type: 'wikidata', qid: 'Q664879' },
-  { key: 'q170566', name: '故宫博物院 (The Palace Museum, Beijing)', type: 'wikidata', qid: 'Q170566' }
+  { key: 'q170566', name: '故宫博物院 (The Palace Museum, Beijing)', type: 'wikidata', qid: 'Q170566' },
+  { key: 'q213322', name: '维多利亚和阿尔伯特博物馆 (V&A)', type: 'wikidata', qid: 'Q213322' },
+  { key: 'q178065', name: '蓬皮杜中心 (Centre Pompidou)', type: 'wikidata', qid: 'Q178065' },
+  { key: 'q460889', name: '索菲亚王后国家艺术中心博物馆 (Museo Reina Sofía)', type: 'wikidata', qid: 'Q460889' },
+  { key: 'q273187', name: '东京国立博物馆 (Tokyo National Museum)', type: 'wikidata', qid: 'Q273187' },
+  { key: 'q510324', name: '费城艺术博物馆 (Philadelphia Museum of Art)', type: 'wikidata', qid: 'Q510324' },
+  { key: 'q201469', name: '所罗门·R·古根海姆美术馆 (Guggenheim Museum)', type: 'wikidata', qid: 'Q201469' },
+  { key: 'q878788', name: '惠特尼美国艺术博物馆 (Whitney Museum)', type: 'wikidata', qid: 'Q878788' },
+  { key: 'q705551', name: '新南威尔士州美术馆 (Art Gallery of NSW)', type: 'wikidata', qid: 'Q705551' },
+  { key: 'q1192305', name: '史密森尼美国艺术博物馆 (SAAM)', type: 'wikidata', qid: 'Q1192305' },
+  { key: 'q238587', name: '英国国家肖像馆 (National Portrait Gallery)', type: 'wikidata', qid: 'Q238587' },
+  { key: 'q304494', name: '苏格兰国家画廊 (Scottish National Gallery)', type: 'wikidata', qid: 'Q304494' },
+  { key: 'q1327919', name: '华莱士收藏馆 (Wallace Collection)', type: 'wikidata', qid: 'Q1327919' },
+  { key: 'q1137741', name: '考陶尔德美术馆 (Courtauld Gallery)', type: 'wikidata', qid: 'Q1137741' },
+  { key: 'q1433216', name: '菲茨威廉博物馆 (Fitzwilliam Museum)', type: 'wikidata', qid: 'Q1433216' },
+  { key: 'q636406', name: '阿什莫林博物馆 (Ashmolean Museum)', type: 'wikidata', qid: 'Q636406' },
+  { key: 'q1513272', name: '休斯顿美术馆 (Museum of Fine Arts, Houston)', type: 'wikidata', qid: 'Q1513272' },
+  { key: 'q1641012', name: '洛杉矶县艺术博物馆 (LACMA)', type: 'wikidata', qid: 'Q1641012' },
+  { key: 'q902781', name: '旧金山现代艺术博物馆 (SFMOMA)', type: 'wikidata', qid: 'Q902781' },
+  { key: 'q180907', name: '圣保罗艺术博物馆 (MASP)', type: 'wikidata', qid: 'Q180907' },
+  { key: 'q2153073', name: '卡洛斯特·古尔本基安博物馆 (Gulbenkian Museum)', type: 'wikidata', qid: 'Q2153073' },
+  { key: 'q264964', name: '佩姬·古根海姆美术馆 (Peggy Guggenheim Collection)', type: 'wikidata', qid: 'Q264964' },
+  { key: 'q839739', name: '蒙克美术馆 (Munch Museum)', type: 'wikidata', qid: 'Q839739' },
+  { key: 'q170152', name: '新绘画陈列馆 (Neue Pinakothek)', type: 'wikidata', qid: 'Q170152' },
+  { key: 'q458514', name: '阿尔贝蒂娜博物馆 (Albertina)', type: 'wikidata', qid: 'Q458514' },
+  { key: 'q1056580', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1056580' }
 ];
 
 async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>) {
@@ -181,7 +206,40 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   }
 
   if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析数据...`);
-  const data = await response.json();
+  let data;
+  try {
+    const parseController = new AbortController();
+    const parseTimer = setTimeout(() => parseController.abort(), 20000); // 20s timeout for json payload reading
+    const readBody = async () => {
+      // Manually reading stream to support abort
+      if (!response.body) return await response.json();
+      const reader = response.body.getReader();
+      let chunks = [];
+      while (true) {
+        if (parseController.signal.aborted) throw new Error("Body download timed out");
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
+      }
+      clearTimeout(parseTimer);
+      const totalLen = chunks.reduce((acc, val) => acc + val.length, 0);
+      const combined = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const chunk of chunks) {
+         combined.set(chunk, offset);
+         offset += chunk.length;
+      }
+      return JSON.parse(new TextDecoder().decode(combined));
+    };
+    
+    // Fallback to response.json() if stream reading fails, though usually stream works in workerd
+    data = await Promise.race([
+       readBody(),
+       new Promise((_, rej) => setTimeout(() => { parseController.abort(); rej(new Error('Wikidata 数据流读取超时(20s)，这通常是因为该博物馆藏品过多致使对方响应慢')); }, 20000))
+    ]);
+  } catch (e: any) {
+    throw new Error(`解析 ${sourceName} 数据时超时或失败: ${e.message}`);
+  }
   const bindings = data.results?.bindings || [];
   if (bindings.length === 0) return [];
   const shuffled = bindings.sort(() => 0.5 - Math.random());
@@ -253,6 +311,27 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', finalMsg);
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', isError ? 'true' : 'false');
+      
+      const isStartMsg = finalMsg.includes('正在启动名画寻脉任务');
+      const isSkipMsg = finalMsg.includes('后台任务未达设定的自动抓取间隔') || finalMsg.includes('未启用后台自动抓取') || finalMsg.includes('已有自动任务正在执行中') || finalMsg.includes('已有手动任务正在执行中');
+      
+      let logsJson = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_logs') as any)?.value || '[]';
+      let logs = [];
+      try { logs = JSON.parse(logsJson); } catch (e) {}
+
+      if (isStartMsg || isSkipMsg) {
+         logs = [];
+      }
+      
+      logs.push({
+        id: Math.random().toString(36).substring(7),
+        time: new Date().toLocaleTimeString(),
+        msg: finalMsg,
+        isError
+      });
+      if (logs.length > 50) logs = logs.slice(logs.length - 50);
+
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_logs', JSON.stringify(logs));
     } catch (e) {
       console.error('Failed to update job status in DB:', e);
     }
