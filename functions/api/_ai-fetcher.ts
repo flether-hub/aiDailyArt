@@ -2,8 +2,9 @@ import { getDB } from './_db';
 import { GoogleGenAI, Type } from '@google/genai';
 import { getCloudEnv } from './_cloud-env';
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000, label = "请求", notify?: (msg: string) => void | Promise<void>): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, backoff = 1000, timeout = 20000, label = "请求", notify?: (msg: string) => void | Promise<void>, checkAbort?: () => Promise<boolean>): Promise<Response> {
   for (let i = 0; i < retries; i++) {
+    if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
     try {
@@ -30,6 +31,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       return response;
     } catch (e: any) {
       clearTimeout(timer);
+      if (e.message && e.message.includes('AbortError')) throw e;
       if (e.name === 'AbortError') {
         const timeoutMsg = `${label}响应超时 (超过 ${timeout/1000} 秒)。`;
         if (i < retries - 1 && notify) await notify(`⌛ ${timeoutMsg} 正在尝试重试...`);
@@ -132,8 +134,9 @@ const SOURCES = [
   { key: 'q1056580', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1056580' }
 ];
 
-async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>) {
+async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>, checkAbort?: () => Promise<boolean>) {
   if (notify) await notify(`正在向 Wikidata 请求 ${sourceName} 的艺术清单...`);
+  if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
       VALUES ?type { 
@@ -160,7 +163,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
         'Accept': 'application/sparql-results+json', 
         'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
       } 
-    }, 2, 1000, 30000, "Wikidata 数据连接", notify);
+    }, 2, 1000, 30000, "Wikidata 数据连接", notify, checkAbort);
 
     let timer10s: any, timer20s: any;
     const pulse10s = new Promise((_, reject) => 
@@ -260,11 +263,12 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   }).filter((b: any) => b.primaryImage && b.title !== '未知作品');
 }
 
-async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | Promise<void>) {
+async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | Promise<void>, checkAbort?: () => Promise<boolean>) {
   if (notify) await notify(`正在从大都会艺术博物馆搜寻藏品...`);
+  if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
   const searchTerms = ['painting', 'Chinese painting', 'scroll painting', 'calligraphy', 'ink painting'];
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取", notify);
+  const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取", notify, checkAbort);
   const searchData = await searchRes.json();
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
@@ -272,8 +276,9 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   if (notify) await notify(`在大都会艺术博物馆找到 ${objectIDs.length} 个候选，正在筛选...`);
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
+     if (checkAbort && await checkAbort()) break;
      try {
-       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取", notify);
+       const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取", notify, checkAbort);
        if (!objRes.ok) continue;
        const objData = await objRes.json();
        if (!objData.primaryImage || !objData.title || !objData.artistDisplayName) continue;
@@ -392,14 +397,24 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
     await notify(`系统开始获取名画，本次计划获取 ${targetCount} 幅...`);
     let shuffledSources = [...SOURCES].sort(() => 0.5 - Math.random());
     
+    const checkAbort = async (): Promise<boolean> => {
+       try {
+          const curStatus = await db.prepare("SELECT value FROM settings WHERE key = 'job_status'").get();
+          if ((curStatus as any)?.value === 'idle') return true;
+       } catch (e) {}
+       return false;
+    };
+
     for (const source of shuffledSources) {
        if (newlyAdded >= targetCount) break;
+       if (await checkAbort()) throw new Error('AbortError: Task was manually stopped');
        await notify(`正在连接 ${source.name} 的数据源...`);
        let candidates = [];
        try {
-         if (source.type === 'met_api') candidates = await fetchFromMet(notify);
-         else if (source.type === 'wikidata') candidates = await fetchFromWikidata(source.qid, source.name, notify);
+         if (source.type === 'met_api') candidates = await fetchFromMet(notify, checkAbort);
+         else if (source.type === 'wikidata') candidates = await fetchFromWikidata(source.qid, source.name, notify, checkAbort);
        } catch (err: any) {
+          if (err.message && err.message.includes('AbortError')) throw err;
           await notify(`❌ 连接 ${source.name} 失败: ${err.message}`, true);
           // Small delay to ensure the error message is visible in the status field
           await new Promise(r => setTimeout(r, 2000));
@@ -433,7 +448,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
           try {
             const artworkId = crypto.randomUUID();
             const { url: r2Url, size: imageSize } = await uploadToR2(objData.primaryImage, artworkId);
-            const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify);
+            const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify, checkAbort);
 
             const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
             const artist_zh = aiData.artist_zh && aiData.artist_zh !== '中文画家名' ? aiData.artist_zh : objData.artistDisplayName;
@@ -449,6 +464,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
             await notify(`❌ 处理《${objData.title}》时出错: ${itemErr.message}`, true);
             // 如果是 AI API 凭证错误或限流，直接中断整个抓取避免疯狂报错
             const errLower = itemErr.message.toLowerCase();
+            if (errLower.includes('aborterror')) throw itemErr;
             const isCriticalError = ['api 密钥', '限流', '额度', '频繁', 'auth', 'api key', '429', '401', '403', 'quota', 'rate limit', 'exhausted'].some(keyword => errLower.includes(keyword));
             if (isCriticalError) {
               throw itemErr; 
@@ -465,12 +481,15 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
     }
     return { success: true, count: newlyAdded };
   } catch (err: any) {
+    if (err.message && err.message.includes('AbortError')) {
+       return { success: false, message: 'Task aborted by user' };
+    }
     await updateJobInDB(`分析任务出错: ${err.message}`, 'idle', true);
     return { success: false, message: err.message };
   }
 }
 
-export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>) {
+export async function generateDetailedInterpretation(title: string, artist: string, year: string, provider: string, modelId?: string, userApiKey?: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>, checkAbort?: () => Promise<boolean>) {
   const prompt = `你是一位风趣幽默、见多识广、偶尔带点“凡尔赛”气息的顶级艺术策展人。
 请为以下名画撰写一篇让人欲罢不能的高深度、长篇赏析。同时，请将画作名称和创作者翻译成中文（如果是外语）。
 【创作要求】：
@@ -528,6 +547,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
     }
 
     try {
+      if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
       // Fallback logic for keys
       if (isObviouslyInvalid(aiKey)) {
         const fallbackKeyKey = isAli ? 'DASHSCOPE_API_KEY' : 'GEMINI_API_KEY';
@@ -563,11 +583,13 @@ export async function generateDetailedInterpretation(title: string, artist: stri
             return await Promise.race([promise, pulse20s as Promise<T>]);
          } catch (e: any) {
             if (e.message === 'PULSE_20S') {
+                if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
                 if (notify) await notify(`⌛ ${modelNameForLog} 模型思考中 (第 ${attempt} 次尝试，已等待 20s)...`);
                 try {
                   return await Promise.race([promise, pulse40s as Promise<T>]);
                 } catch (e2: any) {
                   if (e2.message === 'PULSE_40S') {
+                      if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
                       if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 40s)...`);
                       try {
                         return await Promise.race([promise, pulse60s as Promise<T>]);
@@ -691,6 +713,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       return { keywords: finalKeywords, content, title_zh: finalTitle_zh, artist_zh: finalArtist_zh };
 
     } catch (e: any) {
+      if (e.message && e.message.includes('AbortError')) throw e;
       let errorMsg = e.message || String(e);
       if (e.name === 'AbortError' || errorMsg.includes('aborted')) {
         errorMsg = `此操作由于响应过慢已中止（已超过预计的最长等待时间）。正在尝试更换模型或重试...`;
