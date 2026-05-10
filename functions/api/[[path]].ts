@@ -433,10 +433,26 @@ app.get('/admin/job-status', async (c) => {
 
 app.post('/admin/job-reset', async (c) => {
   const db = await getDB();
+  const msg = '已手动重置';
   await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_status', 'idle');
-  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', '已手动重置');
+  await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_message', msg);
   await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_error', 'false');
   await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_updated_at', new Date().toISOString());
+
+  try {
+      let logsJson = (await db.prepare('SELECT value FROM settings WHERE key = ?').get('job_logs') as any)?.value || '[]';
+      let logs = [];
+      try { logs = JSON.parse(logsJson); } catch (e) {}
+      logs.push({
+        id: Math.random().toString(36).substring(7),
+        time: new Date().toLocaleTimeString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' }),
+        msg: msg,
+        isError: true
+      });
+      if (logs.length > 50) logs = logs.slice(logs.length - 50);
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_logs', JSON.stringify(logs));
+  } catch (e) {}
+
   return c.json({ success: true });
 });
 

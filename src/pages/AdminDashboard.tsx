@@ -127,7 +127,7 @@ export default function AdminDashboard() {
         time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
         msg,
         isError
-      }].slice(-50); 
+      }].slice(-50);
     });
   };
 
@@ -150,9 +150,13 @@ export default function AdminDashboard() {
           if (hasLogs) {
             setTaskLogs(prev => {
               if (prev.length === 0) return data.logs;
+              const usedIds = new Set();
               const merged = data.logs.map((serverLog: any) => {
-                 const matching = prev.find((p: any) => p.msg === serverLog.msg);
-                 if (matching) return { ...serverLog, id: matching.id };
+                 const matching = prev.find((p: any) => p.msg === serverLog.msg && !usedIds.has(p.id));
+                 if (matching) {
+                    usedIds.add(matching.id);
+                    return { ...serverLog, id: matching.id };
+                 }
                  return serverLog;
               });
               return merged;

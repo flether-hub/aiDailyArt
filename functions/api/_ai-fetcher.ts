@@ -325,7 +325,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
       
       logs.push({
         id: Math.random().toString(36).substring(7),
-        time: new Date().toLocaleTimeString(),
+        time: new Date().toLocaleTimeString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' }),
         msg: finalMsg,
         isError
       });
