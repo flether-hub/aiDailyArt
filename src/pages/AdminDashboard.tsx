@@ -1132,20 +1132,19 @@ export default function AdminDashboard() {
                     复制
                   </button>
 
-                  {fetchingWorks && (
+                  {fetchingWorks ? (
                     <button 
                       onClick={stopTask}
-                      className="text-[11px] font-bold text-red-400 hover:text-red-500 transition-colors"
+                      className="text-[11px] font-bold text-red-500 hover:text-red-600 bg-red-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1"
                     >
-                      中断
+                      中断任务
                     </button>
-                  )}
-                  {!fetchingWorks && (
+                  ) : (
                      <button 
                        onClick={() => {setTaskLogs([]); setFetchingProgress(null);}}
-                       className="text-slate-300 hover:text-slate-500 transition-colors"
+                       className="text-[11px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
                      >
-                       <X className="w-3.5 h-3.5" />
+                       清空日志
                      </button>
                   )}
                 </div>
@@ -1258,8 +1257,12 @@ export default function AdminDashboard() {
                 <button
                   onClick={triggerFetch}
                   disabled={fetchingWorks}
-                  className="text-slate-500 hover:text-amber-700 transition-colors flex items-center justify-center p-1.5 rounded-full hover:bg-slate-200 disabled:opacity-50 shrink-0 shadow-sm"
-                  title="手动抓取新名画"
+                  className={`transition-all flex items-center justify-center p-1.5 rounded-full shrink-0 shadow-sm ${
+                    fetchingWorks 
+                      ? "text-red-500 bg-red-50 ring-2 ring-red-200 animate-pulse pointer-events-none" 
+                      : "text-slate-500 hover:text-amber-700 hover:bg-slate-200"
+                  }`}
+                  title={fetchingWorks ? "后台任务进行中，当前无法重复触发" : "手动抓取新名画"}
                 >
                   <RefreshCw
                     className={`w-4 h-4 sm:w-5 sm:h-5 ${fetchingWorks ? "animate-spin" : ""}`}
