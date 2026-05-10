@@ -1124,12 +1124,14 @@ export default function AdminDashboard() {
                     复制
                   </button>
 
-                  <button 
-                    onClick={stopTask}
-                    className="text-[11px] font-bold text-red-500 hover:text-red-600 bg-red-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1"
-                  >
-                    中断任务
-                  </button>
+                   {fetchingWorks && (
+                    <button 
+                      onClick={stopTask}
+                      className="text-[11px] font-bold text-red-500 hover:text-red-600 bg-red-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1"
+                    >
+                      中断任务
+                    </button>
+                  )}
                 </div>
               </div>
               <div 
