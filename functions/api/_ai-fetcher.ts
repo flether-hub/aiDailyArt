@@ -157,7 +157,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   
   let response;
   try {
-    // 尝试获取 Wikidata 数据，设置 30 秒超时，并在 10秒和 20秒没响应时发送一个“保持心跳”的通知
+    // 尝试获取 Wikidata 数据，设置 30 秒超时，并定期发送“保持心跳”的通知
     const fetchPromise = fetchWithRetry(url, { 
       headers: { 
         'Accept': 'application/sparql-results+json', 
@@ -165,39 +165,18 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       } 
     }, 2, 1000, 30000, "Wikidata 数据连接", notify, checkAbort);
 
-    let timer10s: any, timer20s: any;
-    const pulse10s = new Promise((_, reject) => 
-      timer10s = setTimeout(() => reject(new Error('PULSE_10S')), 10000)
-    );
-    const pulse20s = new Promise((_, reject) => 
-      timer20s = setTimeout(() => reject(new Error('PULSE_20S')), 20000)
-    );
-    pulse10s.catch(() => {});
-    pulse20s.catch(() => {});
+    const start = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - start) / 1000);
+      if (notify) {
+          notify(`⌛ Wikidata 仍在加载数据 (已耗时 ${elapsed}s)...`);
+      }
+    }, 10000);
 
     try {
-      response = await Promise.race([fetchPromise, pulse10s]);
-    } catch (e: any) {
-      if (e.message === 'PULSE_10S') {
-        if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-        if (notify) await notify(`⌛ Wikidata 响应较慢，仍在努力加载中 (已等待 10s)...`);
-        try {
-          response = await Promise.race([fetchPromise, pulse20s]);
-        } catch (e2: any) {
-          if (e2.message === 'PULSE_20S') {
-            if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-            if (notify) await notify(`⌛ Wikidata 响应极其缓慢，仍在继续尝试 (已等待 20s)...`);
-            response = await fetchPromise;
-          } else {
-            throw e2;
-          }
-        }
-      } else {
-        throw e;
-      }
+      response = await fetchPromise;
     } finally {
-      clearTimeout(timer10s);
-      clearTimeout(timer20s);
+      clearInterval(timer);
     }
 
   } catch (e: any) {
@@ -356,7 +335,7 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
   // 确保启动时的引擎显示逻辑与实际逻辑一致
   const isAliStart = targetProvider === 'ali' || targetProvider === 'dashscope' || targetProvider === 'bailian';
   const engineName = isAliStart ? "阿里云百炼" : "Google Gemini";
-  await updateJobInDB(`🚀 正在启动名画寻脉任务... (主要引擎: ${engineName})`, 'running');
+  await updateJobInDB(`🚀 正在启动名画寻脉任务... (主要引擎: ${engineName}) - VERSION: FIXED_PULSE`, 'running');
 
   try {
     const getSetting = async (key: string) => await db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
