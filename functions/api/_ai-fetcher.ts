@@ -179,11 +179,13 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       response = await Promise.race([fetchPromise, pulse10s]);
     } catch (e: any) {
       if (e.message === 'PULSE_10S') {
+        if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
         if (notify) await notify(`⌛ Wikidata 响应较慢，仍在努力加载中 (已等待 10s)...`);
         try {
           response = await Promise.race([fetchPromise, pulse20s]);
         } catch (e2: any) {
           if (e2.message === 'PULSE_20S') {
+            if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
             if (notify) await notify(`⌛ Wikidata 响应极其缓慢，仍在继续尝试 (已等待 20s)...`);
             response = await fetchPromise;
           } else {
