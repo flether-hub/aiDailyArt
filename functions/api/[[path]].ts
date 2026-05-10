@@ -905,7 +905,7 @@ app.get('/admin/settings', async (c) => {
 
 app.get('/admin/comments', async (c) => {
   const db = await getDB();
-  const comments = await db.prepare('SELECT c.*, a.title as artwork_title FROM comments c LEFT JOIN artworks a ON c.artwork_id = a.id ORDER BY created_at DESC').all();
+  const comments = await db.prepare('SELECT c.*, a.title as artwork_title FROM comments c LEFT JOIN artworks a ON c.artwork_id = a.id ORDER BY c.created_at DESC LIMIT 500').all();
   return c.json(comments || []);
 });
 
@@ -975,11 +975,15 @@ app.post('/admin/trigger-fetch', async (c) => {
       // 保持长连接，防止 Serverless 容器 CPU 睡眠
       await stream.sleep(10000);
       if (!isDone) {
-        await stream.writeln("PULSE");
+        try {
+          await stream.writeln("PULSE");
+        } catch (e) {
+          break; // Client likely disconnected
+        }
       }
     }
     
-    await stream.writeln("DONE");
+    try { await stream.writeln("DONE"); } catch (e) {}
   });
 });
 

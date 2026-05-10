@@ -88,6 +88,8 @@ export async function getDB(): Promise<DBClient> {
         let db: any;
         try {
           db = new Database(dbPath);
+          db.pragma('journal_mode = WAL');
+          db.pragma('synchronous = NORMAL');
           // Quick check to see if database is actually working, as better-sqlite-3 might not throw until first query
           db.prepare('PRAGMA integrity_check').get();
         } catch (dbErr: any) {
@@ -185,6 +187,10 @@ export async function initDB(db: DBClient) {
   `).run();
 
   await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_artworks_created_at ON artworks(created_at DESC)
+  `).run();
+
+  await db.prepare(`
     CREATE INDEX IF NOT EXISTS idx_artworks_is_visible_views ON artworks(is_visible, views DESC)
   `).run();
 
@@ -193,7 +199,15 @@ export async function initDB(db: DBClient) {
   `).run();
 
   await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC)
+  `).run();
+
+  await db.prepare(`
     CREATE INDEX IF NOT EXISTS idx_visitor_stats_location ON visitor_stats(location)
+  `).run();
+
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_visitor_stats_visited_at ON visitor_stats(visited_at DESC)
   `).run();
 
   // Migration for existing databases (Works on both Node and D1)

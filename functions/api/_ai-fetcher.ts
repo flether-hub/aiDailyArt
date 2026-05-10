@@ -7,6 +7,19 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
     if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
+    let userAborted = false;
+    let abortInterval: any;
+    if (checkAbort) {
+      abortInterval = setInterval(async () => {
+        try {
+          if (await checkAbort()) {
+            userAborted = true;
+            controller.abort();
+          }
+        } catch (e) {}
+      }, 2000);
+    }
+
     try {
       if (i > 0 && notify) {
         await notify(`🔄 ${label} 正在进行第 ${i + 1} 次重试...`);
@@ -20,6 +33,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
         }
       });
       clearTimeout(timer);
+      if (abortInterval) clearInterval(abortInterval);
       if (response.ok) return response;
       
       if (response.status === 429 || response.status >= 500) {
@@ -31,7 +45,8 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       return response;
     } catch (e: any) {
       clearTimeout(timer);
-      if (e.message && e.message.includes('AbortError')) throw e;
+      if (abortInterval) clearInterval(abortInterval);
+      if (userAborted || (e.message && e.message.includes('AbortError'))) throw new Error('AbortError: Task was manually stopped');
       if (e.name === 'AbortError') {
         const timeoutMsg = `${label}响应超时 (超过 ${timeout/1000} 秒)。`;
         if (i < retries - 1 && notify) await notify(`⌛ ${timeoutMsg} 正在尝试重试...`);
@@ -50,18 +65,49 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   throw new Error(`${label}最终失败，已重试 ${retries} 次`);
 }
 
-async function uploadToR2(url: string, id: string): Promise<{ url: string; size: number }> {
+async function uploadToR2(url: string, id: string, checkAbort?: () => Promise<boolean>): Promise<{ url: string; size: number }> {
   const env = getCloudEnv();
   if (!env || !env.ART_GALLERY_IMAGES || typeof env.ART_GALLERY_IMAGES.put !== 'function') {
     return { url, size: 0 }; 
   }
 
   try {
-    const response = await fetchWithRetry(url, {}, 3, 1000, 20000, "图片下载");
-    if (!response.ok) return { url, size: 0 };
+    const fetchController = new AbortController();
+    const timer = setTimeout(() => fetchController.abort(), 30000); // 30s total timeout for download
+    let abortInterval: any;
+    if (checkAbort) {
+       abortInterval = setInterval(async () => {
+          try {
+             if (await checkAbort()) fetchController.abort();
+          } catch(e) {}
+       }, 2000);
+    }
     
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    const buffer = await response.arrayBuffer();
+    let buffer;
+    let contentType;
+    try {
+      // NOTE: We do not pass checkAbort directly to fetchWithRetry here to avoid double-interval creation,
+      // but fetchWithRetry will still retry headers up to 3 times. We pass the controller signal down.
+      const response = await fetchWithRetry(url, { signal: fetchController.signal }, 3, 1000, 20000, "图片下载");
+      if (!response.ok) {
+         clearTimeout(timer);
+         if (abortInterval) clearInterval(abortInterval);
+         return { url, size: 0 };
+      }
+      
+      contentType = response.headers.get('content-type') || 'image/jpeg';
+      buffer = await response.arrayBuffer();
+      
+      clearTimeout(timer);
+      if (abortInterval) clearInterval(abortInterval);
+    } catch (err: any) {
+       clearTimeout(timer);
+       if (abortInterval) clearInterval(abortInterval);
+       throw err;
+    }
+    
+    if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+    
     const size = buffer.byteLength;
     const fileName = `artworks/${id}.${contentType.split('/')[1] || 'jpg'}`;
     
@@ -70,7 +116,9 @@ async function uploadToR2(url: string, id: string): Promise<{ url: string; size:
     });
     
     return { url: `/api/cdn/${fileName}`, size };
-  } catch (e) {
+  } catch (e: any) {
+    if (e.message && e.message.includes('AbortError')) throw e;
+    if (e.name === 'AbortError') throw new Error('AbortError: Task was manually stopped');
     console.error('R2 Upload failed:', e);
     return { url, size: 0 };
   }
@@ -157,13 +205,13 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   
   let response;
   try {
-    // 尝试获取 Wikidata 数据，设置 30 秒超时，并定期发送“保持心跳”的通知
+    // 尝试获取 Wikidata 数据，设置 60 秒超时，并定期发送“保持心跳”的通知
     const fetchPromise = fetchWithRetry(url, { 
       headers: { 
         'Accept': 'application/sparql-results+json', 
         'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
       } 
-    }, 2, 1000, 30000, "Wikidata 数据连接", notify, checkAbort);
+    }, 1, 1000, 60000, "Wikidata 数据连接", notify, checkAbort);
 
     const start = Date.now();
     const timer = setInterval(() => {
@@ -180,7 +228,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
     }
 
   } catch (e: any) {
-    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (30s)' : (e.message || String(e));
+    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (60s)' : (e.message || String(e));
     throw new Error(`连接失败: ${errorMsg}`);
   }
 
@@ -201,6 +249,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       let chunks = [];
       while (true) {
         if (parseController.signal.aborted) throw new Error("Body download timed out");
+        if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
         const { value, done } = await reader.read();
         if (done) break;
         if (value) chunks.push(value);
@@ -257,7 +306,7 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   if (notify) await notify(`在大都会艺术博物馆找到 ${objectIDs.length} 个候选，正在筛选...`);
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
-     if (checkAbort && await checkAbort()) break;
+     if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
      try {
        const objRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${objId}`, {}, 2, 1000, 30000, "大都会博物馆详情抓取", notify, checkAbort);
        if (!objRes.ok) continue;
@@ -394,16 +443,20 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
        return false;
     };
 
-    let sourcesTried = 0;
+    let wikidataAttempts = 0;
+
     for (const source of shuffledSources) {
        if (newlyAdded >= targetCount) break;
-       if (sourcesTried >= 3) {
-          if (notify) await notify(`⚠️ 已尝试 3 个数据源皆未成功获取，为避免过度消耗，本轮抓取提前结束。`);
-          break;
-       }
        if (await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-       
-       sourcesTried++;
+
+       if (source.type === 'wikidata') {
+          if (wikidataAttempts >= 3) {
+             if (notify) await notify(`⚠️ 已尝试 3 个 Wikidata 数据源未能满足目标，为避免资源浪费，中止本轮后续探测。`);
+             break;
+          }
+          wikidataAttempts++;
+       }
+
        await notify(`正在连接 ${source.name} 的数据源...`);
        let candidates = [];
        try {
@@ -437,13 +490,14 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
 
        for (const objData of validCandidates) {
           if (newlyAdded >= targetCount) break;
+          if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
 
           await notify(`精选新画作: 《${objData.title}》 - ${objData.artistDisplayName}`);
           await notify(`💡 正在进行深度分析并转存资源...`);
 
           try {
             const artworkId = crypto.randomUUID();
-            const { url: r2Url, size: imageSize } = await uploadToR2(objData.primaryImage, artworkId);
+            const { url: r2Url, size: imageSize } = await uploadToR2(objData.primaryImage, artworkId, checkAbort);
             const aiData = await generateDetailedInterpretation(objData.title, objData.artistDisplayName, objData.objectDate || '未知年份', provider, modelId, apiKey, notify, checkAbort);
 
             const title_zh = aiData.title_zh && aiData.title_zh !== '中文译名' ? aiData.title_zh : objData.title;
