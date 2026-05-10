@@ -631,44 +631,45 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       const runWithPulses = async <T,>(promise: Promise<T>): Promise<T> => {
         let isDone = false;
         
-        const timerPromise = async () => {
+        const pulse = async () => {
            let elapsed = 0;
            while (!isDone && elapsed < 90) {
               await new Promise(r => setTimeout(r, 1000));
               elapsed += 1;
               if (isDone) break;
               
-              if (elapsed === 10) {
-                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                 if (notify) await notify(`⌛ ${modelNameForLog} 思考中 (第 ${attempt} 次尝试，已等待 10s)...`);
-              } else if (elapsed === 20) {
-                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                 if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 20s)...`);
-              } else if (elapsed === 40) {
-                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                 if (notify) await notify(`⌛ ${modelNameForLog} 运算时间较长，仍在等待 (第 ${attempt} 次尝试，已等待 40s)...`);
-              } else if (elapsed === 60) {
-                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                 if (notify) await notify(`⌛ ${modelNameForLog} 响应极缓，正在最后等待 (第 ${attempt} 次尝试，已等待 60s)...`);
-              } else if (elapsed >= 90) {
-                 throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 90s)`);
-              }
+              try {
+                  if (elapsed === 10) {
+                     if (notify) await notify(`⌛ ${modelNameForLog} 思考中 (第 ${attempt} 次尝试，已等待 10s)...`);
+                  } else if (elapsed === 20) {
+                     if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 20s)...`);
+                  } else if (elapsed === 40) {
+                     if (notify) await notify(`⌛ ${modelNameForLog} 运算时间较长，仍在等待 (第 ${attempt} 次尝试，已等待 40s)...`);
+                  } else if (elapsed === 60) {
+                     if (notify) await notify(`⌛ ${modelNameForLog} 响应极缓，正在最后等待 (第 ${attempt} 次尝试，已等待 60s)...`);
+                  }
+              } catch (e) {}
            }
-           // In case we break out without rejecting, we should hang the timer promise
-           // so that Promise.race waits for the actual promise to finish or timeout.
-           await new Promise(() => {}); 
         };
 
+        pulse(); // Fire and forget pulse timer
+
+        let timeoutTimer: any;
+        const timeoutPromise = new Promise<T>((_, reject) => {
+           timeoutTimer = setTimeout(() => {
+              reject(new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 100s)`));
+           }, 100000);
+        });
+
         try {
-           return await Promise.race([
-              promise.then(res => { isDone = true; return res; }),
-              timerPromise() as Promise<T>
-           ]);
+           const res = await Promise.race([promise, timeoutPromise]);
+           isDone = true;
+           clearTimeout(timeoutTimer);
+           return res;
         } catch (e: any) {
            isDone = true;
+           clearTimeout(timeoutTimer);
            throw e;
-        } finally {
-           isDone = true;
         }
       };
 

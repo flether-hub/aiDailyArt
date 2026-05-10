@@ -210,6 +210,10 @@ export async function initDB(db: DBClient) {
     CREATE INDEX IF NOT EXISTS idx_visitor_stats_visited_at ON visitor_stats(visited_at DESC)
   `).run();
 
+  await db.prepare(`
+    CREATE INDEX IF NOT EXISTS idx_visitor_stats_device ON visitor_stats(device_type)
+  `).run();
+
   // Migration for existing databases (Works on both Node and D1)
   try {
     const tableInfo = await db.prepare("PRAGMA table_info(artworks)").all();
