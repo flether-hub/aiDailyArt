@@ -487,6 +487,20 @@ export default function AdminDashboard() {
         );
       }
 
+      // Consume the stream asynchronously so the browser keeps the connection alive
+      // This prevents Cloud Run from throttling CPU to 0 while backend task is running
+      if (res.body) {
+        (async () => {
+          try {
+            const reader = res.body.getReader();
+            while (true) {
+              const { done } = await reader.read();
+              if (done) break;
+            }
+          } catch (e) {}
+        })();
+      }
+
       fetchJobStatus();
     } catch (e: any) {
       const errorStr = e.message || String(e);

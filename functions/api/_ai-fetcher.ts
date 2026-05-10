@@ -171,7 +171,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       if (notify) {
           notify(`⌛ Wikidata 仍在加载数据 (已耗时 ${elapsed}s)...`);
       }
-    }, 30000);
+    }, 10000);
 
     try {
       response = await fetchPromise;
@@ -519,11 +519,19 @@ export async function generateDetailedInterpretation(title: string, artist: stri
 
     const isObviouslyInvalid = (key: string | undefined): boolean => {
        if (!key || typeof key !== 'string') return true;
-       const trimmed = key.trim();
+       // Remove accidental quotes and spaces
+       let trimmed = key.replace(/^["'\s]+|["'\s]+$/g, '');
        // If it's a placeholder like "*****" or "YOUR_KEY_HERE"
        if (trimmed.length < 10 || trimmed.includes('***') || trimmed.toUpperCase().includes('KEY')) return true;
        return false;
     };
+
+    const cleanKey = (key: string | undefined): string | undefined => {
+       if (!key || typeof key !== 'string') return key;
+       return key.replace(/^["'\s]+|["'\s]+$/g, '');
+    };
+
+    aiKey = cleanKey(aiKey);
 
     const defaultModelId = isAli ? 'qwen-max' : 'gemini-3-flash-preview';
     let displayedModelId = modelId || defaultModelId;
@@ -540,7 +548,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       // Fallback logic for keys
       if (isObviouslyInvalid(aiKey)) {
         const fallbackKeyKey = isAli ? 'DASHSCOPE_API_KEY' : 'GEMINI_API_KEY';
-        const envKey = env[fallbackKeyKey];
+        const envKey = cleanKey(env[fallbackKeyKey]);
         if (envKey && !isObviouslyInvalid(envKey)) {
            aiKey = envKey;
         }
@@ -559,47 +567,48 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       let text = "";
       const modelNameForLog = isAli ? '阿里云' : 'Google Gemini';
 
-      let timer10s: any, timer20s: any, timer30s: any;
-      const pulse10s = new Promise((_, reject) => timer10s = setTimeout(() => reject(new Error('PULSE_10S')), 10000));
-      const pulse20s = new Promise((_, reject) => timer20s = setTimeout(() => reject(new Error('PULSE_20S')), 20000));
-      const pulse30s = new Promise((_, reject) => timer30s = setTimeout(() => reject(new Error('PULSE_30S')), 30000));
-      pulse10s.catch(() => {});
-      pulse20s.catch(() => {});
-      pulse30s.catch(() => {});
-
       const runWithPulses = async <T,>(promise: Promise<T>): Promise<T> => {
-         try {
-            return await Promise.race([promise, pulse10s as Promise<T>]);
-         } catch (e: any) {
-            if (e.message === 'PULSE_10S') {
-                if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                if (notify) await notify(`⌛ ${modelNameForLog} 思考中 (第 ${attempt} 次尝试，已等待 10s)...`);
-                try {
-                  return await Promise.race([promise, pulse20s as Promise<T>]);
-                } catch (e2: any) {
-                  if (e2.message === 'PULSE_20S') {
-                      if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-                      if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 20s)...`);
-                      try {
-                        return await Promise.race([promise, pulse30s as Promise<T>]);
-                      } catch (e3: any) {
-                        if (e3.message === 'PULSE_30S') {
-                            throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 30s)`);
-                        }
-                        throw e3;
-                      }
-                  } else {
-                      throw e2;
-                  }
-                }
-            } else {
-                throw e;
-            }
-         } finally {
-            clearTimeout(timer10s);
-            clearTimeout(timer20s);
-            clearTimeout(timer30s);
-         }
+        let isDone = false;
+        
+        const timerPromise = async () => {
+           let elapsed = 0;
+           while (!isDone && elapsed < 90) {
+              await new Promise(r => setTimeout(r, 1000));
+              elapsed += 1;
+              if (isDone) break;
+              
+              if (elapsed === 10) {
+                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+                 if (notify) await notify(`⌛ ${modelNameForLog} 思考中 (第 ${attempt} 次尝试，已等待 10s)...`);
+              } else if (elapsed === 20) {
+                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+                 if (notify) await notify(`⌛ ${modelNameForLog} 深度思考中，请耐心等候 (第 ${attempt} 次尝试，已等待 20s)...`);
+              } else if (elapsed === 40) {
+                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+                 if (notify) await notify(`⌛ ${modelNameForLog} 运算时间较长，仍在等待 (第 ${attempt} 次尝试，已等待 40s)...`);
+              } else if (elapsed === 60) {
+                 if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+                 if (notify) await notify(`⌛ ${modelNameForLog} 响应极缓，正在最后等待 (第 ${attempt} 次尝试，已等待 60s)...`);
+              } else if (elapsed >= 90) {
+                 throw new Error(`请求响应超时放弃 (第 ${attempt} 次尝试，已等待 90s)`);
+              }
+           }
+           // In case we break out without rejecting, we should hang the timer promise
+           // so that Promise.race waits for the actual promise to finish or timeout.
+           await new Promise(() => {}); 
+        };
+
+        try {
+           return await Promise.race([
+              promise.then(res => { isDone = true; return res; }),
+              timerPromise() as Promise<T>
+           ]);
+        } catch (e: any) {
+           isDone = true;
+           throw e;
+        } finally {
+           isDone = true;
+        }
       };
 
       if (isAli) {
@@ -620,7 +629,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
              temperature: 0.7,
              top_p: 0.8
            })
-         }, 1, 0, 70000, "阿里云API调用");
+         }, 1, 0, 100000, "阿里云API调用");
 
          const res: any = await runWithPulses(fetchPromise);
 
@@ -724,7 +733,7 @@ export async function generateDetailedInterpretation(title: string, artist: stri
       // try to switch to the env key for the next attempt.
       if ((errorMsg.includes('API key not valid') || errorMsg.includes('INVALID_ARGUMENT') || errorMsg.includes('Unauthorized')) && attempt < maxRetries) {
         const fallbackKeyKey = isAli ? 'DASHSCOPE_API_KEY' : 'GEMINI_API_KEY';
-        const envKey = env[fallbackKeyKey];
+        const envKey = cleanKey(env[fallbackKeyKey]);
         if (envKey && envKey !== aiKey && !isObviouslyInvalid(envKey)) {
           console.log(`[AI] Previous key failed, attempting fallback to environment key...`);
           userApiKey = envKey; // Update our source so the next loop iteration picks it up

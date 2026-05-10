@@ -893,8 +893,8 @@ app.get('/admin/settings', async (c) => {
   const result: any = {};
   (settings || []).forEach((s: any) => {
     if ((s.key === 'api_key' || s.key.endsWith('_api_key')) && s.value && s.value.length >= 8) {
-      // Mask the actual API key to prevent it from leaking in preview mode
-      const maskedValue = '*'.repeat(s.value.length - 4) + s.value.slice(-4);
+      // Mask the actual API key to prevent it from leaking in preview mode (use fixed width 16 stars for security)
+      const maskedValue = '****************' + s.value.slice(-4);
       result[s.key] = maskedValue;
     } else {
       result[s.key] = s.value;
@@ -927,7 +927,12 @@ app.post('/admin/settings', async (c) => {
         console.log(`[Admin] Saving new API key for: ${key} (length: ${String(value).length})`);
       }
       
-      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, value === null ? null : String(value));
+      let finalVal = value === null ? null : String(value);
+      if (key.includes('api_key') && typeof finalVal === 'string') {
+        finalVal = finalVal.replace(/^["'\s]+|["'\s]+$/g, '');
+      }
+      
+      await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(key, finalVal);
     }
     return c.json({ success: true });
   } catch (err: any) {
@@ -959,13 +964,23 @@ app.post('/admin/trigger-fetch', async (c) => {
     }
   };
 
-  try {
-    c.executionCtx.waitUntil(task());
-  } catch(e) {
-    task(); // Fallback for environments without waitUntil
-  }
-  
-  return c.json({ started: true });
+  const { streamText } = await import('hono/streaming');
+  return streamText(c, async (stream) => {
+    let isDone = false;
+    task().then(() => isDone = true).catch(() => isDone = true);
+    
+    await stream.writeln("START");
+    
+    while (!isDone) {
+      // 保持长连接，防止 Serverless 容器 CPU 睡眠
+      await stream.sleep(10000);
+      if (!isDone) {
+        await stream.writeln("PULSE");
+      }
+    }
+    
+    await stream.writeln("DONE");
+  });
 });
 
 // Proxy for R2 images with caching
