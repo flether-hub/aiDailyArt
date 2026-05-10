@@ -22,10 +22,40 @@ import {
 import { maskIP } from "../lib/ipUtils";
 import { getProxiedImageUrl } from "../lib/artUtils";
 
+const locMap: Record<string, string> = {
+  "Shanghai": "上海", "Guangdong": "广东", "Beijing": "北京", "Zhejiang": "浙江",
+  "Jiangsu": "江苏", "Sichuan": "四川", "Shandong": "山东", "Henan": "河南",
+  "Hubei": "湖北", "Hunan": "湖南", "Anhui": "安徽", "Fujian": "福建",
+  "Jiangxi": "江西", "Hebei": "河北", "Shaanxi": "陕西", "Liaoning": "辽宁",
+  "Yunnan": "云南", "Guangxi": "广西", "Shanxi": "山西", "Chongqing": "重庆",
+  "Heilongjiang": "黑龙江", "Jilin": "吉林", "Guizhou": "贵州", "Inner Mongolia": "内蒙古",
+  "Xinjiang": "新疆", "Gansu": "甘肃", "Hainan": "海南", "Ningxia": "宁夏", "Qinghai": "青海",
+  "Tibet": "西藏", "Tianjin": "天津",
+  
+  "US": "美国", "SG": "新加坡", "JP": "日本", "KR": "韩国", "GB": "英国", "FR": "法国",
+  "DE": "德国", "CA": "加拿大", "AU": "澳大利亚", "RU": "俄罗斯", "NL": "荷兰",
+  "IT": "意大利", "ES": "西班牙", "BR": "巴西", "IN": "印度", "VN": "越南",
+  "TH": "泰国", "MY": "马来西亚", "PH": "菲律宾", "ID": "印度尼西亚", "SE": "瑞典",
+  "CH": "瑞士", "ZA": "南非", "AE": "阿联酋", "FI": "芬兰", "DK": "丹麦", "NO": "挪威",
+  "IE": "爱尔兰", "PL": "波兰", "AT": "奥地利", "BE": "比利时", "NZ": "新西兰", "MX": "墨西哥",
+  "TW": "台湾", "HK": "香港", "MO": "澳门"
+};
+
+const formatLocationName = (loc: string) => {
+  if (!loc || loc === "Unknown") return "未知地区";
+  return locMap[loc] || loc;
+};
+
+
 export default function AdminDashboard() {
   const { isAdmin, isLoadingAuth, token, logout } = useAuth();
   const [fetchingWorks, setFetchingWorks] = useState(false);
+  const fetchingWorksRef = useRef(false);
   const [taskLogs, setTaskLogs] = useState<{ id: string; time: string; msg: string; isError?: boolean }[]>([]);
+
+  useEffect(() => {
+    fetchingWorksRef.current = fetchingWorks;
+  }, [fetchingWorks]);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const sseActive = useRef(false);
   const fetchAbortController = useRef<AbortController | null>(null);
@@ -174,7 +204,7 @@ export default function AdminDashboard() {
           error: data.error ? "预警" : undefined,
         });
         syncLogs();
-      } else if (fetchingWorks && data.status === "idle") {
+      } else if (fetchingWorksRef.current && data.status === "idle") {
         setFetchingWorks(false);
         setFetchingProgress({
           message: data.message,
@@ -183,7 +213,7 @@ export default function AdminDashboard() {
         syncLogs();
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
-      } else if (!fetchingWorks && data.status === "idle" && hasLogs && taskLogs.length === 0 && !sseActive.current) {
+      } else if (!fetchingWorksRef.current && data.status === "idle" && hasLogs && taskLogs.length === 0 && !sseActive.current) {
         // If we just loaded the page and there are logs from a previous run, display them
         setTaskLogs(data.logs);
       }
@@ -209,14 +239,14 @@ export default function AdminDashboard() {
       fetchJobStatus();
       interval = setInterval(async () => {
         const status = await fetchJobStatus();
-        if (status !== "running" && !fetchingWorks) {
+        if (status !== "running" && !fetchingWorksRef.current) {
           // stop interval if not running and we are not in a manual fetch state
           // but actually we want to poll if it IS running
         }
       }, 3000);
     }
     return () => clearInterval(interval);
-  }, [isAdmin, token, fetchingWorks]);
+  }, [isAdmin, token]);
 
   const fetchAdminArtworks = async (currentPage: number) => {
     try {
@@ -1528,7 +1558,7 @@ export default function AdminDashboard() {
                         <div className="flex items-center justify-between mt-2">
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] sm:text-xs text-slate-400 font-mono">
                             <span>IP: {maskIP(comment.ip_address)}</span>
-                            <span>位置: {comment.location || "未知"}</span>
+                            <span>位置: {formatLocationName(comment.location) || "未知"}</span>
                             {comment.ip_address &&
                               comment.ip_address !== "Unknown" && (
                                 <button
@@ -1643,7 +1673,7 @@ export default function AdminDashboard() {
                                 {(visitorStats.page - 1) * 20 + idx + 1}
                               </span>
                               <span className="text-sm font-bold text-slate-800 truncate">
-                                {loc.location}
+                                {formatLocationName(loc.location)}
                               </span>
                             </div>
                             
