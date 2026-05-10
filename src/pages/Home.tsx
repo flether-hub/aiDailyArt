@@ -318,19 +318,7 @@ export default function Home() {
                 <div className="text-slate-300 mb-4 font-serif text-2xl italic">
                   艺术馆目前空空如也
                 </div>
-                {isAdmin ? (
-                  <button
-                    onClick={() => {
-                      setSelectedKeyword(null);
-                      setPage(0);
-                    }}
-                    className="text-amber-800 text-xs font-bold uppercase tracking-widest border-b border-amber-800 pb-1"
-                  >
-                    重置展览
-                  </button>
-                ) : (
-                  <p className="text-slate-400 text-sm">请稍后再来</p>
-                )}
+                <p className="text-slate-400 text-sm">请稍后再来或尝试清除搜索条件</p>
               </div>
             ) : (
               <>
