@@ -57,8 +57,6 @@ export default function AdminDashboard() {
     fetchingWorksRef.current = fetchingWorks;
   }, [fetchingWorks]);
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const sseActive = useRef(false);
-  const fetchAbortController = useRef<AbortController | null>(null);
   const [fetchingProgress, setFetchingProgress] = useState<{
     message: string;
     error?: string;
@@ -176,24 +174,22 @@ export default function AdminDashboard() {
       const hasLogs = data.logs && data.logs.length > 0;
       
       const syncLogs = () => {
-        if (!sseActive.current) {
-          if (hasLogs) {
-            setTaskLogs(prev => {
-              if (prev.length === 0) return data.logs;
-              const usedIds = new Set();
-              const merged = data.logs.map((serverLog: any) => {
-                 const matching = prev.find((p: any) => p.msg === serverLog.msg && !usedIds.has(p.id));
-                 if (matching) {
-                    usedIds.add(matching.id);
-                    return { ...serverLog, id: matching.id };
-                 }
-                 return serverLog;
-              });
-              return merged;
+        if (hasLogs) {
+          setTaskLogs(prev => {
+            if (prev.length === 0) return data.logs;
+            const usedIds = new Set();
+            const merged = data.logs.map((serverLog: any) => {
+               const matching = prev.find((p: any) => p.msg === serverLog.msg && !usedIds.has(p.id));
+               if (matching) {
+                  usedIds.add(matching.id);
+                  return { ...serverLog, id: matching.id };
+               }
+               return serverLog;
             });
-          } else if (data.message) {
-            addLog(data.message, !!data.error);
-          }
+            return merged;
+          });
+        } else if (data.message) {
+          addLog(data.message, !!data.error);
         }
       };
 
@@ -213,7 +209,7 @@ export default function AdminDashboard() {
         syncLogs();
         fetchAdminArtworks(page);
         setTimeout(() => setFetchingProgress(null), 5000);
-      } else if (!fetchingWorksRef.current && data.status === "idle" && hasLogs && taskLogs.length === 0 && !sseActive.current) {
+      } else if (!fetchingWorksRef.current && data.status === "idle" && hasLogs && taskLogs.length === 0) {
         // If we just loaded the page and there are logs from a previous run, display them
         setTaskLogs(data.logs);
       }
@@ -458,13 +454,9 @@ export default function AdminDashboard() {
   };
 
   const triggerFetch = async () => {
-    if (fetchAbortController.current) fetchAbortController.current.abort();
-    fetchAbortController.current = new AbortController();
-    sseActive.current = true;
-    
     setFetchingWorks(true);
-    setTaskLogs([]); // Clear logs for new task
-    const startMsg = "🚀 正在启动名画寻脉任务...";
+    setTaskLogs([]);
+    const startMsg = "🚀 正在后台启动名画寻脉任务...";
     setFetchingProgress({ message: startMsg });
     addLog(startMsg);
 
@@ -477,7 +469,6 @@ export default function AdminDashboard() {
 
       const res = await fetch("/api/admin/trigger-fetch", {
         method: "POST",
-        signal: fetchAbortController.current.signal,
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -496,84 +487,21 @@ export default function AdminDashboard() {
         );
       }
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No readable stream");
-
-      let done = false;
-      let buffer = "";
-
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() || "";
-
-          for (const line of lines) {
-            let trimmed = line.trim();
-            if (!trimmed) continue;
-            if (trimmed.startsWith("data: ")) trimmed = trimmed.substring(6).trim();
-
-            try {
-              const data = JSON.parse(trimmed);
-              if (data.type === "progress") {
-                setFetchingProgress({
-                  message: data.message,
-                  error: data.error ? "预警" : undefined,
-                });
-                addLog(data.message, !!data.error);
-              } else if (data.type === "complete") {
-                const completeMsg = data.data.success ? `✅ ${data.data.message}` : `❌ ${data.data.message}`;
-                addLog(completeMsg, !data.data.success);
-              }
-            } catch (e) {
-              // Attempt to match JSON blocks if they are smashed together
-              const jsonBlocks = trimmed.match(/\{.*?\}/g);
-              if (jsonBlocks) {
-                for (const block of jsonBlocks) {
-                  try {
-                    const data = JSON.parse(block);
-                    if (data.type === "progress") {
-                      setFetchingProgress({ message: data.message, error: data.error ? "警告" : undefined });
-                      addLog(data.message, !!data.error);
-                    }
-                  } catch(e2) {}
-                }
-              }
-            }
-          }
-        }
-      }
-
-      await fetchAdminArtworks(page);
+      fetchJobStatus();
     } catch (e: any) {
-      if (e.name === 'AbortError') {
-        addLog("🛑 任务被用户手动停止", true);
-        return;
-      }
       const errorStr = e.message || String(e);
       setFetchingProgress({
         message: "连接服务发生异常",
         error: errorStr,
       });
       addLog(`❌ 发生错误: ${errorStr}`, true);
-    } finally {
-      if (!fetchAbortController.current?.signal.aborted) {
-        setFetchingWorks(false);
-        setTimeout(() => setFetchingProgress((prev) => (prev?.error ? prev : null)), 8000);
-      }
-      sseActive.current = false;
+      setFetchingWorks(false);
+      setTimeout(() => setFetchingProgress((prev) => (prev?.error ? prev : null)), 8000);
     }
   };
 
   const stopTask = async () => {
     addLog("🛑 正在尝试中断后台任务...", true);
-    if (fetchAbortController.current) {
-      fetchAbortController.current.abort();
-      fetchAbortController.current = null;
-    }
     
     if (token) {
       try {

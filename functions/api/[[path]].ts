@@ -921,8 +921,6 @@ app.post('/admin/settings', async (c) => {
 });
 
 app.post('/admin/trigger-fetch', async (c) => {
-  const { stream } = await import('hono/streaming');
-  
   let overrides: any = null;
   try {
      const body = await c.req.json();
@@ -937,48 +935,21 @@ app.post('/admin/trigger-fetch', async (c) => {
      // No body or invalid json, that's fine
   }
 
-  return stream(c, async (stream) => {
-    c.header('Content-Type', 'text/event-stream');
-    c.header('Cache-Control', 'no-cache');
-    c.header('Connection', 'keep-alive');
-    
-    let isStreamClosed = false;
-    stream.onAbort(() => {
-      isStreamClosed = true;
-    });
-    
-    const task = async () => {
-      try {
-        const { success, count, message } = await runAIAggregation(true, async (msg, isError) => {
-           if (!isStreamClosed) {
-             try { await stream.write(JSON.stringify({ type: 'progress', message: msg, error: isError }) + '\n'); } 
-             catch(e) { isStreamClosed = true; }
-           }
-        }, overrides) as any;
-
-        if (!isStreamClosed) {
-          try { await stream.write(JSON.stringify({ type: 'complete', data: { success, message: success ? `分析任务已圆满完成。` : `分析任务未能完成: ${message || '未知错误'}`, count: count || 0 } }) + '\n'); } 
-          catch(e) {}
-        }
-      } catch (err: any) {
-        console.error('Streaming API Error:', err);
-        if (!isStreamClosed) {
-          try { await stream.write(JSON.stringify({ type: 'complete', data: { success: false, message: `流处理异常: ${err.message}` } }) + '\n'); } 
-          catch(e) {}
-        }
-      }
-    };
-    
-    const promise = task();
+  const task = async () => {
     try {
-      c.executionCtx.waitUntil(promise);
+      await runAIAggregation(true, undefined, overrides);
     } catch (e) {
-      // Non-Cloudflare environment
+      console.error('Task execution error:', e);
     }
-    // we don't await promise here so if client disconnects stream is closed but waitUntil keeps promise alive.
-    // wait, stream function expects us to await if we want to keep it open
-    await promise;
-  });
+  };
+
+  try {
+    c.executionCtx.waitUntil(task());
+  } catch(e) {
+    task(); // Fallback for environments without waitUntil
+  }
+  
+  return c.json({ started: true });
 });
 
 // Proxy for R2 images with caching
