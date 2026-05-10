@@ -171,7 +171,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       if (notify) {
           notify(`⌛ Wikidata 仍在加载数据 (已耗时 ${elapsed}s)...`);
       }
-    }, 10000);
+    }, 30000);
 
     try {
       response = await fetchPromise;
@@ -309,12 +309,20 @@ export async function runAIAggregation(isManual: boolean = false, onProgress?: (
          logs = [];
       }
       
-      logs.push({
+      const newLog = {
         id: Math.random().toString(36).substring(7),
         time: new Date().toLocaleTimeString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' }),
         msg: finalMsg,
         isError
-      });
+      };
+      
+      // 如果是“正在加载”类型的消息，替换掉最后一条同类消息，防止log无限增长
+      if (logs.length > 0 && logs[logs.length - 1].msg.startsWith('⌛') && finalMsg.startsWith('⌛')) {
+        logs[logs.length - 1] = newLog;
+      } else {
+        logs.push(newLog);
+      }
+      
       if (logs.length > 50) logs = logs.slice(logs.length - 50);
 
       await db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('job_logs', JSON.stringify(logs));
