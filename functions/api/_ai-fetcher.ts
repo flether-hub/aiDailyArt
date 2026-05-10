@@ -183,8 +183,56 @@ const SOURCES = [
 ];
 
 async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>, checkAbort?: () => Promise<boolean>) {
-  if (notify) await notify(`正在向 Wikidata 请求 ${sourceName} 的艺术清单...`);
+  if (notify) await notify(`正在向 Wikidata 请求 ${sourceName} 的藏品总数...`);
   if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+
+  const countQuery = `
+    SELECT (COUNT(?item) AS ?count) WHERE {
+      VALUES ?type { 
+        wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 
+        wd:Q428054 wd:Q2152862 wd:Q1750219 wd:Q1347065 wd:Q42502 
+        wd:Q1195655 wd:Q659357 wd:Q15303496 wd:Q1058223 wd:Q3534015
+      }
+      ?item wdt:P31 ?type;
+            wdt:P195 wd:${qid};
+            wdt:P18 ?image.
+    }
+  `;
+  const countUrl = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(countQuery);
+  const headers = { 
+    'Accept': 'application/sparql-results+json', 
+    'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
+  };
+
+  let countResponse;
+  try {
+    countResponse = await fetchWithRetry(countUrl, { headers }, 1, 1000, 30000, "Wikidata 总数获取", notify, checkAbort);
+  } catch (e: any) {
+    if (e.name === 'AbortError') throw new Error('连接失败: Wikidata 响应超时');
+    throw new Error(`获取总数失败: ${e.message}`);
+  }
+
+  if (!countResponse.ok) {
+    if (countResponse.status === 429) throw new Error('Wikidata 请求被限流 (429)');
+    throw new Error(`Wikidata HTTP 错误: ${countResponse.status}`);
+  }
+
+  const countData = await countResponse.json();
+  const totalCount = parseInt(countData.results?.bindings?.[0]?.count?.value || "0", 10);
+  
+  if (totalCount === 0) {
+    if (notify) await notify(`⚠️ ${sourceName} 没有符合条件的藏品。`);
+    return [];
+  }
+
+  const limit = 50;
+  let offset = 0;
+  if (totalCount > limit) {
+    offset = Math.floor(Math.random() * (totalCount - limit));
+  }
+
+  if (notify) await notify(`📦 ${sourceName} 共有 ${totalCount} 件带图藏品，定位至片段 (Offset: ${offset})...`);
+
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
       VALUES ?type { 
@@ -199,19 +247,16 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       OPTIONAL { ?item wdt:P571|wdt:P580 ?date. }
       SERVICE wikibase:label { bd:serviceParam wikibase:language "zh,en". }
     }
-    LIMIT 200
+    ORDER BY ?item
+    LIMIT ${limit}
+    OFFSET ${offset}
   `;
   const url = 'https://query.wikidata.org/sparql?query=' + encodeURIComponent(query);
   
   let response;
   try {
     // 尝试获取 Wikidata 数据，设置 60 秒超时，并定期发送“保持心跳”的通知
-    const fetchPromise = fetchWithRetry(url, { 
-      headers: { 
-        'Accept': 'application/sparql-results+json', 
-        'User-Agent': 'ArtBot/1.0 (https://ais-dev-t4zvgz5pbsgktnwi2sqgjw.run.app)' 
-      } 
-    }, 1, 1000, 60000, "Wikidata 数据连接", notify, checkAbort);
+    const fetchPromise = fetchWithRetry(url, { headers }, 1, 1000, 60000, "Wikidata 数据连接", notify, checkAbort);
 
     const start = Date.now();
     const timer = setInterval(() => {
@@ -300,10 +345,11 @@ async function fetchFromMet(notify?: (msg: string, isError?: boolean) => void | 
   const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
   const searchRes = await fetchWithRetry(`https://collectionapi.metmuseum.org/public/collection/v1/search?hasImages=true&isHighlight=true&q=${encodeURIComponent(randomTerm)}`, {}, 2, 1000, 30000, "大都会博物馆列表抓取", notify, checkAbort);
   const searchData = await searchRes.json();
+  const totalCount = searchData.total || searchData.objectIDs?.length || 0;
   let objectIDs = searchData.objectIDs || [];
   objectIDs = objectIDs.sort(() => 0.5 - Math.random()).slice(0, 50);
   const results = [];
-  if (notify) await notify(`在大都会艺术博物馆找到 ${objectIDs.length} 个候选，正在筛选...`);
+  if (notify) await notify(`📦 大都会艺术博物馆 (关键词: ${randomTerm}) 共有 ${totalCount} 件藏品，随机抽取 50 件作为候选...`);
   for (const objId of objectIDs) {
      if (results.length >= 10) break;
      if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
