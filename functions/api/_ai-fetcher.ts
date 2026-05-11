@@ -255,8 +255,8 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   
   let response;
   try {
-    // 尝试获取 Wikidata 数据，设置 30 秒超时，并定期发送“保持心跳”的通知
-    const fetchPromise = fetchWithRetry(url, { headers }, 1, 1000, 30000, "Wikidata 数据连接", notify, checkAbort);
+    // 尝试获取 Wikidata 数据，设置 60 秒超时，并定期发送“保持心跳”的通知
+    const fetchPromise = fetchWithRetry(url, { headers }, 1, 1000, 60000, "Wikidata 数据连接", notify, checkAbort);
 
     const start = Date.now();
     const timer = setInterval(() => {
@@ -273,7 +273,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
     }
 
   } catch (e: any) {
-    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (30s)' : (e.message || String(e));
+    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (60s)' : (e.message || String(e));
     throw new Error(`连接失败: ${errorMsg}`);
   }
 
