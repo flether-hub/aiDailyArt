@@ -74,7 +74,7 @@ export async function getDB(): Promise<DBClient> {
         // Dynamic require to avoid Cloudflare/esbuild bundling node built-ins and native modules
         let req: any;
         try {
-          req = eval('require');
+          req = new Function('return require')();
         } catch (e) {
           const mod = await import('node:module');
           req = mod.createRequire(import.meta.url);

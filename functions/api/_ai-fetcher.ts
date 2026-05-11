@@ -206,7 +206,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
 
   let countResponse;
   try {
-    countResponse = await fetchWithRetry(countUrl, { headers }, 1, 1000, 15000, "Wikidata 总数获取", notify, checkAbort);
+    countResponse = await fetchWithRetry(countUrl, { headers }, 1, 1000, 60000, "Wikidata 总数获取", notify, checkAbort);
   } catch (e: any) {
     if (e.name === 'AbortError') throw new Error('连接失败: Wikidata 响应超时');
     throw new Error(`获取总数失败: ${e.message}`);
