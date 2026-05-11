@@ -285,21 +285,22 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   if (notify) await notify(`获取到 ${sourceName} 的清单，正在解析数据...`);
   let data;
   try {
-    const parseController = new AbortController();
-    const parseTimer = setTimeout(() => parseController.abort(), 20000); // 20s timeout for json payload reading
+    let raceTimeout: any;
     const readBody = async () => {
-      // Manually reading stream to support abort
       if (!response.body) return await response.json();
       const reader = response.body.getReader();
       let chunks = [];
-      while (true) {
-        if (parseController.signal.aborted) throw new Error("Body download timed out");
-        if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (value) chunks.push(value);
+      try {
+        while (true) {
+          if (checkAbort && await checkAbort()) throw new Error('AbortError: Task was manually stopped');
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
+        }
+      } finally {
+        // Release the reader so it can clean up
+        reader.releaseLock();
       }
-      clearTimeout(parseTimer);
       const totalLen = chunks.reduce((acc, val) => acc + val.length, 0);
       const combined = new Uint8Array(totalLen);
       let offset = 0;
@@ -310,11 +311,11 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
       return JSON.parse(new TextDecoder().decode(combined));
     };
     
-    // Fallback to response.json() if stream reading fails, though usually stream works in workerd
     data = await Promise.race([
        readBody(),
-       new Promise((_, rej) => setTimeout(() => { parseController.abort(); rej(new Error('Wikidata 数据流读取超时(20s)，这通常是因为该博物馆藏品过多致使对方响应慢')); }, 20000))
+       new Promise((_, rej) => { raceTimeout = setTimeout(() => { rej(new Error('Wikidata 数据流读取超时(20s)，这通常是因为该博物馆藏品过多致使对方响应慢')); }, 20000); })
     ]);
+    clearTimeout(raceTimeout);
   } catch (e: any) {
     throw new Error(`解析 ${sourceName} 数据时超时或失败: ${e.message}`);
   }
