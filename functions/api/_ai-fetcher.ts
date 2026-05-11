@@ -133,8 +133,8 @@ const SOURCES = [
   { key: 'q51252', name: '乌菲兹美术馆 (Uffizi Gallery)', type: 'wikidata', qid: 'Q51252' },
   { key: 'q132783', name: '冬宫博物馆 (State Hermitage Museum)', type: 'wikidata', qid: 'Q132783' },
   { key: 'q239303', name: '芝加哥艺术博物馆 (Art Institute of Chicago)', type: 'wikidata', qid: 'Q239303' },
-  { key: 'q188646', name: '现代艺术博物馆 (MoMA)', type: 'wikidata', qid: 'Q188646' },
-  { key: 'q374820', name: '克利夫兰艺术博物馆 (Cleveland Museum of Art)', type: 'wikidata', qid: 'Q374820' },
+  { key: 'q188740', name: '现代艺术博物馆 (MoMA)', type: 'wikidata', qid: 'Q188740' },
+  { key: 'q657415', name: '克利夫兰艺术博物馆 (Cleveland Museum of Art)', type: 'wikidata', qid: 'Q657415' },
   { key: 'q214867', name: '国家美术馆 (National Gallery of Art, DC)', type: 'wikidata', qid: 'Q214867' },
   { key: 'q731126', name: '保罗·盖蒂博物馆 (J. Paul Getty Museum)', type: 'wikidata', qid: 'Q731126' },
   { key: 'q23402', name: "奥赛博物馆 (Musée d'Orsay)", type: 'wikidata', qid: 'Q23402' },
@@ -142,44 +142,44 @@ const SOURCES = [
   { key: 'q193375', name: '泰特现代艺术馆 (Tate Modern)', type: 'wikidata', qid: 'Q193375' },
   { key: 'q154568', name: '老绘画陈列馆 (Alte Pinakothek)', type: 'wikidata', qid: 'Q154568' },
   { key: 'q221092', name: '莫瑞泰斯皇家美术馆 (Mauritshuis)', type: 'wikidata', qid: 'Q221092' },
-  { key: 'q730030', name: '博尔盖塞美术馆 (Galleria Borghese)', type: 'wikidata', qid: 'Q730030' },
+  { key: 'q841506', name: '博尔盖塞美术馆 (Galleria Borghese)', type: 'wikidata', qid: 'Q841506' },
   { key: 'q303139', name: '美景宫 (Belvedere)', type: 'wikidata', qid: 'Q303139' },
   { key: 'q95569', name: '艺术史博物馆 (Kunsthistorisches Museum)', type: 'wikidata', qid: 'Q95569' },
   { key: 'q183334', name: '特列季亚科夫画廊 (Tretyakov Gallery)', type: 'wikidata', qid: 'Q183334' },
-  { key: 'q1395996', name: '毕尔巴鄂美术馆 (Museo de Bellas Artes de Bilbao)', type: 'wikidata', qid: 'Q1395996' },
+  { key: 'q127064', name: '毕尔巴鄂美术馆 (Museo de Bellas Artes de Bilbao)', type: 'wikidata', qid: 'Q127064' },
   { key: 'q165631', name: '柏林画廊 (Gemäldegalerie)', type: 'wikidata', qid: 'Q165631' },
   { key: 'q176251', name: '提森-博内米萨博物馆 (Thyssen-Bornemisza Museum)', type: 'wikidata', qid: 'Q176251' },
-  { key: 'q540540', name: '国立故宫博物院 (National Palace Museum, Taipei)', type: 'wikidata', qid: 'Q540540' },
+  { key: 'q540668', name: '国立故宫博物院 (National Palace Museum, Taipei)', type: 'wikidata', qid: 'Q540668' },
   { key: 'q49133', name: '波士顿美术馆 (Museum of Fine Arts, Boston)', type: 'wikidata', qid: 'Q49133' },
-  { key: 'q1454516', name: '弗利尔美术馆 (Freer Gallery of Art)', type: 'wikidata', qid: 'Q1454516' },
-  { key: 'q427014', name: '吉美博物馆 (Musée Guimet)', type: 'wikidata', qid: 'Q427014' },
-  { key: 'q664879', name: '赛努奇博物馆 (Musée Cernuschi)', type: 'wikidata', qid: 'Q664879' },
-  { key: 'q170566', name: '故宫博物院 (The Palace Museum, Beijing)', type: 'wikidata', qid: 'Q170566' },
+  { key: 'q1075126', name: '弗利尔美术馆 (Freer Gallery of Art)', type: 'wikidata', qid: 'Q1075126' },
+  { key: 'q860994', name: '吉美博物馆 (Musée Guimet)', type: 'wikidata', qid: 'Q860994' },
+  { key: 'q1667022', name: '赛努奇博物馆 (Musée Cernuschi)', type: 'wikidata', qid: 'Q1667022' },
+  { key: 'q2047427', name: '故宫博物院 (The Palace Museum, Beijing)', type: 'wikidata', qid: 'Q2047427' },
   { key: 'q213322', name: '维多利亚和阿尔伯特博物馆 (V&A)', type: 'wikidata', qid: 'Q213322' },
   { key: 'q178065', name: '蓬皮杜中心 (Centre Pompidou)', type: 'wikidata', qid: 'Q178065' },
   { key: 'q460889', name: '索菲亚王后国家艺术中心博物馆 (Museo Reina Sofía)', type: 'wikidata', qid: 'Q460889' },
-  { key: 'q273187', name: '东京国立博物馆 (Tokyo National Museum)', type: 'wikidata', qid: 'Q273187' },
+  { key: 'q653433', name: '东京国立博物馆 (Tokyo National Museum)', type: 'wikidata', qid: 'Q653433' },
   { key: 'q510324', name: '费城艺术博物馆 (Philadelphia Museum of Art)', type: 'wikidata', qid: 'Q510324' },
   { key: 'q201469', name: '所罗门·R·古根海姆美术馆 (Guggenheim Museum)', type: 'wikidata', qid: 'Q201469' },
-  { key: 'q878788', name: '惠特尼美国艺术博物馆 (Whitney Museum)', type: 'wikidata', qid: 'Q878788' },
+  { key: 'q639791', name: '惠特尼美国艺术博物馆 (Whitney Museum)', type: 'wikidata', qid: 'Q639791' },
   { key: 'q705551', name: '新南威尔士州美术馆 (Art Gallery of NSW)', type: 'wikidata', qid: 'Q705551' },
   { key: 'q1192305', name: '史密森尼美国艺术博物馆 (SAAM)', type: 'wikidata', qid: 'Q1192305' },
   { key: 'q238587', name: '英国国家肖像馆 (National Portrait Gallery)', type: 'wikidata', qid: 'Q238587' },
-  { key: 'q304494', name: '苏格兰国家画廊 (Scottish National Gallery)', type: 'wikidata', qid: 'Q304494' },
+  { key: 'q942713', name: '苏格兰国家画廊 (Scottish National Gallery)', type: 'wikidata', qid: 'Q942713' },
   { key: 'q1327919', name: '华莱士收藏馆 (Wallace Collection)', type: 'wikidata', qid: 'Q1327919' },
-  { key: 'q1137741', name: '考陶尔德美术馆 (Courtauld Gallery)', type: 'wikidata', qid: 'Q1137741' },
-  { key: 'q1433216', name: '菲茨威廉博物馆 (Fitzwilliam Museum)', type: 'wikidata', qid: 'Q1433216' },
-  { key: 'q636406', name: '阿什莫林博物馆 (Ashmolean Museum)', type: 'wikidata', qid: 'Q636406' },
-  { key: 'q1513272', name: '休斯顿美术馆 (Museum of Fine Arts, Houston)', type: 'wikidata', qid: 'Q1513272' },
-  { key: 'q1641012', name: '洛杉矶县艺术博物馆 (LACMA)', type: 'wikidata', qid: 'Q1641012' },
-  { key: 'q902781', name: '旧金山现代艺术博物馆 (SFMOMA)', type: 'wikidata', qid: 'Q902781' },
-  { key: 'q180907', name: '圣保罗艺术博物馆 (MASP)', type: 'wikidata', qid: 'Q180907' },
-  { key: 'q2153073', name: '卡洛斯特·古尔本基安博物馆 (Gulbenkian Museum)', type: 'wikidata', qid: 'Q2153073' },
-  { key: 'q264964', name: '佩姬·古根海姆美术馆 (Peggy Guggenheim Collection)', type: 'wikidata', qid: 'Q264964' },
-  { key: 'q839739', name: '蒙克美术馆 (Munch Museum)', type: 'wikidata', qid: 'Q839739' },
+  { key: 'q12110695', name: '考陶尔德美术馆 (Courtauld Gallery)', type: 'wikidata', qid: 'Q12110695' },
+  { key: 'q1421440', name: '菲茨威廉博物馆 (Fitzwilliam Museum)', type: 'wikidata', qid: 'Q1421440' },
+  { key: 'q636400', name: '阿什莫林博物馆 (Ashmolean Museum)', type: 'wikidata', qid: 'Q636400' },
+  { key: 'q1565911', name: '休斯顿美术馆 (Museum of Fine Arts, Houston)', type: 'wikidata', qid: 'Q1565911' },
+  { key: 'q1641836', name: '洛杉矶县艺术博物馆 (LACMA)', type: 'wikidata', qid: 'Q1641836' },
+  { key: 'q913672', name: '旧金山现代艺术博物馆 (SFMOMA)', type: 'wikidata', qid: 'Q913672' },
+  { key: 'q82941', name: '圣保罗艺术博物馆 (MASP)', type: 'wikidata', qid: 'Q82941' },
+  { key: 'q211262', name: '卡洛斯特·古尔本基安博物馆 (Gulbenkian Museum)', type: 'wikidata', qid: 'Q211262' },
+  { key: 'q1049033', name: '佩姬·古根海姆美术馆 (Peggy Guggenheim Collection)', type: 'wikidata', qid: 'Q1049033' },
+  { key: 'q844926', name: '蒙克美术馆 (Munch Museum)', type: 'wikidata', qid: 'Q844926' },
   { key: 'q170152', name: '新绘画陈列馆 (Neue Pinakothek)', type: 'wikidata', qid: 'Q170152' },
-  { key: 'q458514', name: '阿尔贝蒂娜博物馆 (Albertina)', type: 'wikidata', qid: 'Q458514' },
-  { key: 'q1056580', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1056580' }
+  { key: 'q371908', name: '阿尔贝蒂娜博物馆 (Albertina)', type: 'wikidata', qid: 'Q371908' },
+  { key: 'q1051293', name: '上海博物馆 (Shanghai Museum)', type: 'wikidata', qid: 'Q1051293' }
 ];
 
 async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg: string, isError?: boolean) => void | Promise<void>, checkAbort?: () => Promise<boolean>) {
@@ -189,12 +189,12 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   const countQuery = `
     SELECT (COUNT(?item) AS ?count) WHERE {
       VALUES ?type { 
-        wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 
-        wd:Q428054 wd:Q2152862 wd:Q1750219 wd:Q1347065 wd:Q42502 
-        wd:Q1195655 wd:Q659357 wd:Q15303496 wd:Q1058223 wd:Q3534015
+        wd:Q3305213 wd:Q838948 wd:Q93184 wd:Q18761202 wd:Q919348 
+        wd:Q2188827 wd:Q5647631 wd:Q12681 wd:Q22669850 wd:Q28104579 
+        wd:Q1660144 wd:Q134194 wd:Q132104 wd:Q174705 wd:Q1442998
       }
       ?item wdt:P31 ?type;
-            wdt:P195 wd:${qid};
+            wdt:P195|wdt:P276 wd:${qid};
             wdt:P18 ?image.
     }
   `;
@@ -206,7 +206,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
 
   let countResponse;
   try {
-    countResponse = await fetchWithRetry(countUrl, { headers }, 1, 1000, 30000, "Wikidata 总数获取", notify, checkAbort);
+    countResponse = await fetchWithRetry(countUrl, { headers }, 1, 1000, 15000, "Wikidata 总数获取", notify, checkAbort);
   } catch (e: any) {
     if (e.name === 'AbortError') throw new Error('连接失败: Wikidata 响应超时');
     throw new Error(`获取总数失败: ${e.message}`);
@@ -236,12 +236,12 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   const query = `
     SELECT ?item ?itemLabel ?creatorLabel ?image ?date WHERE {
       VALUES ?type { 
-        wd:Q3305213 wd:Q1683416 wd:Q5100913 wd:Q433454 wd:Q838948 
-        wd:Q428054 wd:Q2152862 wd:Q1750219 wd:Q1347065 wd:Q42502 
-        wd:Q1195655 wd:Q659357 wd:Q15303496 wd:Q1058223 wd:Q3534015
+        wd:Q3305213 wd:Q838948 wd:Q93184 wd:Q18761202 wd:Q919348 
+        wd:Q2188827 wd:Q5647631 wd:Q12681 wd:Q22669850 wd:Q28104579 
+        wd:Q1660144 wd:Q134194 wd:Q132104 wd:Q174705 wd:Q1442998
       }
       ?item wdt:P31 ?type;
-            wdt:P195 wd:${qid};
+            wdt:P195|wdt:P276 wd:${qid};
             wdt:P18 ?image.
       OPTIONAL { ?item wdt:P170 ?creator. }
       OPTIONAL { ?item wdt:P571|wdt:P580 ?date. }
@@ -255,8 +255,8 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
   
   let response;
   try {
-    // 尝试获取 Wikidata 数据，设置 60 秒超时，并定期发送“保持心跳”的通知
-    const fetchPromise = fetchWithRetry(url, { headers }, 1, 1000, 60000, "Wikidata 数据连接", notify, checkAbort);
+    // 尝试获取 Wikidata 数据，设置 30 秒超时，并定期发送“保持心跳”的通知
+    const fetchPromise = fetchWithRetry(url, { headers }, 1, 1000, 30000, "Wikidata 数据连接", notify, checkAbort);
 
     const start = Date.now();
     const timer = setInterval(() => {
@@ -273,7 +273,7 @@ async function fetchFromWikidata(qid: string, sourceName: string, notify?: (msg:
     }
 
   } catch (e: any) {
-    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (60s)' : (e.message || String(e));
+    const errorMsg = e.name === 'AbortError' ? 'Wikidata 响应超时 (30s)' : (e.message || String(e));
     throw new Error(`连接失败: ${errorMsg}`);
   }
 
