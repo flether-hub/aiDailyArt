@@ -17,6 +17,44 @@ export default function ArtworkDetail() {
   const [artwork, setArtwork] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [scale, setScale] = useState(1.5);
+  const [initialDist, setInitialDist] = useState<number | null>(null);
+  const [initialScale, setInitialScale] = useState(1.5);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    const delta = -e.deltaY * 0.002;
+    setScale(prev => {
+      const newScale = prev + delta;
+      return Math.min(Math.max(newScale, 1), 3);
+    });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      setInitialDist(dist);
+      setInitialScale(scale);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && initialDist !== null) {
+      const dist = Math.hypot(
+        e.touches[0].pageX - e.touches[1].pageX,
+        e.touches[0].pageY - e.touches[1].pageY
+      );
+      const ratio = dist / initialDist;
+      setScale(Math.min(Math.max(initialScale * ratio, 1), 3));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setInitialDist(null);
+  };
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,6 +136,12 @@ export default function ArtworkDetail() {
       document.title = "每日艺术画廊 - 人工智能策展赏析";
     };
   }, [id]);
+
+  useEffect(() => {
+    if (isZoomed) {
+      setScale(1.5);
+    }
+  }, [isZoomed]);
 
   const GuessYouLikeSection = () => {
     if (similarArtworks.length === 0) return null;
@@ -719,14 +763,18 @@ export default function ArtworkDetail() {
               </button>
               <motion.div 
                 className="w-full h-full flex items-center justify-center"
+                onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               >
                 <motion.img 
                   drag
                   dragConstraints={{ left: -1500, right: 1500, top: -1500, bottom: 1500 }}
                   initial={{ scale: 0.95 }}
-                  animate={{ scale: 2 }}
+                  animate={{ scale }}
                   exit={{ scale: 0.95 }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300, scale: { duration: 0.1 } }}
                   src={getProxiedImageUrl(artwork.image_url)} 
                   alt={artwork.title} 
                   className="max-w-[80vw] max-h-[80vh] object-contain shadow-2xl rounded-sm border border-slate-200/50 cursor-grab active:cursor-grabbing relative z-10" 
