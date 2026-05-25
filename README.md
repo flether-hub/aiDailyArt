@@ -129,3 +129,31 @@ wrangler pages deploy dist
    2. 在后台控制面板找到“核心设置”：
       - 设置 **API Key** (支持 Gemini API 或阿里云百炼 DashScope API)。
       - 选择供应商并指定适合的模型 ID，然后便可开启 “触发全网策展任务” 开始游览您的私人艺术馆了！
+
+---
+
+## 📊 代码规模与行数统计
+
+以下为本项目核心文件的代码规模及行业主流度统计分析：
+
+| 模块 / 目录 | 包含内容与主要功能描述 | 文件数 | 代码行数 (LOC) | 占比 (Lines %) |
+| :--- | :--- | :---: | :---: | :---: |
+| **前端核心页面 (`src/pages/`)** | 画册首页、艺术品交互赏析详情、管理员运营看板、登录界面 | 4 | 3,391 行 | 48.5% |
+| **前端应用骨架与样式 (`src/`)** | 路由总线路由 (`App.tsx`)、全局上下文与样式 (`index.css` 等) | 6 | 846 行 | 12.1% |
+| **前端公共工具库 (`src/lib/`)** | API 请求层、多语言解析器、正则文本清洗与脱敏算法 | 5 | 361 行 | 5.2% |
+| **后端 API 系统 (`functions/api/`)**| Hono 路由总收口、多源 ETL 数据抓取、Cloudflare D1/R2 适配层 | 4 | 2,185 行 | 31.2% |
+| **后端全局路由与元数据 (`functions/`)**| 机器人访问协议、搜索引擎 Sitemap 生成器、Pages 拦截件 | 3 | 93 行 | 1.3% |
+| **系统核心配置文件 (根目录)** | `package.json`、编译规则、Vite 管道、部署拓扑 `wrangler.toml` | 4 | 121 行 | 1.7% |
+| **总计** | **全栈数字美术馆系统** | **26 个** | **6,997 行** | **100.0%** |
+
+### 🔍 单个文件行数排行榜 (TOP 10)
+1. `src/pages/AdminDashboard.tsx` — 1,756 行 (后台管理与任务生命周期监视器)
+2. `functions/api/[[path]].ts` — 1,040 行 (Hono RESTful API 多重鉴权端点)
+3. `functions/api/_ai-fetcher.ts` — 878 行 (Wikidata / Met 源连接器及智能策展执行器)
+4. `src/pages/ArtworkDetail.tsx` — 793 行 (名画单页分析、渐变放大及无极滑轮与双指双向缩放、交互式留言板)
+5. `src/pages/Home.tsx` — 737 行 (画廊瀑布流展示与流动边栏排行)
+6. `src/App.tsx` — 536 行 (单页应用路由、动效与导航过渡)
+7. `functions/api/_db.ts` — 252 行 (Cloudflare D1 & Node (better-sqlite3) 混合自适应连接器)
+8. `src/lib/api.ts` — 163 行 (前端通用异步网络请求代理)
+9. `src/index.css` — 113 行 (Tailwind CSS 4 级艺术风格全集与动效基础定义)
+10. `src/pages/AdminLogin.tsx` — 105 行 (后台密码和 Session 凭证登录窗)
